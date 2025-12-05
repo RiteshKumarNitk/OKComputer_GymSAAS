@@ -69,6 +69,12 @@ const navigation: NavItem[] = [
     permission: "view_trainers",
   },
   {
+    title: "Front Desk",
+    href: "/front-desk",
+    icon: <Users className="h-4 w-4" />,
+    roles: ["gym_owner", "manager"],
+  },
+  {
     title: "Branches",
     href: "/branches",
     icon: <Building className="h-4 w-4" />,

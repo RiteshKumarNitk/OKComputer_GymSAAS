@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js"
-import type { Database } from "@/types/supabase"
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -8,7 +7,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables")
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -35,7 +34,7 @@ export const auth = {
   /* -----------------------------------------
      SIGN UP → FIXED + PROFILE CREATION
   ------------------------------------------ */
-  signUp: async (email: string, password: string, fullName: string) => {
+  signUp: async (email: string, password: string, fullName: string, role?: string, tenantId?: string) => {
     // Step 1 — Create Auth user
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -43,6 +42,8 @@ export const auth = {
       options: {
         data: {
           full_name: fullName,
+          role: role,
+          tenant_id: tenantId,
         },
       },
     })
@@ -55,20 +56,20 @@ export const auth = {
     const user = data.user
     if (!user) throw new Error("Auth user not created")
 
-    // Step 2 — Create Profile Entry
+    // Step 2 — Ensure Profile Entry (Upsert to handle trigger conflicts)
     const { error: profileError } = await supabase
       .from("users_profile")
-      .insert({
+      .upsert({
         id: user.id,
         email,
         full_name: fullName,
-        role: "gym_owner", // default role
-        tenant_id: null,
+        role: role || "gym_owner", // Default to gym_owner if not specified (e.g. self-signup)
+        tenant_id: tenantId || null,
       })
 
     if (profileError) {
-      console.error("PROFILE INSERT ERROR:", profileError)
-      throw profileError
+      console.error("PROFILE UPSERT ERROR:", profileError)
+      // We don't throw here to avoid blocking the auth flow if the trigger already did the job
     }
 
     return { user }

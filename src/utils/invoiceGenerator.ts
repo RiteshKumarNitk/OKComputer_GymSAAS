@@ -1,13 +1,6 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-
-// Add type definition for jspdf-autotable
-declare module 'jspdf' {
-    interface jsPDF {
-        autoTable: (options: any) => jsPDF;
-    }
-}
 
 interface InvoiceItem {
     description: string;
@@ -74,7 +67,7 @@ export const generateInvoicePDF = (invoice: InvoiceData, tenant: TenantData) => 
         `${invoice.currency} ${(item.amount / 100).toFixed(2)}`
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: 90,
         head: [tableColumn],
         body: tableRows,

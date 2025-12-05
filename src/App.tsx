@@ -1,4 +1,4 @@
-import React from "react"
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
@@ -25,6 +25,7 @@ import { NotFoundPage } from "@/pages/auth/NotFoundPage"
 import { SuperAdminPage } from "@/pages/admin/SuperAdminPage"
 import { BranchesPage } from "@/pages/app/BranchesPage"
 import { ServicesPage } from "@/pages/app/ServicesPage"
+import { FrontDeskPage } from "@/pages/app/FrontDeskPage"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -61,6 +62,7 @@ function App() {
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/members" element={<MembersPage />} />
                         <Route path="/trainers" element={<TrainersPage />} />
+                        <Route path="/front-desk" element={<FrontDeskPage />} />
                         <Route path="/branches" element={<BranchesPage />} />
                         <Route path="/services" element={<ServicesPage />} />
                         <Route path="/attendance" element={<AttendancePage />} />

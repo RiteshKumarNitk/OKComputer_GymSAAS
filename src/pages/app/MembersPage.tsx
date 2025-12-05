@@ -3,9 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/api/supabase"
 import { useAuth } from "@/features/auth/AuthContext"
 import type { Member, Membership } from "@/types"
-import { formatCurrency, formatDate, generateMemberCode } from "@/lib/utils"
+import { formatCurrency, formatDate } from "@/lib/utils"
 import {
-  Plus,
   Search,
   Edit,
   Trash2,
@@ -29,7 +28,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -41,7 +39,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MemberForm } from "@/features/members/MemberForm"
@@ -50,8 +47,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export const MembersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("")
+  const [activeTab, setActiveTab] = useState("list")
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
-  const [showMemberForm, setShowMemberForm] = useState(false)
+  const [showMemberForm, setShowMemberForm] = useState(false) // For Edit only
   const [showMemberDetails, setShowMemberDetails] = useState(false)
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -130,11 +128,6 @@ export const MembersPage: React.FC = () => {
     }
   }
 
-  const handleAddMember = () => {
-    setSelectedMember(null)
-    setShowMemberForm(true)
-  }
-
   const handleEditMember = (member: Member) => {
     setSelectedMember(member)
     setShowMemberForm(true)
@@ -208,135 +201,161 @@ export const MembersPage: React.FC = () => {
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button onClick={handleAddMember}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Member
-          </Button>
         </div>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search members..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
-              Status: {statusFilter === "all" ? "All" : statusFilter}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => setStatusFilter("all")}>All</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter("active")}>Active</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter("inactive")}>Inactive</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter("suspended")}>Suspended</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter("expired")}>Expired</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="list">View Members List</TabsTrigger>
+          <TabsTrigger value="create">Add New Member</TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Members</CardTitle>
-          <CardDescription>
-            Manage your gym members and their memberships
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Membership</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members?.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">{member.member_code}</TableCell>
-                    <TableCell>{member.full_name}</TableCell>
-                    <TableCell>{member.email}</TableCell>
-                    <TableCell>{member.phone}</TableCell>
-                    <TableCell>
-                      {member.membership?.name || "No Plan"}
-                      {member.membership && (
-                        <div className="text-xs text-muted-foreground">
-                          {formatCurrency(member.membership.price_cents, member.membership.currency)} / {member.membership.duration_days} days
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(member.status)}>
-                        {member.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(member.joined_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewMember(member)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditMember(member)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleDeleteMember(member)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <TabsContent value="list" className="space-y-4">
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search members..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="mr-2 h-4 w-4" />
+                  Status: {statusFilter === "all" ? "All" : statusFilter}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setStatusFilter("all")}>All</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("active")}>Active</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("inactive")}>Inactive</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("suspended")}>Suspended</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("expired")}>Expired</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          {members?.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No members found</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Members</CardTitle>
+              <CardDescription>
+                Manage your gym members and their memberships
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Member Code</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Membership</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {members?.map((member) => (
+                      <TableRow key={member.id}>
+                        <TableCell className="font-medium">{member.member_code}</TableCell>
+                        <TableCell>{member.full_name}</TableCell>
+                        <TableCell>{member.email}</TableCell>
+                        <TableCell>{member.phone}</TableCell>
+                        <TableCell>
+                          {member.membership?.name || "No Plan"}
+                          {member.membership && (
+                            <div className="text-xs text-muted-foreground">
+                              {formatCurrency(member.membership.price_cents, member.membership.currency)} / {member.membership.duration_days} days
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusBadgeVariant(member.status)}>
+                            {member.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(member.joined_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewMember(member)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditMember(member)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteMember(member)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
-      {/* Member Form Dialog */}
-      <Dialog open={showMemberForm} onOpenChange={setShowMemberForm}>
+              {members?.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No members found</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="create" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add New Member</CardTitle>
+              <CardDescription>
+                Create a new member account and assign a membership plan
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MemberForm
+                memberships={memberships || []}
+                onSuccess={() => {
+                  setActiveTab("list")
+                }}
+                onCancel={() => {
+                  setActiveTab("list")
+                }}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Edit Member Dialog */}
+      <Dialog open={showMemberForm} onOpenChange={(open) => {
+        setShowMemberForm(open)
+        if (!open) setSelectedMember(null)
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {selectedMember ? "Edit Member" : "Add New Member"}
-            </DialogTitle>
+            <DialogTitle>Edit Member</DialogTitle>
             <DialogDescription>
-              {selectedMember
-                ? "Update member information and membership details"
-                : "Create a new member account and assign a membership plan"}
+              Update member information and membership details
             </DialogDescription>
           </DialogHeader>
           <MemberForm

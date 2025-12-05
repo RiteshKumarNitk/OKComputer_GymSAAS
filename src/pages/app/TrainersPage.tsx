@@ -2,10 +2,9 @@ import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/api/supabase"
 import { useAuth } from "@/features/auth/AuthContext"
-import type { Trainer } from "@/types"
+import { Trainer, UserRole } from "@/types"
 import { formatCurrency } from "@/lib/utils"
 import {
-  Plus,
   Search,
   Edit,
   Trash2,
@@ -40,8 +39,8 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/components/ui/use-toast"
 
 export const TrainersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("")
@@ -49,10 +48,114 @@ export const TrainersPage: React.FC = () => {
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null)
   const [trainerToDelete, setTrainerToDelete] = useState<Trainer | null>(null)
   const { user, hasRole } = useAuth()
+  const { toast } = useToast()
   const queryClient = useQueryClient()
-  const canManageTrainers = hasRole(["gym_owner"])
+  const canManageTrainers = hasRole(["gym_owner", "manager"] as UserRole[])
 
-  // ... (keep existing code)
+  // Fetch Trainers
+  const { data: trainers, isLoading } = useQuery({
+    queryKey: ["trainers", searchQuery],
+    queryFn: async () => {
+      let query = supabase
+        .from("trainers")
+        .select("*")
+        .eq("tenant_id", user?.tenant_id)
+
+      if (searchQuery) {
+        query = query.or(`full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
+      }
+
+      query = query.order("created_at", { ascending: false })
+
+      const { data, error } = await query
+      if (error) throw error
+      return data as Trainer[]
+    },
+    enabled: !!user?.tenant_id,
+  })
+
+  // Create/Update Mutation
+  const saveTrainerMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      if (!user?.tenant_id) {
+        throw new Error("Tenant ID is missing. Please refresh the page or contact support.")
+      }
+
+      const data = {
+        tenant_id: user.tenant_id,
+        full_name: formData.get("full_name") as string,
+        email: formData.get("email") as string,
+        phone: formData.get("phone") as string,
+        bio: formData.get("bio") as string,
+        specialties: (formData.get("specialties") as string).split(",").map((s) => s.trim()),
+        hourly_rate_cents: Math.round(parseFloat(formData.get("hourly_rate") as string) * 100),
+        is_active: true,
+      }
+
+      if (selectedTrainer) {
+        const { error } = await supabase
+          .from("trainers")
+          .update(data)
+          .eq("id", selectedTrainer.id)
+          .eq("tenant_id", user.tenant_id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from("trainers").insert([data])
+        if (error) throw error
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trainers"] })
+      setIsDialogOpen(false)
+      setSelectedTrainer(null)
+      toast({ title: "Success", description: `Trainer ${selectedTrainer ? "updated" : "added"} successfully` })
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    },
+  })
+
+  // Delete Mutation
+  const deleteTrainerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("trainers")
+        .delete()
+        .eq("id", id)
+        .eq("tenant_id", user?.tenant_id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trainers"] })
+      setTrainerToDelete(null)
+      toast({ title: "Success", description: "Trainer deleted successfully" })
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    },
+  })
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    saveTrainerMutation.mutate(formData)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight">Trainers</h1>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-96 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -60,7 +163,6 @@ export const TrainersPage: React.FC = () => {
         <h1 className="text-3xl font-bold tracking-tight">Trainers</h1>
         {canManageTrainers && (
           <Button onClick={() => { setSelectedTrainer(null); setIsDialogOpen(true); }}>
-            <Plus className="mr-2 h-4 w-4" />
             Add Trainer
           </Button>
         )}

@@ -8,7 +8,7 @@ interface AuthContextType {
   session: any | null
   isLoading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, fullName: string) => Promise<void>
+  signUp: (email: string, password: string, fullName: string, role?: string, tenantId?: string) => Promise<void>
   signOut: () => Promise<void>
   hasRole: (roles: UserRole[]) => boolean
   hasPermission: (permission: string) => boolean
@@ -46,7 +46,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single()
 
       if (error) {
-        console.error("Error fetching user profile (likely RLS issue):", error)
+        // If profile is missing (PGRST116), try to create it on the fly (Self-Healing)
+        if (error.code === 'PGRST116') {
+          console.warn("Profile missing, attempting to create default profile...");
+          const { data: newProfile, error: createError } = await supabase
+            .from("users_profile")
+            .insert({
+              id: session.user.id,
+              email: session.user.email,
+              full_name: session.user.user_metadata?.full_name || "New User",
+              role: session.user.user_metadata?.role || "gym_owner",
+              tenant_id: session.user.user_metadata?.tenant_id || null
+            })
+            .select()
+            .single();
+          
+          if (createError) {
+             console.error("Failed to auto-create profile:", createError);
+             throw createError;
+          }
+          return newProfile;
+        }
+        
+        console.error("Error fetching user profile:", error)
         throw error
       }
       return data
@@ -136,13 +158,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   //-------------------------------------------------------
   // Sign Up (Correct Syntax + Metadata for Trigger)
   //-------------------------------------------------------
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, role?: string, tenantId?: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          full_name: fullName, // Required for your trigger
+          full_name: fullName,
+          role: role,
+          tenant_id: tenantId,
         },
       },
     })

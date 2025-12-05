@@ -120,7 +120,13 @@ export const SuperAdminPage: React.FC = () => {
                                             </TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button variant="outline" size="sm" onClick={() => {
-                                                    const inviteLink = `${window.location.origin}/signup?tenant=${tenant.id}&role=gym_owner`
+                                                    const params = new URLSearchParams({
+                                                        tenant: tenant.id,
+                                                        role: 'gym_owner',
+                                                        email: tenant.owner_email || '',
+                                                        name: tenant.owner_name || ''
+                                                    })
+                                                    const inviteLink = `${window.location.origin}/signup?${params.toString()}`
                                                     navigator.clipboard.writeText(inviteLink)
                                                     toast({ title: "Copied!", description: "Invite link copied." })
                                                 }}>

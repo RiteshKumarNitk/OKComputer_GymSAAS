@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/api/supabase"
 import { useAuth } from "@/features/auth/AuthContext"
-import type { Member, Membership, MemberStatus } from "@/types"
+import type { Member, Membership, MemberStatus, Trainer } from "@/types"
 import { generateMemberCode, formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,8 +41,24 @@ export const MemberForm: React.FC<MemberFormProps> = ({
     emergency_contact_phone: "",
     emergency_contact_relationship: "",
     current_plan_id: "",
+    assigned_trainer_id: "",
     status: "active" as MemberStatus,
     notes: "",
+  })
+
+  // Fetch trainers
+  const { data: trainers } = useQuery({
+    queryKey: ["trainers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trainers")
+        .select("*")
+        .eq("tenant_id", user?.tenant_id)
+        .eq("is_active", true)
+      if (error) throw error
+      return data as Trainer[]
+    },
+    enabled: !!user?.tenant_id,
   })
 
   // Initialize form with member data
@@ -59,6 +75,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
         emergency_contact_phone: member.emergency_contact?.phone || "",
         emergency_contact_relationship: member.emergency_contact?.relationship || "",
         current_plan_id: member.current_plan_id || "",
+        assigned_trainer_id: member.assigned_trainer_id || "",
         status: member.status,
         notes: member.notes || "",
       })
@@ -67,8 +84,12 @@ export const MemberForm: React.FC<MemberFormProps> = ({
 
   const memberMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      if (!user?.tenant_id) {
+        throw new Error("Tenant ID is missing. Please refresh the page or contact support.")
+      }
+
       const memberData = {
-        tenant_id: user?.tenant_id,
+        tenant_id: user.tenant_id,
         member_code: member?.member_code || generateMemberCode(),
         full_name: data.full_name,
         email: data.email,
@@ -84,6 +105,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
           }
           : null,
         current_plan_id: (data.current_plan_id && data.current_plan_id !== "none") ? data.current_plan_id : null,
+        assigned_trainer_id: (data.assigned_trainer_id && data.assigned_trainer_id !== "none") ? data.assigned_trainer_id : null,
         status: data.status,
         notes: data.notes,
       }
@@ -93,7 +115,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
           .from("members")
           .update(memberData)
           .eq("id", member.id)
-          .eq("tenant_id", user?.tenant_id)
+          .eq("tenant_id", user.tenant_id)
         if (error) throw error
       } else {
         const { error } = await supabase
@@ -263,6 +285,26 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                 {memberships?.map((membership) => (
                   <SelectItem key={membership.id} value={membership.id}>
                     {membership.name} - {formatCurrency(membership.price_cents, membership.currency)} / {membership.duration_days} days
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="assigned_trainer_id">Assigned Trainer</Label>
+            <Select
+              value={formData.assigned_trainer_id}
+              onValueChange={(value) => handleInputChange("assigned_trainer_id", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select trainer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Trainer</SelectItem>
+                {trainers?.map((trainer) => (
+                  <SelectItem key={trainer.id} value={trainer.id}>
+                    {trainer.full_name}
                   </SelectItem>
                 ))}
               </SelectContent>

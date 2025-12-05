@@ -46,6 +46,10 @@ export interface Tenant {
   email_from_name: string | null
   smtp_config: any | null
 
+  // Subscription
+  subscription_status: string | null
+  subscription_expires_at: string | null
+
   created_at: string
   updated_at: string
 }

@@ -105,14 +105,51 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
     }
 
     const handleSubmit = async () => {
+        console.log("Starting onboarding process...");
         setIsLoading(true)
         try {
-            // 1. Create Tenant
-            const { data: tenant, error: tenantError } = await supabase
+            console.log("Step 1: Creating Tenant...");
+            console.log("Tenant Data:", {
+                name: formData.name,
+                slug: formData.slug,
+                owner_email: formData.owner_email,
+            });
+
+            // 1. Create Tenant (Minimal Insert First)
+            console.log("Attempting minimal tenant insert...");
+
+            // Create a promise that rejects after 10 seconds
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Database request timed out. Check your network or database locks.")), 10000)
+            );
+
+            const insertPromise = supabase
                 .from("tenants")
                 .insert([{
                     name: formData.name,
                     slug: formData.slug,
+                    // Only inserting minimal fields first to avoid schema/serialization issues
+                }])
+                .select()
+                .single();
+
+            const result: any = await Promise.race([insertPromise, timeoutPromise]);
+            const { data: tenant, error: tenantError } = result;
+
+            if (tenantError) {
+                console.error("Error creating tenant (minimal):", tenantError);
+                throw tenantError;
+            }
+            if (!tenant) {
+                throw new Error("Tenant created but no data returned.");
+            }
+            console.log("Minimal tenant created:", tenant.id);
+
+            // 1.5 Update with full details
+            console.log("Updating tenant with full details...");
+            const { error: updateError } = await supabase
+                .from("tenants")
+                .update({
                     owner_name: formData.owner_name,
                     owner_email: formData.owner_email,
                     owner_phone: formData.owner_phone,
@@ -126,26 +163,32 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
                     billing_cycle: formData.billing_cycle,
                     payment_gateway_preference: formData.payment_gateway_preference,
                     invoice_prefix: formData.invoice_prefix,
-                    subscription_status: 'active', // Activate immediately upon payment
-                    subscription_expires_at: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(), // Default 1 year
-                }])
-                .select()
-                .single()
+                    subscription_status: 'active',
+                    subscription_expires_at: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+                })
+                .eq("id", tenant.id);
 
-            if (tenantError) throw tenantError
+            if (updateError) {
+                console.error("Error updating tenant details:", updateError);
+                // Don't throw here, we can still proceed or at least we have the tenant
+                toast({ title: "Warning", description: "Tenant created but some details failed to save.", variant: "destructive" });
+            }
 
             // 1.1 Upload Files if present
             let logoUrl = null
             let ownerPhotoUrl = null
 
             if (logoFile) {
+                console.log("Uploading logo...");
                 const fileExt = logoFile.name.split('.').pop()
                 const fileName = `${tenant.id}/logo.${fileExt}`
                 const { error: uploadError } = await supabase.storage
                     .from('tenants-public')
                     .upload(fileName, logoFile)
 
-                if (!uploadError) {
+                if (uploadError) {
+                    console.error("Logo upload error (non-fatal):", uploadError);
+                } else {
                     const { data: { publicUrl } } = supabase.storage
                         .from('tenants-public')
                         .getPublicUrl(fileName)
@@ -154,13 +197,16 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
             }
 
             if (ownerPhotoFile) {
+                console.log("Uploading owner photo...");
                 const fileExt = ownerPhotoFile.name.split('.').pop()
                 const fileName = `${tenant.id}/owner.${fileExt}`
                 const { error: uploadError } = await supabase.storage
                     .from('tenants-public')
                     .upload(fileName, ownerPhotoFile)
 
-                if (!uploadError) {
+                if (uploadError) {
+                    console.error("Owner photo upload error (non-fatal):", uploadError);
+                } else {
                     const { data: { publicUrl } } = supabase.storage
                         .from('tenants-public')
                         .getPublicUrl(fileName)
@@ -170,6 +216,7 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
 
             // Update tenant with URLs if uploaded
             if (logoUrl || ownerPhotoUrl) {
+                console.log("Updating tenant with image URLs...");
                 await supabase
                     .from("tenants")
                     .update({
@@ -181,6 +228,7 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
 
             // 2. Create First Branch
             if (formData.branch_name) {
+                console.log("Creating branch...");
                 const { error: branchError } = await supabase
                     .from("branches")
                     .insert([{
@@ -188,11 +236,13 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
                         name: formData.branch_name,
                         address: formData.branch_address,
                         phone: formData.branch_phone,
+                        // email: formData.branch_email, // Removed to prevent schema errors
                     }])
                 if (branchError) console.error("Error creating branch:", branchError)
             }
 
             // 3. Create Services
+            console.log("Creating services...");
             const servicesToCreate = Object.entries(formData.services)
                 .filter(([_, enabled]) => enabled)
                 .map(([name]) => ({
@@ -209,14 +259,30 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
                 if (serviceError) console.error("Error creating services:", serviceError)
             }
 
-            // 4. Create Default Plans
+            // 4. Create Default Plans with Random Indian Prices
             if (formData.create_default_plans) {
+                console.log("Creating default plans...");
+                const isZumba = formData.services.zumba;
+                // Base price between 1000 and 3000 INR
+                const baseMonthlyPrice = (Math.floor(Math.random() * 21) + 10) * 100;
+
+                // Add premium for Zumba (e.g., 500 INR)
+                const zumbaPremium = isZumba ? 500 : 0;
+
+                const monthlyPrice = baseMonthlyPrice + zumbaPremium;
+
+                // Calculate other durations with slight discounts
+                const quarterlyPrice = Math.round(monthlyPrice * 3 * 0.9); // 10% discount
+                const halfYearlyPrice = Math.round(monthlyPrice * 6 * 0.85); // 15% discount
+                const yearlyPrice = Math.round(monthlyPrice * 12 * 0.75); // 25% discount
+
+                // Convert to cents for DB
                 const defaultPlans = [
-                    { name: "Monthly", duration_days: 30, price_cents: 150000 },
-                    { name: "Quarterly", duration_days: 90, price_cents: 350000 },
-                    { name: "Half-Yearly", duration_days: 180, price_cents: 550000 },
-                    { name: "Yearly", duration_days: 365, price_cents: 900000 },
-                    { name: "PT Add-on", duration_days: 30, price_cents: 400000, type: "addon" },
+                    { name: "Monthly", duration_days: 30, price_cents: monthlyPrice * 100 },
+                    { name: "Quarterly", duration_days: 90, price_cents: quarterlyPrice * 100 },
+                    { name: "Half-Yearly", duration_days: 180, price_cents: halfYearlyPrice * 100 },
+                    { name: "Yearly", duration_days: 365, price_cents: yearlyPrice * 100 },
+                    { name: "PT Add-on", duration_days: 30, price_cents: 500000, type: "addon" }, // Fixed 5000 INR for PT
                 ]
 
                 const plansData = defaultPlans.map(plan => ({
@@ -235,6 +301,7 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
             }
 
             // 5. Generate Invoice & Save Record
+            console.log("Generating invoice...");
             const amountCents = Math.round(parseFloat(formData.payment_amount) * 100)
             const invoiceNumber = `${formData.invoice_prefix}-${Date.now().toString().slice(-6)}`
 
@@ -256,25 +323,32 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
                     console.error("Error creating invoice record:", invoiceError)
                     toast({ title: "Warning", description: "Tenant created but invoice record failed.", variant: "destructive" })
                 } else {
-                    // Generate PDF
-                    generateInvoicePDF({
-                        invoiceNumber: invoiceNumber,
-                        date: new Date(formData.payment_date),
-                        items: [{ description: "Initial Setup & Subscription Fee", amount: amountCents }],
-                        totalAmount: amountCents,
-                        currency: formData.billing_currency,
-                        paymentMethod: formData.payment_method,
-                        status: 'paid'
-                    }, {
-                        name: formData.name,
-                        ownerName: formData.owner_name,
-                        email: formData.owner_email,
-                        phone: formData.owner_phone,
-                        address: formData.registered_address
-                    })
+                    console.log("Generating PDF...");
+                    try {
+                        // Generate PDF
+                        generateInvoicePDF({
+                            invoiceNumber: invoiceNumber,
+                            date: new Date(formData.payment_date),
+                            items: [{ description: "Initial Setup & Subscription Fee", amount: amountCents }],
+                            totalAmount: amountCents,
+                            currency: formData.billing_currency,
+                            paymentMethod: formData.payment_method,
+                            status: 'paid'
+                        }, {
+                            name: formData.name,
+                            ownerName: formData.owner_name,
+                            email: formData.owner_email,
+                            phone: formData.owner_phone,
+                            address: formData.registered_address
+                        })
+                    } catch (pdfError) {
+                        console.error("PDF Generation Error:", pdfError);
+                        toast({ title: "Warning", description: "Tenant created but PDF generation failed.", variant: "destructive" });
+                    }
                 }
             }
 
+            console.log("Onboarding complete!");
             toast({ title: "Success", description: "Tenant onboarding completed & invoice generated!" })
             queryClient.invalidateQueries({ queryKey: ["tenants"] })
             onComplete()
@@ -283,6 +357,7 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
             console.error("Onboarding error:", error)
             toast({ title: "Error", description: error.message, variant: "destructive" })
         } finally {
+            console.log("Finally block reached. Stopping loading.");
             setIsLoading(false)
         }
     }
@@ -359,22 +434,7 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Primary Color</Label>
-                                    <div className="flex gap-2">
-                                        <Input type="color" className="w-12 p-1" value={formData.primary_color} onChange={(e) => handleInputChange("primary_color", e.target.value)} />
-                                        <Input value={formData.primary_color} onChange={(e) => handleInputChange("primary_color", e.target.value)} />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Secondary Color</Label>
-                                    <div className="flex gap-2">
-                                        <Input type="color" className="w-12 p-1" value={formData.secondary_color} onChange={(e) => handleInputChange("secondary_color", e.target.value)} />
-                                        <Input value={formData.secondary_color} onChange={(e) => handleInputChange("secondary_color", e.target.value)} />
-                                    </div>
-                                </div>
-                            </div>
+                            {/* Colors removed from UI as per request */}
 
                             <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                                 <div className="space-y-2">
@@ -531,11 +591,12 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
 
                                 {formData.create_default_plans && (
                                     <div className="bg-muted/50 p-4 rounded-md text-sm space-y-2">
-                                        <div className="flex justify-between"><span>Monthly Plan</span><span className="font-mono">₹1,500</span></div>
-                                        <div className="flex justify-between"><span>Quarterly Plan</span><span className="font-mono">₹3,500</span></div>
-                                        <div className="flex justify-between"><span>Half-Yearly Plan</span><span className="font-mono">₹5,500</span></div>
-                                        <div className="flex justify-between"><span>Yearly Plan</span><span className="font-mono">₹9,000</span></div>
-                                        <div className="flex justify-between"><span>PT Add-on</span><span className="font-mono">₹4,000</span></div>
+                                        <p className="text-xs text-muted-foreground mb-2">Note: Prices are generated randomly based on market rates and selected services (e.g., Zumba adds premium).</p>
+                                        <div className="flex justify-between"><span>Monthly Plan</span><span className="font-mono">~₹1,500 - ₹3,500</span></div>
+                                        <div className="flex justify-between"><span>Quarterly Plan</span><span className="font-mono">~₹4,000 - ₹9,000</span></div>
+                                        <div className="flex justify-between"><span>Half-Yearly Plan</span><span className="font-mono">~₹7,500 - ₹16,000</span></div>
+                                        <div className="flex justify-between"><span>Yearly Plan</span><span className="font-mono">~₹12,000 - ₹25,000</span></div>
+                                        <div className="flex justify-between"><span>PT Add-on</span><span className="font-mono">₹5,000</span></div>
                                     </div>
                                 )}
                             </div>

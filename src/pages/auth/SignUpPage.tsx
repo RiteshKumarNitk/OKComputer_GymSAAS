@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,8 +9,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Activity, Eye, EyeOff, CheckCircle2 } from "lucide-react"
 
 export const SignUpPage: React.FC = () => {
-  const [fullName, setFullName] = useState("")
-  const [email, setEmail] = useState("")
+  const [searchParams] = useSearchParams()
+  const [fullName, setFullName] = useState(searchParams.get("name") || "")
+  const [email, setEmail] = useState(searchParams.get("email") || "")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -21,6 +22,8 @@ export const SignUpPage: React.FC = () => {
 
   const { signUp } = useAuth()
   const navigate = useNavigate()
+
+  const isInviteFlow = !!searchParams.get("email")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,7 +42,9 @@ export const SignUpPage: React.FC = () => {
     setIsLoading(true)
 
     try {
-      await signUp(email, password, fullName)
+      const role = searchParams.get("role") || undefined
+      const tenantId = searchParams.get("tenant") || undefined
+      await signUp(email, password, fullName, role, tenantId)
       setSuccess(true)
     } catch (err: any) {
       setError(err.message || "Registration failed")
@@ -83,9 +88,13 @@ export const SignUpPage: React.FC = () => {
         ) : (
           <Card>
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
+              <CardTitle className="text-2xl font-bold text-center">
+                {isInviteFlow ? "Complete Account Setup" : "Create an account"}
+              </CardTitle>
               <CardDescription className="text-center">
-                Sign up to manage your gym operations
+                {isInviteFlow
+                  ? "Set your password to access your gym dashboard"
+                  : "Sign up to manage your gym operations"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -105,7 +114,8 @@ export const SignUpPage: React.FC = () => {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
-                    disabled={isLoading}
+                    disabled={isLoading || (isInviteFlow && !!searchParams.get("name"))}
+                    className={isInviteFlow && !!searchParams.get("name") ? "bg-muted" : ""}
                   />
                 </div>
 
@@ -118,7 +128,8 @@ export const SignUpPage: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    disabled={isLoading}
+                    disabled={isLoading || isInviteFlow}
+                    className={isInviteFlow ? "bg-muted" : ""}
                   />
                 </div>
 
