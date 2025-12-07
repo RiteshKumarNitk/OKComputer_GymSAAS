@@ -110,6 +110,34 @@ export const MemberForm: React.FC<MemberFormProps> = ({
         notes: data.notes,
       }
 
+      // Calculate Plan Dates logic
+      // Only update dates if:
+      // 1. It's a new member (member is undefined) AND a plan is selected
+      // 2. OR It's an existing member AND the plan has changed
+      const shouldUpdatePlanDates =
+        (!member && memberData.current_plan_id) ||
+        (member && memberData.current_plan_id && memberData.current_plan_id !== member.current_plan_id);
+
+      if (shouldUpdatePlanDates) {
+        const selectedPlan = memberships.find(m => m.id === memberData.current_plan_id)
+        if (selectedPlan) {
+          const startDate = new Date()
+          const endDate = new Date(startDate)
+          endDate.setDate(endDate.getDate() + selectedPlan.duration_days)
+
+          Object.assign(memberData, {
+            plan_started_at: startDate.toISOString(),
+            plan_expires_at: endDate.toISOString()
+          })
+        }
+      } else if (!memberData.current_plan_id) {
+        // If plan is removed explicitly
+        Object.assign(memberData, {
+          plan_started_at: null,
+          plan_expires_at: null
+        })
+      }
+
       if (member) {
         const { error } = await supabase
           .from("members")
@@ -284,7 +312,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                 <SelectItem value="none">No Plan</SelectItem>
                 {memberships?.map((membership) => (
                   <SelectItem key={membership.id} value={membership.id}>
-                    {membership.name} - {formatCurrency(membership.price_cents, membership.currency)} / {membership.duration_days} days
+                    {membership.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -329,6 +357,37 @@ export const MemberForm: React.FC<MemberFormProps> = ({
             </Select>
           </div>
         </div>
+
+        {/* Selected Plan Details - LIVE PREVIEW */}
+        {formData.current_plan_id && formData.current_plan_id !== "none" && (() => {
+          const plan = memberships.find(m => m.id === formData.current_plan_id)
+          if (!plan) return null
+          const startDate = new Date()
+          const endDate = new Date(startDate)
+          endDate.setDate(endDate.getDate() + plan.duration_days)
+
+          return (
+            <div className="mt-4 p-4 border rounded-lg bg-primary/5 space-y-3">
+              <h4 className="font-semibold text-primary flex items-center gap-2">
+                Selected Plan: {plan.name}
+              </h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Price</p>
+                  <p className="font-bold text-lg">{formatCurrency(plan.price_cents, plan.currency)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Duration</p>
+                  <p className="font-medium">{plan.duration_days} Days</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Valid Until</p>
+                  <p className="font-bold text-red-600">{format(endDate, "PPP")}</p>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Notes */}

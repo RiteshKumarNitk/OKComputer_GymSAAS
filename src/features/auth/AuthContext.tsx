@@ -7,6 +7,7 @@ interface AuthContextType {
   user: AuthUser | null
   session: any | null
   isLoading: boolean
+  tenantFeatures: string[] | null
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, fullName: string, role?: string, tenantId?: string) => Promise<void>
   signOut: () => Promise<void>
@@ -29,6 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null)
   const [session, setSession] = useState<any | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [tenantFeatures, setTenantFeatures] = useState<string[] | null>(null)
   const queryClient = useQueryClient()
 
   //-------------------------------------------------------
@@ -76,6 +78,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     enabled: !!session?.user?.id,
     retry: 1,
   })
+
+  // Fetch Tenant Features
+  const { data: tenantData } = useQuery({
+    queryKey: ["tenantFeatures", user?.tenant_id],
+    queryFn: async () => {
+      if (!user?.tenant_id) return null
+      const { data, error } = await supabase.from("tenants").select("features").eq("id", user.tenant_id).single()
+      if (error) return null 
+      return data
+    },
+    enabled: !!user?.tenant_id
+  })
+  
+  useEffect(() => {
+    if (tenantData?.features) {
+       setTenantFeatures(tenantData.features as unknown as string[])
+    }
+  }, [tenantData])
 
   //-------------------------------------------------------
   // Initialize Auth State
@@ -249,6 +269,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     isLoading,
+    tenantFeatures,
     signIn,
     signUp,
     signOut,

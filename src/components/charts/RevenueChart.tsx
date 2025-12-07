@@ -57,7 +57,7 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => `$${value}`}
+          tickFormatter={(value) => `₹${value}`}
         />
         <Tooltip content={<CustomTooltip />} />
         <Legend />

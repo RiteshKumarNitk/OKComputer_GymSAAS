@@ -19,13 +19,22 @@ import { BillingPage } from "@/pages/app/BillingPage"
 import { WorkoutsPage } from "@/pages/app/WorkoutsPage"
 import { DietPlansPage } from "@/pages/app/DietPlansPage"
 import { AnalyticsPage } from "@/pages/app/AnalyticsPage"
+import { ReportsPage } from "@/pages/app/ReportsPage"
 import { SettingsPage } from "@/pages/app/SettingsPage"
+import { ProfilePage } from "@/pages/app/ProfilePage"
 import { UnauthorizedPage } from "@/pages/auth/UnauthorizedPage"
 import { NotFoundPage } from "@/pages/auth/NotFoundPage"
 import { SuperAdminPage } from "@/pages/admin/SuperAdminPage"
 import { BranchesPage } from "@/pages/app/BranchesPage"
 import { ServicesPage } from "@/pages/app/ServicesPage"
 import { FrontDeskPage } from "@/pages/app/FrontDeskPage"
+import { LeadsPage } from "@/features/leads/LeadsPage"
+import { RenewalsPage } from "@/features/renewals/RenewalsPage"
+import { POSPage } from "@/features/pos/POSPage"
+import { LockersPage } from "@/features/lockers/LockersPage"
+import { OperationsPage } from "@/pages/app/OperationsPage"
+import { MemberLayout } from "@/features/member-portal/MemberLayout"
+import { MemberDashboard } from "@/features/member-portal/MemberDashboard"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -50,7 +59,19 @@ function App() {
               <Route path="/signup" element={<SignUpPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-              {/* Protected routes */}
+              {/* Member Portal Routes */}
+              <Route path="/member" element={
+                <ProtectedRoute>
+                  <MemberLayout />
+                </ProtectedRoute>
+              }>
+                <Route path="dashboard" element={<MemberDashboard />} />
+                <Route path="schedule" element={<div className="p-4">Schedule Coming Soon</div>} />
+                <Route path="profile" element={<div className="p-4">Profile Coming Soon</div>} />
+                <Route index element={<Navigate to="dashboard" replace />} />
+              </Route>
+
+              {/* CRM/Admin Routes */}
               <Route
                 path="/*"
                 element={
@@ -63,6 +84,11 @@ function App() {
                         <Route path="/members" element={<MembersPage />} />
                         <Route path="/trainers" element={<TrainersPage />} />
                         <Route path="/front-desk" element={<FrontDeskPage />} />
+                        <Route path="/leads" element={<LeadsPage />} />
+                        <Route path="/renewals" element={<RenewalsPage />} />
+                        <Route path="/pos" element={<POSPage />} />
+                        <Route path="/lockers" element={<LockersPage />} />
+                        <Route path="/operations" element={<OperationsPage />} />
                         <Route path="/branches" element={<BranchesPage />} />
                         <Route path="/services" element={<ServicesPage />} />
                         <Route path="/attendance" element={<AttendancePage />} />
@@ -71,7 +97,9 @@ function App() {
                         <Route path="/workouts" element={<WorkoutsPage />} />
                         <Route path="/diet-plans" element={<DietPlansPage />} />
                         <Route path="/analytics" element={<AnalyticsPage />} />
+                        <Route path="/reports" element={<ReportsPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
                         <Route path="*" element={<NotFoundPage />} />
                       </Routes>
                     </DashboardLayout>

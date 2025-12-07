@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -50,7 +51,7 @@ export const TrainersPage: React.FC = () => {
   const { user, hasRole } = useAuth()
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const canManageTrainers = hasRole(["gym_owner", "manager"] as UserRole[])
+  const canManageTrainers = hasRole(["super_admin", "gym_owner", "manager"] as UserRole[])
 
   // Fetch Trainers
   const { data: trainers, isLoading } = useQuery({
@@ -315,7 +316,7 @@ export const TrainersPage: React.FC = () => {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
+                <Label htmlFor="hourly_rate">Hourly Rate (₹)</Label>
                 <Input
                   id="hourly_rate"
                   name="hourly_rate"

@@ -62,7 +62,7 @@ export const MembersPage: React.FC = () => {
     queryFn: async () => {
       let query = supabase
         .from("members")
-        .select(`*, memberships(name, price_cents, duration_days)`)
+        .select(`*, membership:memberships(name, price_cents, duration_days)`)
         .eq("tenant_id", user?.tenant_id)
 
       if (searchQuery) {

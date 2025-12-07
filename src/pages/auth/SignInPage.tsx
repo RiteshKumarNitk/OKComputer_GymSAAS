@@ -1,5 +1,6 @@
 import React, { useState } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
+import { supabase } from "@/api/supabase"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,6 +29,17 @@ export const SignInPage: React.FC = () => {
 
     try {
       await signIn(email, password)
+
+      // Check role for smarter redirect
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser) {
+        const { data: profile } = await supabase.from('users_profile').select('role').eq('id', authUser.id).single()
+        if (profile?.role === 'member') {
+          navigate('/member/dashboard', { replace: true })
+          return
+        }
+      }
+
       navigate(from, { replace: true })
     } catch (err: any) {
       setError(err.message || "Invalid credentials")

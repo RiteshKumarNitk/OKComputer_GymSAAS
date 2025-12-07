@@ -49,6 +49,7 @@ export interface Tenant {
   // Subscription
   subscription_status: string | null
   subscription_expires_at: string | null
+  features: string[] | null
 
   created_at: string
   updated_at: string

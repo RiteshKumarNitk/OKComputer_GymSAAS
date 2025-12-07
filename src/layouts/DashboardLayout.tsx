@@ -66,7 +66,6 @@ const navigation: NavItem[] = [
     href: "/trainers",
     icon: <UserCheck className="h-4 w-4" />,
     roles: ["gym_owner", "manager"],
-    permission: "view_trainers",
   },
   {
     title: "Front Desk",
@@ -119,6 +118,12 @@ const navigation: NavItem[] = [
     roles: ["gym_owner", "manager", "trainer"],
   },
   {
+    title: "Reports",
+    href: "/reports",
+    icon: <FileText className="h-4 w-4" />,
+    roles: ["gym_owner", "manager"],
+  },
+  {
     title: "Analytics",
     href: "/analytics",
     icon: <BarChart3 className="h-4 w-4" />,
@@ -135,14 +140,28 @@ const navigation: NavItem[] = [
 
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, signOut, hasRole, hasPermission } = useAuth()
+  const { user, signOut, hasRole, hasPermission, tenantFeatures } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
   const filteredNavigation = navigation.filter((item) => {
     const hasRequiredRole = hasRole(item.roles)
     const hasRequiredPermission = !item.permission || hasPermission(item.permission)
-    return hasRequiredRole && hasRequiredPermission
+
+    const featureKey = item.href.substring(1)
+
+    // Separate dashboard for Super Admins
+    if (user?.role === 'super_admin') {
+      return ['super-admin', 'settings'].includes(featureKey)
+    }
+
+    if (['dashboard', 'settings', 'super-admin'].includes(featureKey)) return hasRequiredRole && hasRequiredPermission
+
+    if (tenantFeatures === null) return hasRequiredRole && hasRequiredPermission
+
+    const isFeatureEnabled = tenantFeatures.includes(featureKey)
+
+    return hasRequiredRole && hasRequiredPermission && isFeatureEnabled
   })
 
   const handleSignOut = async () => {

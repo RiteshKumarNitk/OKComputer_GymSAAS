@@ -76,6 +76,7 @@ export const FrontDeskPage: React.FC = () => {
             icon: RefreshCw,
             description: "Renew expired memberships",
             action: "renew",
+            path: "/renewals",
             color: "text-orange-500",
             bgColor: "bg-orange-500/10"
         },
@@ -84,6 +85,7 @@ export const FrontDeskPage: React.FC = () => {
             icon: Users,
             description: "Manage walk-ins and leads",
             action: "leads",
+            path: "/leads",
             color: "text-purple-500",
             bgColor: "bg-purple-500/10"
         },
@@ -92,6 +94,7 @@ export const FrontDeskPage: React.FC = () => {
             icon: Timer,
             description: "Schedule trial sessions",
             action: "trials",
+            path: "/leads",
             color: "text-pink-500",
             bgColor: "bg-pink-500/10"
         },
@@ -118,6 +121,7 @@ export const FrontDeskPage: React.FC = () => {
             icon: Lock,
             description: "Assign and manage lockers",
             action: "lockers",
+            path: "/lockers",
             color: "text-slate-500",
             bgColor: "bg-slate-500/10"
         },
@@ -135,6 +139,7 @@ export const FrontDeskPage: React.FC = () => {
             icon: ShoppingCart,
             description: "Sell products and supplements",
             action: "pos",
+            path: "/pos",
             color: "text-yellow-500",
             bgColor: "bg-yellow-500/10"
         },
@@ -143,6 +148,7 @@ export const FrontDeskPage: React.FC = () => {
             icon: MessageSquareWarning,
             description: "Log member complaints",
             action: "complaints",
+            path: "/operations?tab=complaints",
             color: "text-red-500",
             bgColor: "bg-red-500/10"
         },
@@ -151,14 +157,25 @@ export const FrontDeskPage: React.FC = () => {
             icon: User,
             description: "Log non-member visitors",
             action: "visitors",
+            path: "/operations?tab=visitors",
             color: "text-lime-500",
             bgColor: "bg-lime-500/10"
+        },
+        {
+            title: "Manage Trainers",
+            icon: User,
+            description: "Add, edit, or delete trainers",
+            action: "trainers",
+            path: "/trainers",
+            color: "text-indigo-600",
+            bgColor: "bg-indigo-600/10"
         },
         {
             title: "Staff Activity Log",
             icon: FileText,
             description: "View staff actions log",
             action: "staff-log",
+            path: "/operations", // Placeholder
             color: "text-stone-500",
             bgColor: "bg-stone-500/10"
         },
