@@ -18,10 +18,39 @@ app.use(express.json())
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "gym-saas-secret-key"
 
+// Snake_case → camelCase converter for Supabase shim compatibility
+function snakeToCamel(obj: any): any {
+    if (Array.isArray(obj)) return obj.map(snakeToCamel)
+    if (obj === null || typeof obj !== "object" || obj instanceof Date) return obj
+    const result: any = {}
+    for (const [key, value] of Object.entries(obj)) {
+        const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+        result[camelKey] = (typeof value === "object" && value !== null && !(value instanceof Date))
+            ? snakeToCamel(value) : value
+    }
+    return result
+}
+
 // ==================== AUTH ====================
 
 app.post("/api/auth/register", async (req, res) => {
     try {
+        // Only super_admin can create tenants/users
+        const authHeader = req.headers.authorization
+        if (!authHeader) return res.status(401).json({ error: "Authentication required. Only Super Admin can create accounts." })
+
+        let caller: any
+        try {
+            const token = authHeader.replace("Bearer ", "")
+            caller = jwt.verify(token, JWT_SECRET) as any
+        } catch {
+            return res.status(401).json({ error: "Invalid token" })
+        }
+
+        if (caller.role !== "super_admin") {
+            return res.status(403).json({ error: "Only Super Admin can create accounts" })
+        }
+
         const { email, password, fullName, role, tenantId } = req.body
         if (!email || !password || !fullName) {
             return res.status(400).json({ error: "Email, password, and fullName required" })
@@ -168,9 +197,12 @@ function createCrudRoutes(
     // CREATE
     app.post(`/api/${path}`, async (req, res) => {
         try {
-            const item = await model.create({ data: req.body })
+            // Supabase shim sends arrays via .insert([{...}]) — unwrap
+            const data = Array.isArray(req.body) ? req.body[0] : req.body
+            const item = await model.create({ data })
             res.json(item)
         } catch (err: any) {
+            console.error(`POST /api/${path} error:`, err.message)
             res.status(500).json({ error: err.message })
         }
     })
@@ -227,6 +259,9 @@ createCrudRoutes("member-workouts", "memberWorkout", { include: { workout: true 
 createCrudRoutes("member-diets", "memberDiet", { include: { dietPlan: true }, filterFields: ["memberId"] })
 createCrudRoutes("payments", "payment", { filterFields: ["status", "memberId"] })
 createCrudRoutes("users", "userProfile", { searchFields: ["fullName", "email"], filterFields: ["role", "isActive"] })
+createCrudRoutes("saas_plans", "saasPlan", { filterFields: ["isActive"] })
+createCrudRoutes("saas_subscriptions", "saasSubscription", { filterFields: ["tenantId", "status"], include: { plan: true } })
+createCrudRoutes("saas_invoices", "saasInvoice", { filterFields: ["tenantId", "status"], include: { tenant: { select: { name: true } } } })
 
 // ==================== TENANTS ====================
 
@@ -239,8 +274,15 @@ app.get("/api/tenants", async (_req, res) => {
 })
 
 app.post("/api/tenants", async (req, res) => {
-    const tenant = await prisma.tenant.create({ data: req.body })
-    res.json(tenant)
+    try {
+        // Supabase shim sends arrays via .insert([{...}]) — unwrap
+        const data = Array.isArray(req.body) ? req.body[0] : req.body
+        const tenant = await prisma.tenant.create({ data })
+        res.json(tenant)
+    } catch (err: any) {
+        console.error("POST /api/tenants error:", err.message)
+        res.status(500).json({ error: err.message })
+    }
 })
 
 app.patch("/api/tenants", async (req, res) => {

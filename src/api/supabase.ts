@@ -52,9 +52,9 @@ function createQueryBuilder(tableName: string) {
         payments: "payments",
         tenants: "tenants",
         users_profile: "users",
-        saas_plans: "billing?type=plans",
-        saas_subscriptions: "billing?type=subscription",
-        saas_invoices: "billing?type=invoices",
+        saas_plans: "saas_plans",
+        saas_subscriptions: "saas_subscriptions",
+        saas_invoices: "saas_invoices",
     }
 
     const mappedTable = tableMap[tableName] || tableName

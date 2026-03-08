@@ -1,6 +1,5 @@
 import React, { useState } from "react"
-import { Link, useNavigate, useLocation } from "react-router-dom"
-import { supabase } from "@/api/supabase"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,12 +29,16 @@ export const SignInPage: React.FC = () => {
     try {
       await signIn(email, password)
 
-      // Check role for smarter redirect
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (authUser) {
-        const { data: profile } = await supabase.from('users_profile').select('role').eq('id', authUser.id).single()
-        if (profile?.role === 'member') {
-          navigate('/member/dashboard', { replace: true })
+      // Read stored user to check role for redirect
+      const stored = localStorage.getItem("gym_user")
+      if (stored) {
+        const user = JSON.parse(stored)
+        if (user.role === "member") {
+          navigate("/member/dashboard", { replace: true })
+          return
+        }
+        if (user.role === "super_admin") {
+          navigate("/admin", { replace: true })
           return
         }
       }
@@ -108,26 +111,10 @@ export const SignInPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
-
-            <div className="mt-4 text-center text-sm">
-              <span className="text-muted-foreground">Don't have an account? </span>
-              <Link to="/signup" className="text-primary hover:underline">
-                Sign up
-              </Link>
-            </div>
           </CardContent>
         </Card>
       </div>

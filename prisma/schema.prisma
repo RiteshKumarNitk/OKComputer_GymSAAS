@@ -100,12 +100,23 @@ model Tenant {
   name                    String
   slug                    String             @unique
   ownerUserId             String?            // Link to User profile id
+  ownerName               String?
+  ownerEmail              String?
+  ownerPhone              String?
+  ownerPhotoUrl           String?
   address                 Json?              // { street, city, state, zip }
   phone                   String?
   email                   String?
   timezone                String?            @default("UTC")
   currency                String?            @default("USD")
   logoUrl                 String?
+  businessType            String?
+  gstNumber               String?
+  panNumber               String?
+  registeredAddress       String?
+  billingCycle            String?            @default("monthly")
+  paymentGatewayPreference String?
+  invoicePrefix           String?
   subscriptionId          String?
   subscriptionStatus      SubscriptionStatus @default(inactive)
   subscriptionExpiresAt   DateTime?

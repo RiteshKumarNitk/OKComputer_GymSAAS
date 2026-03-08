@@ -223,3 +223,86 @@ For support, please open an issue in the GitHub repository or contact the develo
 - 📋 IoT device integration
 - 📋 Advanced reporting
 - 📋 Multi-language support
+
+
+
+
+
+
+
+
+
+//////
+Fix Tenant Creation: Schema vs Wizard Mismatch
+Problem
+The TenantOnboardingWizard sends ~15 fields that don't exist in the Prisma 
+Tenant
+ model. When the wizard submits, Prisma rejects the unknown fields → 500 error.
+
+What the Wizard Sends vs What the Schema Has
+Wizard Field (snake_case)	Prisma Model Field	Status
+name
+name
+✅ Exists
+slug	slug	✅ Exists
+owner_email	❌	Missing
+owner_name	❌	Missing
+owner_phone	❌	Missing
+owner_photo_url	❌	Missing
+business_type	❌	Missing
+gst_number	❌	Missing
+pan_number	❌	Missing
+registered_address	❌	Missing
+billing_currency	currency	⚠️ Different name
+billing_cycle	❌	Missing
+payment_gateway_preference	❌	Missing
+invoice_prefix	❌	Missing
+logo_url	logoUrl	⚠️ snake vs camelCase
+primary_color	primaryColor	⚠️ snake vs camelCase
+secondary_color	secondaryColor	⚠️ snake vs camelCase
+subscription_status	subscriptionStatus	⚠️ snake vs camelCase
+subscription_expires_at	subscriptionExpiresAt	⚠️ snake vs camelCase
+Proposed Changes
+1. Add missing fields to Tenant model
+[MODIFY] 
+schema.prisma
+Add to the Tenant model:
+
+diff
++  ownerName               String?
++  ownerEmail              String?
++  ownerPhone              String?
++  ownerPhotoUrl           String?
++  businessType            String?
++  gstNumber               String?
++  panNumber               String?
++  registeredAddress       String?
++  billingCycle            String?            @default("monthly")
++  paymentGatewayPreference String?
++  invoicePrefix           String?
+2. Push schema to database
+bash
+npx prisma db push
+3. Add snake_case → camelCase mapping in server
+[MODIFY] 
+server/index.ts
+Add a field mapper in the CRUD create/update handler that converts snake_case keys from the Supabase shim to camelCase for Prisma:
+
+owner_name → ownerName
+logo_url → logoUrl
+subscription_status → subscriptionStatus
+etc.
+4. Seed SaaS Plans (currently empty)
+The "Available Plans" tab is empty. We need to seed default plans:
+
+Free Trial (₹0, 14 days)
+Basic (₹999/mo)
+Pro (₹2499/mo)
+Enterprise (₹4999/mo)
+Verification
+Login as super admin → Create Tenant wizard → all 5 steps complete without errors
+Tenant appears in the list with correct data
+Plans show in the "Available Plans" tab
+
+Comment
+Ctrl+Alt+M
