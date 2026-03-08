@@ -1,0 +1,80 @@
+﻿node.exe : C:\Users\Rit
+eshKumar\Documents\gith
+ub\OKComputer_GymSAAS\n
+ode_modules\@prisma\cli
+ent\src\runtime\getPris
+maClient.ts:260
+At line:1 char:1
++ & "C:\Program Files\n
+vm-nodejs/node.exe" 
+"C:\Program 
+Files\nvm-nodejs ...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (C:\Users\Rite   
+ sh...maClient.ts:2    
+60:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+        throw new Prism
+aClientInitializationEr
+ror(
+              ^
+
+PrismaClientInitializat
+ionError: 
+`PrismaClient` needs 
+to be constructed with 
+a non-empty, valid 
+`PrismaClientOptions`:
+
+```
+new PrismaClient({
+  ...
+})
+```
+
+or
+
+```
+constructor() {
+  super({ ... });
+}
+```
+          
+    at new t (C:\Users\
+RiteshKumar\Documents\g
+ithub\OKComputer_GymSAA
+S\node_modules\@prisma\
+client\src\runtime\getP
+rismaClient.ts:260:15)
+    at <anonymous> (C:\
+Users\RiteshKumar\Docum
+ents\github\OKComputer_
+GymSAAS\server\index.ts
+:8:16)
+    at ModuleJob.run (n
+ode:internal/modules/es
+m/module_job:343:25)
+    at async onImport.t
+racePromise.__proto__ (
+node:internal/modules/e
+sm/loader:665:26)
+    at async asyncRunEn
+tryPointWithESMLoader (
+node:internal/modules/r
+un_main:117:5) {
+  clientVersion: 
+'7.4.2',
+  errorCode: undefined,
+  retryable: undefined
+}
+
+Node.js v22.21.1
