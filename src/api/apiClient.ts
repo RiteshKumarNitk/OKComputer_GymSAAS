@@ -207,10 +207,12 @@ export const usersApi = {
 
 // ========== BILLING (SaaS) ==========
 export const billingApi = {
-    getPlans: () => request<any[]>("/billing/plans"),
-    getSubscription: (tenantId: string) => request<any>(`/billing/subscription?tenantId=${tenantId}`),
-    getInvoices: (tenantId: string) => request<any[]>(`/billing/invoices?tenantId=${tenantId}`),
-    subscribe: (data: any) => request<any>("/billing/subscribe", { method: "POST", body: JSON.stringify(data) }),
+    getPlans: () => request<any[]>("/saas_plans"),
+    getSubscription: (tenantId: string) => request<any>(`/saas_subscriptions?tenantId=${tenantId}`),
+    getInvoices: (tenantId: string) => request<any[]>(`/saas_invoices?tenantId=${tenantId}`),
+    subscribe: (data: any) => request<any>("/saas_subscriptions", { method: "POST", body: JSON.stringify(data) }),
+    updatePlan: (id: string, data: any) => request<any>(`/saas_plans?id=${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    createInvoice: (data: any) => request<any>("/saas_invoices", { method: "POST", body: JSON.stringify(data) }),
 }
 
 // ========== FILE UPLOAD (Cloudinary) ==========

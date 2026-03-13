@@ -1,58 +1,75 @@
-import React, { useState, useEffect } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import React, { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { tenantsApi, branchesApi, servicesApi, membershipsApi, billingApi, uploadApi } from "@/api/apiClient"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, CheckCircle2, FileText, CreditCard, Upload } from "lucide-react"
+import { 
+    Loader2, 
+    CheckCircle2, 
+    CreditCard, 
+    Building2, 
+    User, 
+    Image as ImageIcon,
+    Settings,
+    Shield,
+    ChevronRight,
+    ChevronLeft,
+    Sparkles,
+    Check,
+    Eye,
+    EyeOff,
+    Key
+} from "lucide-react"
 import { generateInvoicePDF } from "@/utils/invoiceGenerator"
+import { cn } from "@/lib/utils"
 
 interface TenantOnboardingWizardProps {
     onComplete: () => void
     onCancel: () => void
 }
 
+const STEPS = [
+    { title: "Business Identity", icon: Building2, desc: "Gym name & branding" },
+    { title: "Owner Profile", icon: User, desc: "Personal & credentials" },
+    { title: "SaaS Package", icon: Sparkles, desc: "Services & default plans" },
+    { title: "Review & Pay", icon: CreditCard, desc: "Confirmation" }
+]
+
 export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ onComplete, onCancel }) => {
     const { toast } = useToast()
     const queryClient = useQueryClient()
     const [step, setStep] = useState(1)
     const [isLoading, setIsLoading] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
     const [logoFile, setLogoFile] = useState<File | null>(null)
+    const [logoPreview, setLogoPreview] = useState<string | null>(null)
     const [ownerPhotoFile, setOwnerPhotoFile] = useState<File | null>(null)
 
     // Form State
     const [formData, setFormData] = useState({
-        // Step 1: Basic & Branding
+        // Identity (CamelCase to match Prisma exactly)
         name: "",
         slug: "",
-        owner_name: "",
-        owner_email: "",
-        owner_phone: "",
-        primary_color: "#7c3aed",
-        secondary_color: "#4c1d95",
+        businessType: "gym",
+        registeredAddress: "",
+        
+        // Owner
+        ownerName: "",
+        ownerEmail: "",
+        ownerPhone: "",
+        ownerPassword: "",
+        
+        // Billing Config
+        currency: "INR",
+        invoicePrefix: "GYM",
+        paymentGatewayPreference: "cash",
 
-        // Step 2: Business & Billing
-        business_type: "gym",
-        gst_number: "",
-        pan_number: "",
-        registered_address: "",
-        billing_currency: "INR",
-        billing_cycle: "monthly",
-        payment_gateway_preference: "cash",
-        invoice_prefix: "INV",
-
-        // Step 3: First Branch
-        branch_name: "",
-        branch_address: "",
-        branch_phone: "",
-        branch_email: "",
-
-        // Step 4: Services (Checkboxes)
+        // Services
         services: {
             strength: true,
             cardio: true,
@@ -61,36 +78,37 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
             yoga: false,
             mma: false,
         },
-
-        // Step 4: Default Plans
         create_default_plans: true,
 
-        // Step 5: Payment
-        payment_amount: "0",
+        // Taxation (Mandatory for Indian Gyms)
+        gstNumber: "",
+        panNumber: "",
+
+        // Payment
+        payment_amount: "9999",
         payment_method: "cash",
         payment_date: new Date().toISOString().split('T')[0],
     })
 
     const handleInputChange = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }))
+        if (field === "name") {
+            const slug = value.toLowerCase().replace(/[^a-z0-9]/g, "-")
+            setFormData(prev => ({ ...prev, slug, name: value }))
+        }
     }
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'owner') => {
         if (e.target.files && e.target.files[0]) {
-            if (type === 'logo') setLogoFile(e.target.files[0])
-            else setOwnerPhotoFile(e.target.files[0])
+            const file = e.target.files[0]
+            if (type === 'logo') {
+                setLogoFile(file)
+                setLogoPreview(URL.createObjectURL(file))
+            } else {
+                setOwnerPhotoFile(file)
+            }
         }
     }
-
-    // Dynamic Pricing Logic
-    useEffect(() => {
-        if (step === 5) {
-            const baseFee = 5000
-            const serviceCount = Object.values(formData.services).filter(Boolean).length
-            const calculatedAmount = baseFee + (serviceCount * 1000)
-            setFormData(prev => ({ ...prev, payment_amount: calculatedAmount.toString() }))
-        }
-    }, [step])
 
     const handleServiceChange = (service: string, checked: boolean) => {
         setFormData(prev => ({
@@ -99,257 +117,113 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
         }))
     }
 
-    const generateSlug = (name: string) => {
-        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-")
-        setFormData(prev => ({ ...prev, slug }))
-    }
-
     const handleSubmit = async () => {
-        console.log("Starting onboarding process...");
         setIsLoading(true)
         try {
-            console.log("Step 1: Creating Tenant...");
-            console.log("Tenant Data:", {
-                name: formData.name,
-                slug: formData.slug,
-                owner_email: formData.owner_email,
-            });
-
-            // 1. Create Tenant (Minimal Insert First)
-            console.log("Attempting minimal tenant insert...");
-
-            // Create a promise that rejects after 10 seconds
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Database request timed out. Check your network or database locks.")), 10000)
-            );
-
-            const insertPromise = supabase
-                .from("tenants")
-                .insert([{
-                    name: formData.name,
-                    slug: formData.slug,
-                    // Only inserting minimal fields first to avoid schema/serialization issues
-                }])
-                .select()
-                .single();
-
-            const result: any = await Promise.race([insertPromise, timeoutPromise]);
-            const { data: tenant, error: tenantError } = result;
-
-            if (tenantError) {
-                console.error("Error creating tenant (minimal):", tenantError);
-                throw tenantError;
-            }
-            if (!tenant) {
-                throw new Error("Tenant created but no data returned.");
-            }
-            console.log("Minimal tenant created:", tenant.id);
-
-            // 1.5 Update with full details
-            console.log("Updating tenant with full details...");
-            const { error: updateError } = await supabase
-                .from("tenants")
-                .update({
-                    owner_name: formData.owner_name,
-                    owner_email: formData.owner_email,
-                    owner_phone: formData.owner_phone,
-                    primary_color: formData.primary_color,
-                    secondary_color: formData.secondary_color,
-                    business_type: formData.business_type,
-                    gst_number: formData.gst_number,
-                    pan_number: formData.pan_number,
-                    registered_address: formData.registered_address,
-                    billing_currency: formData.billing_currency,
-                    billing_cycle: formData.billing_cycle,
-                    payment_gateway_preference: formData.payment_gateway_preference,
-                    invoice_prefix: formData.invoice_prefix,
-                    subscription_status: 'active',
-                    subscription_expires_at: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-                })
-                .eq("id", tenant.id);
-
-            if (updateError) {
-                console.error("Error updating tenant details:", updateError);
-                // Don't throw here, we can still proceed or at least we have the tenant
-                toast({ title: "Warning", description: "Tenant created but some details failed to save.", variant: "destructive" });
-            }
-
-            // 1.1 Upload Files if present
+            // 1. Upload Files
             let logoUrl = null
             let ownerPhotoUrl = null
-
             if (logoFile) {
-                console.log("Uploading logo...");
-                const fileExt = logoFile.name.split('.').pop()
-                const fileName = `${tenant.id}/logo.${fileExt}`
-                const { error: uploadError } = await supabase.storage
-                    .from('tenants-public')
-                    .upload(fileName, logoFile)
-
-                if (uploadError) {
-                    console.error("Logo upload error (non-fatal):", uploadError);
-                } else {
-                    const { data: { publicUrl } } = supabase.storage
-                        .from('tenants-public')
-                        .getPublicUrl(fileName)
-                    logoUrl = publicUrl
-                }
+                const res = await uploadApi.uploadImage(logoFile)
+                if (res) logoUrl = res.url
             }
-
             if (ownerPhotoFile) {
-                console.log("Uploading owner photo...");
-                const fileExt = ownerPhotoFile.name.split('.').pop()
-                const fileName = `${tenant.id}/owner.${fileExt}`
-                const { error: uploadError } = await supabase.storage
-                    .from('tenants-public')
-                    .upload(fileName, ownerPhotoFile)
-
-                if (uploadError) {
-                    console.error("Owner photo upload error (non-fatal):", uploadError);
-                } else {
-                    const { data: { publicUrl } } = supabase.storage
-                        .from('tenants-public')
-                        .getPublicUrl(fileName)
-                    ownerPhotoUrl = publicUrl
-                }
+                const res = await uploadApi.uploadImage(ownerPhotoFile)
+                if (res) ownerPhotoUrl = res.url
             }
 
-            // Update tenant with URLs if uploaded
-            if (logoUrl || ownerPhotoUrl) {
-                console.log("Updating tenant with image URLs...");
-                await supabase
-                    .from("tenants")
-                    .update({
-                        logo_url: logoUrl,
-                        owner_photo_url: ownerPhotoUrl
-                    })
-                    .eq("id", tenant.id)
-            }
+            // 2. Create Tenant (Send CLEAN camelCase data)
+            const { data: tenant, error: tenantError } = await tenantsApi.create({
+                name: formData.name,
+                slug: formData.slug,
+                businessType: formData.businessType,
+                registeredAddress: formData.registeredAddress,
+                ownerName: formData.ownerName,
+                ownerEmail: formData.ownerEmail,
+                ownerPhone: formData.ownerPhone,
+                ownerPassword: formData.ownerPassword,
+                currency: formData.currency,
+                invoicePrefix: formData.invoicePrefix,
+                paymentGatewayPreference: formData.paymentGatewayPreference,
+                gstNumber: formData.gstNumber,
+                panNumber: formData.panNumber,
+                logoUrl: logoUrl,
+                ownerPhotoUrl: ownerPhotoUrl,
+                subscriptionStatus: 'active',
+                subscriptionExpiresAt: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+            })
 
-            // 2. Create First Branch
-            if (formData.branch_name) {
-                console.log("Creating branch...");
-                const { error: branchError } = await supabase
-                    .from("branches")
-                    .insert([{
-                        tenant_id: tenant.id,
-                        name: formData.branch_name,
-                        address: formData.branch_address,
-                        phone: formData.branch_phone,
-                        // email: formData.branch_email, // Removed to prevent schema errors
-                    }])
-                if (branchError) console.error("Error creating branch:", branchError)
-            }
+            if (tenantError) throw tenantError
+            if (!tenant) throw new Error("Failed to create tenant")
 
-            // 3. Create Services
-            console.log("Creating services...");
+            // 3. Create Default Branch
+            await branchesApi.create({
+                tenantId: tenant.id,
+                name: "Main Branch",
+                address: formData.registeredAddress,
+                phone: formData.ownerPhone,
+            })
+
+            // 4. Create Services
             const servicesToCreate = Object.entries(formData.services)
                 .filter(([_, enabled]) => enabled)
                 .map(([name]) => ({
-                    tenant_id: tenant.id,
-                    name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize
+                    tenantId: tenant.id,
+                    name: name.charAt(0).toUpperCase() + name.slice(1),
                     type: name === "strength" || name === "cardio" ? "facility" : "class",
                     description: `Standard ${name} access`,
                 }))
 
-            if (servicesToCreate.length > 0) {
-                const { error: serviceError } = await supabase
-                    .from("services")
-                    .insert(servicesToCreate)
-                if (serviceError) console.error("Error creating services:", serviceError)
+            for (const service of servicesToCreate) {
+                await servicesApi.create(service)
             }
 
-            // 4. Create Default Plans with Random Indian Prices
+            // 5. Create Default Subscription Plan
             if (formData.create_default_plans) {
-                console.log("Creating default plans...");
-                const isZumba = formData.services.zumba;
-                // Base price between 1000 and 3000 INR
-                const baseMonthlyPrice = (Math.floor(Math.random() * 21) + 10) * 100;
-
-                // Add premium for Zumba (e.g., 500 INR)
-                const zumbaPremium = isZumba ? 500 : 0;
-
-                const monthlyPrice = baseMonthlyPrice + zumbaPremium;
-
-                // Calculate other durations with slight discounts
-                const quarterlyPrice = Math.round(monthlyPrice * 3 * 0.9); // 10% discount
-                const halfYearlyPrice = Math.round(monthlyPrice * 6 * 0.85); // 15% discount
-                const yearlyPrice = Math.round(monthlyPrice * 12 * 0.75); // 25% discount
-
-                // Convert to cents for DB
-                const defaultPlans = [
-                    { name: "Monthly", duration_days: 30, price_cents: monthlyPrice * 100 },
-                    { name: "Quarterly", duration_days: 90, price_cents: quarterlyPrice * 100 },
-                    { name: "Half-Yearly", duration_days: 180, price_cents: halfYearlyPrice * 100 },
-                    { name: "Yearly", duration_days: 365, price_cents: yearlyPrice * 100 },
-                    { name: "PT Add-on", duration_days: 30, price_cents: 500000, type: "addon" }, // Fixed 5000 INR for PT
-                ]
-
-                const plansData = defaultPlans.map(plan => ({
-                    tenant_id: tenant.id,
-                    name: plan.name,
-                    duration_days: plan.duration_days,
-                    price_cents: plan.price_cents,
-                    currency: formData.billing_currency,
-                    is_active: true,
-                }))
-
-                const { error: planError } = await supabase
-                    .from("memberships")
-                    .insert(plansData)
-                if (planError) console.error("Error creating plans:", planError)
+                await membershipsApi.create({
+                    name: "SaaS Subscription (Standard)", 
+                    durationDays: 365, 
+                    priceCents: parseInt(formData.payment_amount) * 100,
+                    tenantId: tenant.id,
+                    currency: formData.currency,
+                    isActive: true,
+                })
             }
 
-            // 5. Generate Invoice & Save Record
-            console.log("Generating invoice...");
+            // 6. Generate Invoice
             const amountCents = Math.round(parseFloat(formData.payment_amount) * 100)
-            const invoiceNumber = `${formData.invoice_prefix}-${Date.now().toString().slice(-6)}`
+            const invoiceNumber = `${formData.invoicePrefix}-${Date.now().toString().slice(-6)}`
 
             if (amountCents > 0) {
-                const { error: invoiceError } = await supabase
-                    .from("saas_invoices")
-                    .insert([{
-                        tenant_id: tenant.id,
-                        invoice_number: invoiceNumber,
-                        amount_cents: amountCents,
-                        currency: formData.billing_currency,
-                        status: 'paid',
-                        payment_method: formData.payment_method,
-                        payment_date: new Date(formData.payment_date).toISOString(),
-                        items: [{ description: "Initial Setup & Subscription Fee", amount: amountCents }]
-                    }])
+                await billingApi.createInvoice({
+                    tenantId: tenant.id,
+                    invoiceNumber: invoiceNumber,
+                    amountInr: parseFloat(formData.payment_amount),
+                    status: 'paid',
+                    paymentDate: new Date(formData.payment_date).toISOString(),
+                })
 
-                if (invoiceError) {
-                    console.error("Error creating invoice record:", invoiceError)
-                    toast({ title: "Warning", description: "Tenant created but invoice record failed.", variant: "destructive" })
-                } else {
-                    console.log("Generating PDF...");
-                    try {
-                        // Generate PDF
-                        generateInvoicePDF({
-                            invoiceNumber: invoiceNumber,
-                            date: new Date(formData.payment_date),
-                            items: [{ description: "Initial Setup & Subscription Fee", amount: amountCents }],
-                            totalAmount: amountCents,
-                            currency: formData.billing_currency,
-                            paymentMethod: formData.payment_method,
-                            status: 'paid'
-                        }, {
-                            name: formData.name,
-                            ownerName: formData.owner_name,
-                            email: formData.owner_email,
-                            phone: formData.owner_phone,
-                            address: formData.registered_address
-                        })
-                    } catch (pdfError) {
-                        console.error("PDF Generation Error:", pdfError);
-                        toast({ title: "Warning", description: "Tenant created but PDF generation failed.", variant: "destructive" });
-                    }
-                }
+                generateInvoicePDF({
+                    invoiceNumber: invoiceNumber,
+                    date: new Date(formData.payment_date),
+                    items: [{ description: "Platform Onboarding & 1 Year SaaS Subscription", amount: amountCents }],
+                    totalAmount: amountCents,
+                    currency: formData.currency,
+                    paymentMethod: formData.payment_method,
+                    status: 'paid'
+                }, {
+                    name: formData.name,
+                    ownerName: formData.ownerName,
+                    email: formData.ownerEmail,
+                    phone: formData.ownerPhone,
+                    address: formData.registeredAddress
+                })
             }
 
-            console.log("Onboarding complete!");
-            toast({ title: "Success", description: "Tenant onboarding completed & invoice generated!" })
+            toast({ 
+                title: "Platform Launch Successful!", 
+                description: `Created account for ${formData.ownerEmail}. Account is now fully functional.`,
+            })
             queryClient.invalidateQueries({ queryKey: ["tenants"] })
             onComplete()
 
@@ -357,352 +231,344 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
             console.error("Onboarding error:", error)
             toast({ title: "Error", description: error.message, variant: "destructive" })
         } finally {
-            console.log("Finally block reached. Stopping loading.");
             setIsLoading(false)
         }
     }
 
+    const nextStep = () => setStep(s => s + 1)
+    const prevStep = () => setStep(s => s - 1)
+
     return (
-        <div className="max-w-3xl mx-auto">
-            <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-bold tracking-tight">New Gym Onboarding</h2>
-                    <div className="text-sm text-muted-foreground">Step {step} of 5</div>
-                </div>
-                {/* Progress Bar */}
-                <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div
-                        className="h-full bg-primary transition-all duration-500 ease-in-out"
-                        style={{ width: `${(step / 5) * 100}%` }}
-                    />
-                </div>
+        <div className="flex flex-col lg:flex-row gap-8 max-w-6xl mx-auto">
+            {/* Sidebar Steps */}
+            <div className="lg:w-72 flex flex-row lg:flex-col gap-2 p-1 overflow-x-auto lg:overflow-visible shrink-0">
+                {STEPS.map((s, i) => {
+                    const stepNum = i + 1
+                    const isActive = step === stepNum
+                    const isCompleted = step > stepNum
+                    return (
+                        <div 
+                            key={i}
+                            className={cn(
+                                "flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 min-w-[200px] lg:min-w-0",
+                                isActive ? "bg-indigo-600 text-white border-indigo-600 shadow-lg scale-[1.02]" : "bg-white text-slate-500 border-slate-100",
+                                isCompleted ? "border-emerald-100 bg-emerald-50/30" : ""
+                            )}
+                        >
+                            <div className={cn(
+                                "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                                isActive ? "bg-indigo-500" : "bg-slate-100",
+                                isCompleted ? "bg-emerald-500 text-white" : ""
+                            )}>
+                                {isCompleted ? <Check className="w-5 h-5 text-white" /> : <s.icon className="w-5 h-5" />}
+                            </div>
+                            <div className="hidden md:block">
+                                <p className="text-sm font-bold leading-tight">{s.title}</p>
+                                <p className={cn("text-[10px]", isActive ? "text-indigo-100" : "text-slate-400")}>{s.desc}</p>
+                            </div>
+                        </div>
+                    )
+                })}
             </div>
 
-            <Card className="border-2">
-                <CardHeader>
-                    <CardTitle>
-                        {step === 1 && "Basic Details & Branding"}
-                        {step === 2 && "Business & Billing"}
-                        {step === 3 && "First Branch Setup"}
-                        {step === 4 && "Services & Plans"}
-                        {step === 5 && "Review & Payment"}
-                    </CardTitle>
-                    <CardDescription>
-                        {step === 1 && "Let's start with the basics of the gym."}
-                        {step === 2 && "Configure legal and financial details."}
-                        {step === 3 && "Add the main branch location."}
-                        {step === 4 && "Select services and create default plans."}
-                        {step === 5 && "Verify details and record initial payment."}
-                    </CardDescription>
-                </CardHeader>
+            {/* Main Content */}
+            <div className="flex-1">
+                <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-xl overflow-hidden min-h-[500px]">
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-slate-100">
+                        <div 
+                            className="h-full bg-indigo-600 transition-all duration-500"
+                            style={{ width: `${(step / STEPS.length) * 100}%` }}
+                        />
+                    </div>
 
-                <CardContent className="space-y-6">
-                    {/* STEP 1: BASICS */}
-                    {step === 1 && (
-                        <div className="grid gap-4">
-                            <div className="grid grid-cols-2 gap-4">
+                    <CardHeader className="pt-10 px-8 pb-4">
+                        <div className="flex items-center gap-2 text-indigo-600 mb-1">
+                            <Sparkles className="w-4 h-4" />
+                            <span className="text-xs font-bold uppercase tracking-widest">Gym SaaS Onboarding</span>
+                        </div>
+                        <CardTitle className="text-3xl font-extrabold text-slate-900 leading-tight">
+                            {STEPS[step-1].title}
+                        </CardTitle>
+                        <CardDescription className="text-slate-500">
+                            {STEPS[step-1].desc}
+                        </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="px-8 py-6">
+                        {/* STEP 1: IDENTITY */}
+                        {step === 1 && (
+                            <div className="space-y-6">
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-slate-700 font-semibold">Legal (Gym) Name</Label>
+                                        <Input 
+                                            placeholder="e.g. Iron & Grit Fitness" 
+                                            value={formData.name}
+                                            onChange={(e) => handleInputChange("name", e.target.value)}
+                                            className="h-12 border-slate-200 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-slate-700 font-semibold">Web Slug (autogen)</Label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">gymowl.in/</span>
+                                            <Input 
+                                                className="h-12 border-slate-200 pl-20 bg-slate-50 font-mono text-xs"
+                                                value={formData.slug}
+                                                readOnly
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-slate-700 font-semibold">GST Number (Optional)</Label>
+                                        <Input 
+                                            placeholder="22AAAAA0000A1Z5" 
+                                            value={formData.gstNumber}
+                                            onChange={(e) => handleInputChange("gstNumber", e.target.value)}
+                                            className="h-12 border-slate-200 uppercase font-mono text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-slate-700 font-semibold">PAN Number</Label>
+                                        <Input 
+                                            placeholder="ABCDE1234F" 
+                                            value={formData.panNumber}
+                                            onChange={(e) => handleInputChange("panNumber", e.target.value)}
+                                            className="h-12 border-slate-200 uppercase font-mono text-sm"
+                                        />
+                                    </div>
+                                </div>
+
                                 <div className="space-y-2">
-                                    <Label>Gym Name *</Label>
-                                    <Input
-                                        value={formData.name}
-                                        onChange={(e) => {
-                                            handleInputChange("name", e.target.value)
-                                            generateSlug(e.target.value)
-                                        }}
-                                        placeholder="e.g. Fitzone Fitness"
+                                    <Label className="text-slate-700 font-semibold">Business Address</Label>
+                                    <Textarea 
+                                        placeholder="Enter the registered address for invoicing..." 
+                                        value={formData.registeredAddress}
+                                        onChange={(e) => handleInputChange("registeredAddress", e.target.value)}
+                                        className="min-h-[100px] border-slate-200 resize-none"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Slug (URL) *</Label>
-                                    <Input value={formData.slug} onChange={(e) => handleInputChange("slug", e.target.value)} />
-                                </div>
-                            </div>
 
-                            <div className="space-y-2">
-                                <Label>Owner Full Name *</Label>
-                                <Input value={formData.owner_name} onChange={(e) => handleInputChange("owner_name", e.target.value)} />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Owner Email *</Label>
-                                    <Input type="email" value={formData.owner_email} onChange={(e) => handleInputChange("owner_email", e.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Owner Phone</Label>
-                                    <Input value={formData.owner_phone} onChange={(e) => handleInputChange("owner_phone", e.target.value)} />
-                                </div>
-                            </div>
-
-                            {/* Colors removed from UI as per request */}
-
-                            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                                <div className="space-y-2">
-                                    <Label>Gym Logo</Label>
-                                    <div className="flex items-center gap-2">
-                                        <Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'logo')} />
-                                        {logoFile && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                                <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center gap-4">
+                                    <div className="w-16 h-16 rounded-xl bg-white border-2 border-dashed border-indigo-200 flex items-center justify-center overflow-hidden shrink-0">
+                                        {logoPreview ? <img src={logoPreview} className="w-full h-full object-cover" /> : <ImageIcon className="w-6 h-6 text-indigo-300" />}
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Owner Photo</Label>
-                                    <div className="flex items-center gap-2">
-                                        <Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'owner')} />
-                                        {ownerPhotoFile && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-indigo-900">Upload Gym Logo</p>
+                                        <p className="text-xs text-indigo-600/70 mb-2">Recommended size: 512x512 PNG/SVG</p>
+                                        <Label htmlFor="logo-upload" className="cursor-pointer">
+                                            <div className="inline-flex items-center px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-full hover:bg-indigo-700 transition">
+                                                Select File
+                                            </div>
+                                            <input id="logo-upload" type="file" className="hidden" onChange={(e) => handleFileChange(e, 'logo')} />
+                                        </Label>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* STEP 2: BUSINESS */}
-                    {step === 2 && (
-                        <div className="grid gap-4">
-                            <div className="grid grid-cols-2 gap-4">
+                        {/* STEP 2: OWNER */}
+                        {step === 2 && (
+                            <div className="space-y-6">
                                 <div className="space-y-2">
-                                    <Label>Business Type</Label>
-                                    <Select value={formData.business_type} onValueChange={(v) => handleInputChange("business_type", v)}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="gym">Gym</SelectItem>
-                                            <SelectItem value="studio">Fitness Studio</SelectItem>
-                                            <SelectItem value="crossfit">CrossFit Box</SelectItem>
-                                            <SelectItem value="zumba">Zumba Studio</SelectItem>
-                                            <SelectItem value="yoga">Yoga Studio</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <Label className="text-slate-700 font-semibold">Full Name of Owner</Label>
+                                    <Input 
+                                        placeholder="John Doe" 
+                                        value={formData.ownerName}
+                                        onChange={(e) => handleInputChange("ownerName", e.target.value)}
+                                        className="h-12 border-slate-200"
+                                    />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Currency</Label>
-                                    <Select value={formData.billing_currency} onValueChange={(v) => handleInputChange("billing_currency", v)}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="INR">INR (₹)</SelectItem>
-                                            <SelectItem value="USD">USD ($)</SelectItem>
-                                            <SelectItem value="EUR">EUR (€)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-slate-700 font-semibold">Primary Contact Email</Label>
+                                        <Input 
+                                            placeholder="owner@gym.com" 
+                                            type="email"
+                                            value={formData.ownerEmail}
+                                            onChange={(e) => handleInputChange("ownerEmail", e.target.value)}
+                                            className="h-12 border-slate-200"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-slate-700 font-semibold">Phone Number</Label>
+                                        <Input 
+                                            placeholder="+91 98765 43210" 
+                                            value={formData.ownerPhone}
+                                            onChange={(e) => handleInputChange("ownerPhone", e.target.value)}
+                                            className="h-12 border-slate-200 font-mono text-sm"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>GST Number</Label>
-                                    <Input value={formData.gst_number} onChange={(e) => handleInputChange("gst_number", e.target.value)} placeholder="Optional" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>PAN Number</Label>
-                                    <Input value={formData.pan_number} onChange={(e) => handleInputChange("pan_number", e.target.value)} placeholder="Optional" />
+                                <div className="space-y-2 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <Label className="text-indigo-900 font-bold flex items-center gap-2">
+                                        <Key className="w-4 h-4" />
+                                        Set Owner Login Password
+                                    </Label>
+                                    <div className="relative">
+                                        <Input 
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="Create a strong password for the owner" 
+                                            value={formData.ownerPassword}
+                                            onChange={(e) => handleInputChange("ownerPassword", e.target.value)}
+                                            className="h-12 border-slate-200 pr-12"
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition"
+                                        >
+                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 mt-2">Share this password with the owner. They will use their email to login.</p>
                                 </div>
                             </div>
+                        )}
 
-                            <div className="space-y-2">
-                                <Label>Registered Address</Label>
-                                <Textarea value={formData.registered_address} onChange={(e) => handleInputChange("registered_address", e.target.value)} />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Invoice Prefix</Label>
-                                    <Input value={formData.invoice_prefix} onChange={(e) => handleInputChange("invoice_prefix", e.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Payment Gateway</Label>
-                                    <Select value={formData.payment_gateway_preference} onValueChange={(v) => handleInputChange("payment_gateway_preference", v)}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="cash">Cash Only</SelectItem>
-                                            <SelectItem value="razorpay">Razorpay</SelectItem>
-                                            <SelectItem value="stripe">Stripe</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* STEP 3: BRANCH */}
-                    {step === 3 && (
-                        <div className="grid gap-4">
-                            <div className="space-y-2">
-                                <Label>Main Branch Name *</Label>
-                                <Input
-                                    value={formData.branch_name}
-                                    onChange={(e) => handleInputChange("branch_name", e.target.value)}
-                                    placeholder="e.g. Malviya Nagar Branch"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Address</Label>
-                                <Textarea
-                                    value={formData.branch_address}
-                                    onChange={(e) => handleInputChange("branch_address", e.target.value)}
-                                    placeholder="Full address of this branch"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Branch Phone</Label>
-                                    <Input value={formData.branch_phone} onChange={(e) => handleInputChange("branch_phone", e.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Branch Email</Label>
-                                    <Input value={formData.branch_email} onChange={(e) => handleInputChange("branch_email", e.target.value)} />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* STEP 4: SERVICES & PLANS */}
-                    {step === 4 && (
-                        <div className="space-y-6">
-                            <div className="space-y-4">
-                                <Label className="text-base">Services Offered</Label>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {/* STEP 3: SAAS PACKAGE */}
+                        {step === 3 && (
+                            <div className="space-y-8">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                     {Object.entries(formData.services).map(([key, value]) => (
-                                        <div key={key} className="flex items-center space-x-2 border p-3 rounded-md hover:bg-accent">
-                                            <Checkbox
-                                                id={key}
-                                                checked={value}
-                                                onCheckedChange={(checked) => handleServiceChange(key, checked as boolean)}
-                                            />
-                                            <Label htmlFor={key} className="capitalize cursor-pointer flex-1">{key}</Label>
+                                        <div 
+                                            key={key} 
+                                            onClick={() => handleServiceChange(key, !value)}
+                                            className={cn(
+                                                "cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center justify-between group",
+                                                value ? "border-indigo-600 bg-indigo-50/50" : "border-slate-100 hover:border-slate-300"
+                                            )}
+                                        >
+                                            <span className={cn("text-sm font-bold capitalize", value ? "text-indigo-900" : "text-slate-500")}>{key}</span>
+                                            {value && <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center"><Check className="w-3 h-3 text-white" /></div>}
                                         </div>
                                     ))}
                                 </div>
-                            </div>
 
-                            <div className="space-y-4 pt-4 border-t">
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id="create_plans"
-                                        checked={formData.create_default_plans}
-                                        onCheckedChange={(checked) => handleInputChange("create_default_plans", checked)}
-                                    />
-                                    <div className="grid gap-1.5 leading-none">
-                                        <Label htmlFor="create_plans" className="text-base font-medium">
-                                            Create Default Membership Plans?
-                                        </Label>
-                                        <p className="text-sm text-muted-foreground">
-                                            We will create standard Monthly, Quarterly, and Yearly plans for you.
-                                        </p>
+                                <div className="bg-slate-900 rounded-2xl p-6 text-white overflow-hidden relative shadow-xl">
+                                    <div className="absolute top-0 right-0 p-8 transform translate-x-10 -translate-y-10 group-hover:translate-x-0 transition-transform">
+                                        <div className="w-32 h-32 bg-indigo-500/20 blur-3xl rounded-full" />
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-center mb-6">
+                                        <div>
+                                            <p className="text-indigo-400 text-xs font-bold uppercase tracking-widest">SaaS License Type</p>
+                                            <h4 className="text-xl font-bold">Standard Platform Access</h4>
+                                        </div>
+                                        <Settings className="w-6 h-6 text-slate-700" />
+                                    </div>
+
+                                    <div className="space-y-3 mb-8">
+                                        <div className="flex items-center gap-2 text-sm text-slate-300"><Check className="w-4 h-4 text-emerald-400" /> Multi-branch Enabled</div>
+                                        <div className="flex items-center gap-2 text-sm text-slate-300"><Check className="w-4 h-4 text-emerald-400" /> Custom SMS Branding</div>
+                                        <div className="flex items-center gap-2 text-sm text-slate-300"><Check className="w-4 h-4 text-emerald-400" /> Integrated Fee Collection</div>
+                                    </div>
+
+                                    <div className="flex items-baseline gap-2 pt-4 border-t border-slate-800">
+                                        <span className="text-3xl font-extrabold text-indigo-400">₹9,999</span>
+                                        <span className="text-slate-500 text-xs text-indigo-200">/year + taxes</span>
                                     </div>
                                 </div>
-
-                                {formData.create_default_plans && (
-                                    <div className="bg-muted/50 p-4 rounded-md text-sm space-y-2">
-                                        <p className="text-xs text-muted-foreground mb-2">Note: Prices are generated randomly based on market rates and selected services (e.g., Zumba adds premium).</p>
-                                        <div className="flex justify-between"><span>Monthly Plan</span><span className="font-mono">~₹1,500 - ₹3,500</span></div>
-                                        <div className="flex justify-between"><span>Quarterly Plan</span><span className="font-mono">~₹4,000 - ₹9,000</span></div>
-                                        <div className="flex justify-between"><span>Half-Yearly Plan</span><span className="font-mono">~₹7,500 - ₹16,000</span></div>
-                                        <div className="flex justify-between"><span>Yearly Plan</span><span className="font-mono">~₹12,000 - ₹25,000</span></div>
-                                        <div className="flex justify-between"><span>PT Add-on</span><span className="font-mono">₹5,000</span></div>
-                                    </div>
-                                )}
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* STEP 5: REVIEW & PAYMENT */}
-                    {step === 5 && (
-                        <div className="space-y-6">
-                            <div className="grid md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <h3 className="font-semibold flex items-center"><FileText className="w-4 h-4 mr-2" /> Review Details</h3>
-                                    <div className="text-sm space-y-2 border p-4 rounded-md bg-muted/20">
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <span className="text-muted-foreground">Gym:</span>
-                                            <span className="col-span-2 font-medium">{formData.name}</span>
+                        {/* STEP 4: REVIEW & PAY */}
+                        {step === 4 && (
+                            <div className="space-y-6">
+                                <div className="grid md:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <h4 className="font-bold text-slate-900 flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Account Summary</h4>
+                                        <div className="space-y-3 bg-slate-50 p-5 rounded-xl border relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-2"><Shield className="w-12 h-12 text-slate-200/50" /></div>
+                                            <div className="flex justify-between text-sm"><span className="text-slate-500">Owner Login:</span> <span className="font-bold text-indigo-700">{formData.ownerEmail}</span></div>
+                                            <div className="flex justify-between text-sm"><span className="text-slate-500">Password:</span> <span className="font-mono text-xs">{showPassword ? formData.ownerPassword : "••••••••"}</span></div>
+                                            <div className="flex justify-between text-sm pt-2 border-t mt-2"><span className="text-slate-500">Gym Portal:</span> <span className="font-mono text-xs text-indigo-600">{formData.slug}.gymowl.in</span></div>
+                                        </div>
 
-                                            <span className="text-muted-foreground">Owner:</span>
-                                            <span className="col-span-2 font-medium">{formData.owner_name}</span>
-
-                                            <span className="text-muted-foreground">Email:</span>
-                                            <span className="col-span-2 font-medium">{formData.owner_email}</span>
-
-                                            <span className="text-muted-foreground">Branch:</span>
-                                            <span className="col-span-2 font-medium">{formData.branch_name}</span>
-
-                                            <span className="text-muted-foreground">Services:</span>
-                                            <span className="col-span-2 font-medium capitalize">
-                                                {Object.entries(formData.services).filter(([_, v]) => v).map(([k]) => k).join(", ")}
-                                            </span>
+                                        <div className="bg-indigo-600 rounded-xl p-5 text-white shadow-lg space-y-1">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Total Fees (SaaS)</p>
+                                            <p className="text-3xl font-extrabold font-mono">₹{formData.payment_amount}</p>
+                                            <p className="text-[10px] opacity-70 italic">License valid for 365 days from today</p>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="space-y-4">
-                                    <h3 className="font-semibold flex items-center"><CreditCard className="w-4 h-4 mr-2" /> Initial Payment</h3>
-                                    <div className="space-y-4 border p-4 rounded-md">
-                                        <div className="space-y-2">
-                                            <Label>Amount Received ({formData.billing_currency})</Label>
-                                            <Input
-                                                type="number"
-                                                value={formData.payment_amount}
-                                                onChange={(e) => handleInputChange("payment_amount", e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Payment Method</Label>
-                                            <Select value={formData.payment_method} onValueChange={(v) => handleInputChange("payment_method", v)}>
-                                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="cash">Cash</SelectItem>
-                                                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                                    <SelectItem value="upi">UPI</SelectItem>
-                                                    <SelectItem value="cheque">Cheque</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Payment Date</Label>
-                                            <Input
-                                                type="date"
-                                                value={formData.payment_date}
-                                                onChange={(e) => handleInputChange("payment_date", e.target.value)}
-                                            />
+                                    <div className="space-y-4">
+                                        <h4 className="font-bold text-slate-900 flex items-center gap-2"><CreditCard className="w-4 h-4 text-indigo-500" /> Payment Record</h4>
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-xs">Payment Method Received</Label>
+                                                <Select value={formData.payment_method} onValueChange={(v) => handleInputChange("payment_method", v)}>
+                                                    <SelectTrigger className="bg-white border-slate-200"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="cash">Direct Cash / Deposit</SelectItem>
+                                                        <SelectItem value="bank_transfer">IMPS/NEFT Transfer</SelectItem>
+                                                        <SelectItem value="upi">UPI (GPay/PhonePe)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs">Actual Amount Paid</Label>
+                                                <Input 
+                                                    type="number" 
+                                                    value={formData.payment_amount}
+                                                    onChange={(e) => handleInputChange("payment_amount", e.target.value)}
+                                                    className="bg-white border-slate-200 font-bold"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                        )}
+                    </CardContent>
 
-                            <div className="bg-blue-50 text-blue-900 p-4 rounded-md text-sm flex items-start">
-                                <CheckCircle2 className="w-5 h-5 mr-2 mt-0.5 shrink-0" />
-                                <div>
-                                    <p className="font-semibold">Ready to Onboard?</p>
-                                    <p>Clicking "Complete" will create the tenant, set up their environment, and generate an invoice for the amount above.</p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-
-                <CardFooter className="flex justify-between">
-                    <Button variant="outline" onClick={step === 1 ? onCancel : () => setStep(s => s - 1)}>
-                        {step === 1 ? "Cancel" : "Back"}
-                    </Button>
-
-                    {step < 5 ? (
-                        <Button onClick={() => setStep(s => s + 1)}>
-                            Next Step
+                    <CardFooter className="bg-slate-50/50 border-t p-8 flex justify-between items-center">
+                        <Button 
+                            variant="ghost" 
+                            onClick={step === 1 ? onCancel : prevStep}
+                            className="text-slate-500 font-bold"
+                        >
+                            <ChevronLeft className="w-4 h-4 mr-2" />
+                            {step === 1 ? "Discard" : "Previous"}
                         </Button>
-                    ) : (
-                        <Button onClick={handleSubmit} disabled={isLoading}>
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Processing...
-                                </>
+
+                        <div className="flex items-center gap-4">
+                            {step < STEPS.length ? (
+                                <Button 
+                                    onClick={nextStep}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200 shadow-xl px-8"
+                                    disabled={step === 1 && !formData.name}
+                                >
+                                    Continue
+                                    <ChevronRight className="w-4 h-4 ml-2" />
+                                </Button>
                             ) : (
-                                <>
-                                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                                    Complete & Generate Invoice
-                                </>
+                                <Button 
+                                    onClick={handleSubmit} 
+                                    disabled={isLoading}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg px-8 h-12"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Go Live...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles className="mr-2 h-4 w-4" />
+                                            Launch Platform & Send Invoice
+                                        </>
+                                    )}
+                                </Button>
                             )}
-                        </Button>
-                    )}
-                </CardFooter>
-            </Card>
+                        </div>
+                    </CardFooter>
+                </Card>
+            </div>
         </div>
     )
 }

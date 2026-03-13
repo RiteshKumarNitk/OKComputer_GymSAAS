@@ -5,10 +5,7 @@ import type { UserRole } from "@/types"
 import {
   Home,
   Users,
-  UserCheck,
-  Calendar,
   CreditCard,
-  Activity,
   Dumbbell,
   Apple,
   Settings,
@@ -16,10 +13,11 @@ import {
   Menu,
   X,
   Shield,
-  Building,
   BarChart3,
   QrCode,
-  FileText,
+  Building,
+  Banknote,
+  LayoutDashboard
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -49,10 +47,41 @@ const navigation: NavItem[] = [
     roles: ["super_admin", "gym_owner", "manager", "trainer", "frontdesk"],
   },
   {
-    title: "Super Admin",
+    title: "Platform Pulse",
     href: "/super-admin",
-    icon: <Shield className="h-4 w-4" />,
+    icon: <LayoutDashboard className="h-4 w-4" />,
     roles: ["super_admin"],
+  },
+  {
+    title: "Tenants (Gyms)",
+    href: "/super-admin/tenants",
+    icon: <Building className="h-4 w-4" />,
+    roles: ["super_admin"],
+  },
+  {
+    title: "SaaS Plans",
+    href: "/super-admin/subscriptions",
+    icon: <CreditCard className="h-4 w-4" />,
+    roles: ["super_admin"],
+  },
+  {
+    title: "SaaS Revenue",
+    href: "/super-admin/payments",
+    icon: <Banknote className="h-4 w-4" />,
+    roles: ["super_admin"],
+  },
+  {
+    title: "Platform Settings",
+    href: "/super-admin/settings",
+    icon: <Settings className="h-4 w-4" />,
+    roles: ["super_admin"],
+  },
+  {
+    title: "Prospects (Leads)",
+    href: "/leads",
+    icon: <Users className="h-4 w-4" />,
+    roles: ["gym_owner", "manager", "frontdesk"],
+    permission: "view_leads",
   },
   {
     title: "Members",
@@ -62,28 +91,10 @@ const navigation: NavItem[] = [
     permission: "view_members",
   },
   {
-    title: "Trainers",
-    href: "/trainers",
-    icon: <UserCheck className="h-4 w-4" />,
-    roles: ["gym_owner", "manager"],
-  },
-  {
-    title: "Front Desk",
+    title: "Front Desk (POS)",
     href: "/front-desk",
     icon: <Users className="h-4 w-4" />,
-    roles: ["gym_owner", "manager"],
-  },
-  {
-    title: "Branches",
-    href: "/branches",
-    icon: <Building className="h-4 w-4" />,
-    roles: ["gym_owner", "manager"],
-  },
-  {
-    title: "Services",
-    href: "/services",
-    icon: <Activity className="h-4 w-4" />,
-    roles: ["gym_owner", "manager"],
+    roles: ["gym_owner", "manager", "frontdesk"],
   },
   {
     title: "Attendance",
@@ -93,13 +104,7 @@ const navigation: NavItem[] = [
     permission: "view_attendance",
   },
   {
-    title: "Schedule",
-    href: "/schedule",
-    icon: <Calendar className="h-4 w-4" />,
-    roles: ["gym_owner", "manager", "trainer"],
-  },
-  {
-    title: "Billing",
+    title: "Billing & Invoices",
     href: "/billing",
     icon: <CreditCard className="h-4 w-4" />,
     roles: ["gym_owner", "manager", "frontdesk"],
@@ -118,17 +123,10 @@ const navigation: NavItem[] = [
     roles: ["gym_owner", "manager", "trainer"],
   },
   {
-    title: "Reports",
+    title: "Reports & Analytics",
     href: "/reports",
-    icon: <FileText className="h-4 w-4" />,
-    roles: ["gym_owner", "manager"],
-  },
-  {
-    title: "Analytics",
-    href: "/analytics",
     icon: <BarChart3 className="h-4 w-4" />,
     roles: ["gym_owner", "manager"],
-    permission: "view_analytics",
   },
   {
     title: "Settings",
@@ -152,7 +150,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
     // Separate dashboard for Super Admins
     if (user?.role === 'super_admin') {
-      return ['super-admin', 'settings'].includes(featureKey)
+      return item.href.startsWith('/super-admin') || item.href === '/dashboard'
     }
 
     if (['dashboard', 'settings', 'super-admin'].includes(featureKey)) return hasRequiredRole && hasRequiredPermission
@@ -201,9 +199,9 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           <div className="flex items-center justify-between h-16 px-6 border-b border-white/10 bg-slate-900 text-white">
             <Link to="/dashboard" className="flex items-center space-x-2">
               <div className="bg-primary rounded-lg p-1">
-                <Activity className="h-6 w-6 text-white" />
+                <Shield className="h-6 w-6 text-white" />
               </div>
-              <span className="text-xl font-bold tracking-tight">GymPro</span>
+              <span className="text-xl font-bold tracking-tight">OK GymOWL</span>
             </Link>
             <Button
               variant="ghost"

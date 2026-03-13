@@ -19,6 +19,12 @@ enum UserRole {
   member
 }
 
+enum TenantStatus {
+  active
+  suspended
+  cancelled
+}
+
 enum MemberStatus {
   active
   inactive
@@ -108,9 +114,10 @@ model Tenant {
   phone                   String?
   email                   String?
   timezone                String?            @default("UTC")
-  currency                String?            @default("USD")
+  currency                String?            @default("INR")
   logoUrl                 String?
   businessType            String?
+  status                  TenantStatus       @default(active)
   gstNumber               String?
   panNumber               String?
   registeredAddress       String?

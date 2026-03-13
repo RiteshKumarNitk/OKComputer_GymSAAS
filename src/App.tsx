@@ -24,7 +24,12 @@ import { SettingsPage } from "@/pages/app/SettingsPage"
 import { ProfilePage } from "@/pages/app/ProfilePage"
 import { UnauthorizedPage } from "@/pages/auth/UnauthorizedPage"
 import { NotFoundPage } from "@/pages/auth/NotFoundPage"
-import { SuperAdminPage } from "@/pages/admin/SuperAdminPage"
+import { SuperAdminDashboard } from "@/pages/admin/superadmin/Dashboard"
+import { SuperAdminTenants } from "@/pages/admin/superadmin/Tenants"
+import { SuperAdminSubscriptions } from "@/pages/admin/superadmin/Subscriptions"
+import { SuperAdminPayments } from "@/pages/admin/superadmin/Payments"
+import { SuperAdminSettings } from "@/pages/admin/superadmin/Settings"
+import { SetupAdminPage } from "@/pages/auth/SetupAdminPage"
 import { BranchesPage } from "@/pages/app/BranchesPage"
 import { ServicesPage } from "@/pages/app/ServicesPage"
 import { FrontDeskPage } from "@/pages/app/FrontDeskPage"
@@ -57,6 +62,7 @@ function App() {
               {/* Auth routes */}
               <Route path="/signin" element={<SignInPage />} />
               <Route path="/signup" element={<SignUpPage />} />
+              <Route path="/setup-admin" element={<SetupAdminPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
               {/* Member Portal Routes */}
@@ -79,7 +85,11 @@ function App() {
                     <DashboardLayout>
                       <Routes>
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                        <Route path="/super-admin" element={<SuperAdminPage />} />
+                        <Route path="/super-admin" element={<SuperAdminDashboard />} />
+                        <Route path="/super-admin/tenants" element={<SuperAdminTenants />} />
+                        <Route path="/super-admin/subscriptions" element={<SuperAdminSubscriptions />} />
+                        <Route path="/super-admin/payments" element={<SuperAdminPayments />} />
+                        <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/members" element={<MembersPage />} />
                         <Route path="/trainers" element={<TrainersPage />} />
