@@ -358,10 +358,10 @@ app.post("/api/tenants", async (req, res) => {
         const body = Array.isArray(req.body) ? req.body[0] : req.body
         const { ownerPassword, owner_password, ...rest } = body
         const password = ownerPassword || owner_password
-        
+
         const converted = snakeToCamel(rest)
         console.log("Converted data for Prisma:", JSON.stringify(converted, null, 2))
-        
+
         // Pick fields carefully - if some are missing in Prisma Client, this will still error but we catch it
         const data: any = {
             name: converted.name,
@@ -563,14 +563,14 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
 
         // Convert buffer to base64
         const fileStr = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`
-        
+
         const uploadResponse = await cloudinary.uploader.upload(fileStr, {
             folder: "gym_saas_uploads",
         })
 
-        res.json({ 
-            url: uploadResponse.secure_url, 
-            publicId: uploadResponse.public_id 
+        res.json({
+            url: uploadResponse.secure_url,
+            publicId: uploadResponse.public_id
         })
     } catch (err: any) {
         console.error("Cloudinary upload error:", err)
