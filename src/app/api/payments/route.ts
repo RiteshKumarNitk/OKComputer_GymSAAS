@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const body = await request.json()
 
     // Use a transaction to ensure both payment and potential membership update are handled
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
         const payment = await tx.payment.create({
             data: {
                 ...body,
