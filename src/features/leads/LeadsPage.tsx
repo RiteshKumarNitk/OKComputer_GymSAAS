@@ -8,7 +8,6 @@ import {
     MoreVertical,
     Phone,
     Mail,
-    Calendar,
     MessageCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -60,7 +59,7 @@ export const LeadsPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState("")
 
     // Fetch Leads
-    const { data: leads, isLoading } = useQuery({
+    const { data: leads } = useQuery({
         queryKey: ["leads", user?.tenant_id],
         queryFn: async () => {
             const { data, error } = await supabase

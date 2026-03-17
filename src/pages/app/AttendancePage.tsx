@@ -2,7 +2,7 @@ import React from "react"
 import { ManualCheckin } from "@/features/attendance/ManualCheckin"
 import { AttendanceLog } from "@/features/attendance/AttendanceLog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { QrCode, List, UserCheck } from "lucide-react"
+import { QrCode, List } from "lucide-react"
 
 export const AttendancePage: React.FC = () => {
   return (

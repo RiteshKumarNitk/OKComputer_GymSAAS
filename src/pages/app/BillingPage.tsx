@@ -4,15 +4,7 @@ import { supabase } from "@/api/supabase"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import {
-  DollarSign,
-  TrendingDown,
-  Plus,
-  Calendar,
-  FileText,
-  Search,
-  MoreVertical,
-  Trash2,
-  Edit
+  TrendingDown
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -46,12 +38,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+
 
 interface Expense {
   id: string
@@ -133,8 +120,7 @@ export const BillingPage: React.FC = () => {
     addExpenseMutation.mutate(formData)
   }
 
-  const totalExpenses = expenses?.reduce((sum, e) => sum + e.amount_cents, 0) || 0
-  const totalIncome = payments?.reduce((sum, p) => sum + p.amount_cents, 0) || 0 // This is just recent, but dashboard has full logic
+
 
   return (
     <div className="space-y-6">

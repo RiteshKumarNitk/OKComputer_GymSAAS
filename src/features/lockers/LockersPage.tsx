@@ -4,12 +4,11 @@ import { supabase } from "@/api/supabase"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Lock, Unlock, Key, Trash2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { formatDate } from "@/lib/utils"
 
@@ -31,7 +30,7 @@ export const LockersPage: React.FC = () => {
     const [assignmentMemberId, setAssignmentMemberId] = useState("")
 
     // Fetch Lockers
-    const { data: lockers, isLoading } = useQuery({
+    const { data: lockers } = useQuery({
         queryKey: ["lockers", user?.tenant_id],
         queryFn: async () => {
             const { data, error } = await supabase
@@ -175,7 +174,7 @@ export const LockersPage: React.FC = () => {
                                         <SelectValue placeholder="Select Member" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {members?.map(m => (
+                                        {members?.map((m: any) => (
                                             <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
                                         ))}
                                     </SelectContent>

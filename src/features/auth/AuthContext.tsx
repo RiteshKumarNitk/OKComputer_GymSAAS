@@ -28,7 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null)
   const [session, setSession] = useState<any | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [tenantFeatures, setTenantFeatures] = useState<string[] | null>(null)
+  const [tenantFeatures] = useState<string[] | null>(null)
 
   // Check session on mount
   useEffect(() => {

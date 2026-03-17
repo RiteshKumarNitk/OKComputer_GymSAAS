@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Calendar, Phone, Mail, User, Activity, CreditCard } from "lucide-react"
+import { Calendar, Phone, Mail, User } from "lucide-react"
 
 interface MemberDetailsProps {
   member: Member
@@ -223,7 +223,7 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
             <CardContent>
               {attendance && attendance.length > 0 ? (
                 <div className="space-y-2">
-                  {attendance.map((record) => (
+                  {attendance.map((record: any) => (
                     <div key={record.id} className="flex items-center justify-between p-2 bg-muted rounded">
                       <div>
                         <span className="font-medium">{formatDate(record.checkin_at)}</span>
@@ -254,7 +254,7 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
             <CardContent>
               {payments && payments.length > 0 ? (
                 <div className="space-y-2">
-                  {payments.map((payment) => (
+                  {payments.map((payment: any) => (
                     <div key={payment.id} className="flex items-center justify-between p-2 bg-muted rounded">
                       <div>
                         <span className="font-medium">{formatDate(payment.paid_at || payment.created_at)}</span>
@@ -286,7 +286,7 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
             <CardContent>
               {workouts && workouts.length > 0 ? (
                 <div className="space-y-2">
-                  {workouts.map((workout) => (
+                  {workouts.map((workout: any) => (
                     <div key={workout.id} className="p-2 bg-muted rounded">
                       <div className="flex items-center justify-between">
                         <span className="font-medium">{workout.workouts.name}</span>

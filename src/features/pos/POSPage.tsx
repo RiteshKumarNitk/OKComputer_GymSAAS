@@ -5,12 +5,11 @@ import { useAuth } from "@/features/auth/AuthContext"
 import { formatCurrency } from "@/lib/utils"
 import { ShoppingCart, Plus, Minus, Trash2, Package, CreditCard } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface Product {
@@ -32,10 +31,10 @@ export const POSPage: React.FC = () => {
     const queryClient = useQueryClient()
     const [cart, setCart] = useState<CartItem[]>([])
     const [isAddProductOpen, setIsAddProductOpen] = useState(false)
-    const [checkoutOpen, setCheckoutOpen] = useState(false)
+    const [, setCheckoutOpen] = useState(false)
 
     // Fetch Products
-    const { data: products, isLoading } = useQuery({
+    const { data: products } = useQuery({
         queryKey: ["products", user?.tenant_id],
         queryFn: async () => {
             const { data, error } = await supabase
@@ -102,12 +101,7 @@ export const POSPage: React.FC = () => {
             // Better: update stock
             for (const item of cart) {
                 // Update stock
-                const { error: stockError } = await supabase.rpc("decrement", { // Assuming rpc or manual update
-                    // We'll use manual update for now
-                    table_name: 'products',
-                    row_id: item.id,
-                    x: item.quantity
-                }) // Skipping complex atomic updates for speed, doing straightforward update
+                // Skipping complex atomic updates for speed, doing straightforward update
 
                 const { error: updateError } = await supabase
                     .from("products")

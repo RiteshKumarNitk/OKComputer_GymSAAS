@@ -14,18 +14,11 @@ type QueryResult<T> = { data: T | null; error: Error | null }
 function createQueryBuilder(tableName: string) {
     let endpoint = `/api/${tableName}`
     let params: Record<string, string> = {}
-    let selectFields = "*"
     let body: any = null
     let method = "GET"
-    let orderField = ""
-    let orderAsc = true
-    let rangeStart = 0
-    let rangeEnd = 100
     let isSingle = false
-    let isCount = false
     let isInsert = false
     let isUpdate = false
-    let isDelete = false
 
     // Map table names to API endpoints
     const tableMap: Record<string, string> = {
@@ -61,8 +54,7 @@ function createQueryBuilder(tableName: string) {
     endpoint = `/api/${mappedTable}`
 
     const builder = {
-        select(fields?: string) {
-            if (fields) selectFields = fields
+        select(_fields?: string) {
             return builder
         },
         eq(field: string, value: any) {
@@ -76,28 +68,28 @@ function createQueryBuilder(tableName: string) {
             else params[field] = value
             return builder
         },
-        neq(field: string, value: any) {
+        neq(_field: string, _value: any) {
             return builder // Filtering handled server-side
         },
-        gt(field: string, value: any) {
+        gt(_field: string, _value: any) {
             return builder
         },
-        gte(field: string, value: any) {
+        gte(_field: string, _value: any) {
             return builder
         },
-        lt(field: string, value: any) {
+        lt(_field: string, _value: any) {
             return builder
         },
-        lte(field: string, value: any) {
+        lte(_field: string, _value: any) {
             return builder
         },
-        like(field: string, value: any) {
+        like(_field: string, _value: any) {
             return builder
         },
-        ilike(field: string, value: any) {
+        ilike(_field: string, _value: any) {
             return builder
         },
-        in(field: string, values: any[]) {
+        in(_field: string, _values: any[]) {
             return builder
         },
         or(filter: string) {
@@ -106,18 +98,14 @@ function createQueryBuilder(tableName: string) {
             if (match) params.search = match[1]
             return builder
         },
-        order(field: string, opts?: { ascending?: boolean }) {
-            orderField = field
-            orderAsc = opts?.ascending ?? true
+        order(_field: string, _opts?: { ascending?: boolean }) {
             return builder
         },
-        range(start: number, end: number) {
-            rangeStart = start
-            rangeEnd = end
+        range(_start: number, _end: number) {
             return builder
         },
         limit(n: number) {
-            rangeEnd = n
+            params.limit = String(n)
             return builder
         },
         single() {
@@ -141,7 +129,6 @@ function createQueryBuilder(tableName: string) {
             return builder
         },
         delete() {
-            isDelete = true
             method = "DELETE"
             return builder
         },
@@ -237,7 +224,7 @@ export const supabase = {
             await fetch("/api/auth/signout", { method: "POST" })
             return { error: null }
         },
-        onAuthStateChange(callback: (event: string, session: any) => void) {
+        onAuthStateChange(_callback: (event: string, session: any) => void) {
             // NextAuth handles this via SessionProvider
             return { data: { subscription: { unsubscribe: () => { } } } }
         },
@@ -245,9 +232,9 @@ export const supabase = {
 
     // Storage compatibility (Cloudinary)
     storage: {
-        from(bucket: string) {
+        from(_bucket: string) {
             return {
-                async upload(path: string, file: File) {
+                async upload(_path: string, file: File) {
                     const formData = new FormData()
                     formData.append("file", file)
                     try {

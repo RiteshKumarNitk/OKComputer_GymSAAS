@@ -61,7 +61,7 @@ export const StaffManagement: React.FC = () => {
     const canManageStaff = hasRole(["gym_owner", "manager"] as UserRole[])
 
     // Fetch Front Desk Staff
-    const { data: staffList, isLoading } = useQuery({
+    const { data: staffList } = useQuery({
         queryKey: ["front_desk", user?.tenant_id],
         queryFn: async () => {
             const { data, error } = await supabase
@@ -95,7 +95,6 @@ export const StaffManagement: React.FC = () => {
                     .from("front_desk")
                     .update(data)
                     .eq("id", selectedStaff.id)
-                    .exists("tenant_id") // simple security check, though RLS handles it
                 if (error) throw error
             } else {
                 const { error } = await supabase.from("front_desk").insert([data])

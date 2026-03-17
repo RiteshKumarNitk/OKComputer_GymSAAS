@@ -3,7 +3,7 @@ import { useAuth } from "@/features/auth/AuthContext"
 import { useQuery } from "@tanstack/react-query"
 import { supabase } from "@/api/supabase"
 import { QRCodeSVG } from "qrcode.react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -70,7 +70,7 @@ export const MemberDashboard: React.FC = () => {
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-xl font-bold">Hi, {member.full_name.split(" ")[0]}!</h1>
-                    <p className="text-xs text-muted-foreground">{formatDate(Date.now(), "EEEE, MMM d")}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(new Date(), "EEEE, MMM d")}</p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => signOut()}>
                     <LogOut className="h-5 w-5 text-gray-400" />

@@ -1,6 +1,6 @@
 import React from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
-import { Home, User, Calendar, QrCode } from "lucide-react"
+import { Home, User, Calendar } from "lucide-react"
 
 export const MemberLayout: React.FC = () => {
     const navigate = useNavigate()

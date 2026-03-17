@@ -83,7 +83,7 @@ export const ServicesPage: React.FC = () => {
     }
 
     // --- MEMBERSHIP PLANS LOGIC ---
-    const { data: memberships, isLoading: isLoadingMemberships } = useQuery({
+    const { data: memberships } = useQuery({
         queryKey: ["memberships", user?.tenant_id],
         queryFn: async () => {
             const { data, error } = await supabase

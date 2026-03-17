@@ -22,7 +22,7 @@ export const BranchesPage: React.FC = () => {
     const [isDialogOpen, setIsDialogOpen] = useState(false) // For Edit only
 
     // Fetch Branches
-    const { data: branches, isLoading } = useQuery({
+    const { data: branches } = useQuery({
         queryKey: ["branches", user?.tenant_id],
         queryFn: async () => {
             const { data, error } = await supabase

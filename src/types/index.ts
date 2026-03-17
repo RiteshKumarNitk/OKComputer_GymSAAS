@@ -89,6 +89,7 @@ export interface Member {
   plan_expires_at: string | null
   status: MemberStatus
   notes: string | null
+  assigned_trainer_id?: string | null
   created_at: string
   updated_at: string
   membership?: Membership

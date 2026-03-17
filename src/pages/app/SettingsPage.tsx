@@ -1,5 +1,4 @@
 import React, { useState } from "react"
-import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -7,7 +6,6 @@ import { Switch } from "@/components/ui/switch"
 import { Moon, Sun, Bell, Lock } from "lucide-react"
 
 export const SettingsPage: React.FC = () => {
-  const { user } = useAuth()
   const [darkMode, setDarkMode] = useState(false)
   const [emailNotifications, setEmailNotifications] = useState(true)
 

@@ -63,7 +63,7 @@ export const ReportsPage: React.FC = () => {
             // Let's check if we have last_checkin_at? The user didn't show the schema, but I'll assume standard columns.
             // Actually, let's use a simpler query: Members created > 7 days ago AND (last_checkin < 7 days ago OR null)
 
-            return allMembers?.filter(m => {
+            return allMembers?.filter((m: any) => {
                 if (!m.last_checkin_at) return true // Never checked in
                 return new Date(m.last_checkin_at) < sevenDaysAgo
             })
@@ -212,7 +212,7 @@ export const ReportsPage: React.FC = () => {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {expiringMembers?.map(m => {
+                                            {expiringMembers?.map((m: any) => {
                                                 const daysLeft = Math.ceil((new Date(m.plan_expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
                                                 return (
                                                     <TableRow key={m.id}>
@@ -255,7 +255,7 @@ export const ReportsPage: React.FC = () => {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {inactiveMembers?.map(m => (
+                                            {inactiveMembers?.map((m: any) => (
                                                 <TableRow key={m.id}>
                                                     <TableCell className="font-medium">{m.full_name}</TableCell>
                                                     <TableCell>{m.last_checkin_at ? formatDate(m.last_checkin_at) : "Never"}</TableCell>
@@ -292,7 +292,7 @@ export const ReportsPage: React.FC = () => {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {newMembers?.map(m => (
+                                            {newMembers?.map((m: any) => (
                                                 <TableRow key={m.id}>
                                                     <TableCell className="font-medium">
                                                         <div>{m.full_name}</div>

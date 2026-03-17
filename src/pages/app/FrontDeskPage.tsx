@@ -16,7 +16,7 @@ import {
     User,
     FileText,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { StaffManagement } from "@/features/front-desk/StaffManagement"
 import { CheckInDialog } from "@/features/front-desk/CheckInDialog"
