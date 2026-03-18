@@ -1,5 +1,6 @@
 import React, { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
+// Auth context provides signIn function and user state management
 import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +26,7 @@ export const SignInPage: React.FC = () => {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
+    // Attempt authentication and redirect based on user role
 
     try {
       await signIn(email, password)
