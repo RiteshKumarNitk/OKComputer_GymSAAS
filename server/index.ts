@@ -580,7 +580,11 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
 
 // ==================== START SERVER ====================
 
-app.listen(PORT, () => {
-    console.log(`✅ API server running on http://localhost:${PORT}`)
-})
+if (process.env.NODE_ENV !== "production") {
+    app.listen(PORT, () => {
+        console.log(`✅ API server running on http://localhost:${PORT}`)
+    })
+}
+
+export default app;
 
