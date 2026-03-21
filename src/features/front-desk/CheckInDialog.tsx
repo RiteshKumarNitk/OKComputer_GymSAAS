@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { membersApi, attendanceApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import type { Member } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -36,15 +36,9 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({ open, onOpenChange
         queryFn: async () => {
             if (!searchQuery || searchQuery.length < 2) return []
 
-            const { data, error } = await supabase
-                .from("members")
-                .select("*, memberships(name, is_active)")
-                .eq("tenant_id", user?.tenant_id)
-                .or(`full_name.ilike.%${searchQuery}%,member_code.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
-                .limit(5)
-
-            if (error) throw error
-            return data as Member[]
+            const response = await membersApi.list(user?.tenant_id || "", searchQuery)
+            if (response.error) throw response.error
+            return response.data as Member[]
         },
         enabled: searchQuery.length >= 2,
     })
@@ -54,28 +48,21 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({ open, onOpenChange
         mutationFn: async (member: Member) => {
             // Check if already checked in today
             const today = new Date().toISOString().split("T")[0]
-            const { data: existing } = await supabase
-                .from("attendance")
-                .select("*")
-                .eq("member_id", member.id)
-                .gte("checkin_at", `${today}T00:00:00`)
-                .lt("checkin_at", `${today}T23:59:59`)
-                .maybeSingle()
+            const checkResponse = await attendanceApi.list(user?.tenant_id || "", member.id, today)
+            if (checkResponse.error) throw checkResponse.error
+            const existing = checkResponse.data && checkResponse.data.length > 0
 
             if (existing) {
                 throw new Error("Member already checked in today")
             }
 
-            const { error } = await supabase
-                .from("attendance")
-                .insert({
-                    tenant_id: user?.tenant_id,
-                    member_id: member.id,
-                    checkin_at: new Date().toISOString(),
-                    device_info: { type: "manual", by: user?.full_name },
-                })
+            const response = await attendanceApi.checkin({
+                memberId: member.id,
+                checkinAt: new Date().toISOString(),
+                deviceInfo: { type: "manual", by: user?.full_name },
+            })
 
-            if (error) throw error
+            if (response.error) throw response.error
             return member
         },
         onSuccess: (member) => {

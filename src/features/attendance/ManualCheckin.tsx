@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { membersApi, attendanceApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import type { Member } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -25,65 +25,44 @@ export const ManualCheckin: React.FC = () => {
         queryFn: async () => {
             if (!searchQuery || searchQuery.length < 2) return []
 
-            const { data, error } = await supabase
-                .from("members")
-                .select("*, memberships(name, is_active)")
-                .eq("tenant_id", user?.tenant_id)
-                .or(`full_name.ilike.%${searchQuery}%,member_code.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
-                .limit(5)
-
-            if (error) throw error
-            return data as Member[]
+            const response = await membersApi.list(user?.tenant_id || "", searchQuery)
+            if (response.error) throw response.error
+            return response.data || []
         },
         enabled: searchQuery.length >= 2,
     })
 
     // Check-in mutation
     const checkinMutation = useMutation({
-        mutationFn: async (member: Member) => {
-            // Check if already checked in today
-            const today = new Date().toISOString().split("T")[0]
-            const { data: existing } = await supabase
-                .from("attendance")
-                .select("*")
-                .eq("member_id", member.id)
-                .gte("checkin_at", `${today}T00:00:00`)
-                .lt("checkin_at", `${today}T23:59:59`)
-                .maybeSingle()
+        mutationFn: async (member: any) => {
+            // Backend /api/attendance POST now atomically handles the "already checked today" check 
+            // and increments MemberFitnessStats together.
+            const response = await attendanceApi.checkin({
+                memberId: member.id,
+                deviceInfo: { type: "manual", by: user?.full_name || "Admin" },
+            })
 
-            if (existing) {
-                throw new Error("Member already checked in today")
-            }
-
-            const { error } = await supabase
-                .from("attendance")
-                .insert({
-                    tenant_id: user?.tenant_id,
-                    member_id: member.id,
-                    checkin_at: new Date().toISOString(),
-                    device_info: { type: "manual", by: user?.full_name },
-                })
-
-            if (error) throw error
+            if (response.error) throw response.error
             return member
         },
-        onSuccess: (member) => {
+        onSuccess: (member: any) => {
             setCheckinStatus({
                 success: true,
-                message: `Successfully checked in ${member.full_name}`,
+                message: `Successfully checked in ${member.fullName || member.full_name}`,
                 member,
             })
             setSearchQuery("")
             queryClient.invalidateQueries({ queryKey: ["attendance-log"] })
             queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
 
-            // Clear status after 3 seconds
             setTimeout(() => setCheckinStatus(null), 3000)
         },
         onError: (error: any) => {
             setCheckinStatus({
                 success: false,
-                message: error.message || "Failed to check in",
+                message: error.message === "Member already checked in today" 
+                    ? "Checked in today!" 
+                    : error.message || "Failed to check in",
             })
         },
     })
@@ -113,7 +92,7 @@ export const ManualCheckin: React.FC = () => {
                                 No members found
                             </div>
                         ) : (
-                            searchResults.map((member) => (
+                            searchResults.map((member: any) => (
                                 <div
                                     key={member.id}
                                     className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
@@ -123,8 +102,8 @@ export const ManualCheckin: React.FC = () => {
                                             <User className="h-4 w-4" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-sm">{member.full_name}</p>
-                                            <p className="text-xs text-muted-foreground">{member.member_code}</p>
+                                            <p className="font-medium text-sm">{member.fullName || member.full_name}</p>
+                                            <p className="text-xs text-muted-foreground">{member.memberCode || member.member_code}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-3">

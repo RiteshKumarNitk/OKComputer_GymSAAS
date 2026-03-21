@@ -1,10 +1,11 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { membersApi, membershipsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import type { Member, Membership } from "@/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import {
+  ArrowLeft,
   Search,
   Edit,
   Trash2,
@@ -60,39 +61,20 @@ export const MembersPage: React.FC = () => {
   const { data: members, isLoading } = useQuery({
     queryKey: ["members", searchQuery, statusFilter],
     queryFn: async () => {
-      let query = supabase
-        .from("members")
-        .select(`*, membership:memberships(name, price_cents, duration_days)`)
-        .eq("tenant_id", user?.tenant_id)
-
-      if (searchQuery) {
-        query = query.or(`full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,member_code.ilike.%${searchQuery}%`)
-      }
-
-      if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter)
-      }
-
-      query = query.order("created_at", { ascending: false })
-
-      const { data, error } = await query
-      if (error) throw error
-      return data as Member[]
+      const response = await membersApi.list(user?.tenant_id || "", searchQuery, statusFilter)
+      if (response.error) throw response.error
+      return response.data as Member[]
     },
     enabled: !!user?.tenant_id,
   })
 
   // Fetch memberships for form
   const { data: memberships } = useQuery({
-    queryKey: ["memberships"],
+    queryKey: ["memberships", user?.tenant_id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("memberships")
-        .select("*")
-        .eq("tenant_id", user?.tenant_id)
-        .eq("is_active", true)
-      if (error) throw error
-      return data as Membership[]
+      const response = await membershipsApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      return response.data as Membership[]
     },
     enabled: !!user?.tenant_id,
   })
@@ -100,12 +82,8 @@ export const MembersPage: React.FC = () => {
   // Delete member mutation
   const deleteMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
-      const { error } = await supabase
-        .from("members")
-        .delete()
-        .eq("id", memberId)
-        .eq("tenant_id", user?.tenant_id)
-      if (error) throw error
+      const response = await membersApi.delete(memberId)
+      if (response.error) throw response.error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members"] })
@@ -195,7 +173,13 @@ export const MembersPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Members</h1>
+        <div className="flex items-center space-x-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/front-desk")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+             <ArrowLeft className="h-4 w-4" /> Back to Desk
+          </Button>
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+          <h1 className="text-3xl font-bold tracking-tight">Members</h1>
+        </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline" onClick={exportMembers}>
             <Download className="mr-2 h-4 w-4" />
@@ -271,7 +255,7 @@ export const MembersPage: React.FC = () => {
                           {member.membership?.name || "No Plan"}
                           {member.membership && (
                             <div className="text-xs text-muted-foreground">
-                              {formatCurrency(member.membership.price_cents, member.membership.currency)} / {member.membership.duration_days} days
+                              {formatCurrency(member.membership.priceCents ?? member.membership.price_cents ?? 0, member.membership.currency || "INR")} / {member.membership.durationDays ?? member.membership.duration_days ?? 0} days
                             </div>
                           )}
                         </TableCell>

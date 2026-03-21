@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { dietPlansApi, memberDietsApi, membersApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -45,13 +45,9 @@ export const DietPlansPage: React.FC = () => {
   const { data: plans } = useQuery({
     queryKey: ["diet_plans", user?.tenant_id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("diet_plans")
-        .select("*")
-        .eq("tenant_id", user?.tenant_id)
-        .order("created_at", { ascending: false })
-      if (error) throw error
-      return data as DietPlan[]
+      const response = await dietPlansApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      return response.data as DietPlan[]
     },
     enabled: !!user?.tenant_id
   })
@@ -60,8 +56,9 @@ export const DietPlansPage: React.FC = () => {
   const { data: members } = useQuery({
     queryKey: ["members-basic", user?.tenant_id],
     queryFn: async () => {
-      const { data } = await supabase.from("members").select("id, full_name, member_code").eq("tenant_id", user?.tenant_id).eq("status", "active")
-      return data as Member[]
+      const response = await membersApi.list(user?.tenant_id || "", "", "active")
+      if (response.error) throw response.error
+      return response.data as Member[]
     },
     enabled: isAssignOpen
   })
@@ -76,14 +73,13 @@ export const DietPlansPage: React.FC = () => {
       if (!calories) throw new Error("Target calories is required")
 
       const data = {
-        tenant_id: user?.tenant_id,
         name: name,
         description: formData.get("description"),
         target_calories: parseInt(calories as string),
         meals: meals
       }
-      const { error } = await supabase.from("diet_plans").insert([data])
-      if (error) throw error
+      const response = await dietPlansApi.create(data)
+      if (response.error) throw response.error
     },
     onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to create diet plan", variant: "destructive" }),
     onSuccess: () => {
@@ -109,12 +105,8 @@ export const DietPlansPage: React.FC = () => {
         target_calories: parseInt(calories as string),
         meals: meals
       }
-      const { error } = await supabase
-        .from("diet_plans")
-        .update(data)
-        .eq("id", selectedDiet.id)
-
-      if (error) throw error
+      const response = await dietPlansApi.update(selectedDiet.id, data)
+      if (response.error) throw response.error
     },
     onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to update diet plan", variant: "destructive" }),
     onSuccess: () => {
@@ -129,12 +121,11 @@ export const DietPlansPage: React.FC = () => {
   const assignMutation = useMutation({
     mutationFn: async (memberId: string) => {
       if (!selectedDiet) return
-      const { error } = await supabase.from("member_diets").insert({
-        tenant_id: user?.tenant_id,
+      const response = await memberDietsApi.assign({
         member_id: memberId,
         diet_plan_id: selectedDiet.id
       })
-      if (error) throw error
+      if (response.error) throw response.error
     },
     onSuccess: () => {
       setIsAssignOpen(false)
@@ -185,7 +176,7 @@ export const DietPlansPage: React.FC = () => {
               <div className="flex justify-between items-start">
                 <CardTitle>{plan.name}</CardTitle>
                 <div className="flex gap-2">
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{plan.target_calories} kCal</Badge>
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{plan.targetCalories ?? plan.target_calories} kCal</Badge>
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditDialog(plan)}>
                     <Pencil className="h-3 w-3" />
                   </Button>
@@ -236,7 +227,7 @@ export const DietPlansPage: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <Label>Target Calories</Label>
-                <Input name="calories" type="number" placeholder="2000" required defaultValue={selectedDiet?.target_calories} />
+                <Input name="calories" type="number" placeholder="2000" required defaultValue={selectedDiet?.targetCalories ?? selectedDiet?.target_calories} />
               </div>
             </div>
             <div className="space-y-2">

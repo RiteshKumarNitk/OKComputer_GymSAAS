@@ -1,8 +1,7 @@
 import React from "react"
 import { useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
-import { tenantsApi, usersApi, billingApi } from "@/api/apiClient"
+import { tenantsApi, usersApi, billingApi, dashboardApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import type { DashboardStats } from "@/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
@@ -37,117 +36,11 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate()
 
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["dashboard-stats"],
+    queryKey: ["dashboard-stats", user?.tenant_id],
     queryFn: async (): Promise<DashboardStats> => {
-      // Get member counts
-      const { count: totalMembers } = await (supabase as any)
-        .from("members")
-        .select("*", { count: "exact", head: true })
-        .eq("tenant_id", user?.tenant_id)
-
-      const { count: activeMembers } = await (supabase as any)
-        .from("members")
-        .select("*", { count: "exact", head: true })
-        .eq("tenant_id", user?.tenant_id)
-        .eq("status", "active")
-
-      // Get revenue data
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("amount_cents, paid_at")
-        .eq("tenant_id", user?.tenant_id)
-        .eq("status", "paid")
-
-      const totalRevenue = payments?.reduce((sum: number, p: any) => sum + p.amount_cents, 0) || 0
-
-      const currentMonth = new Date().getMonth()
-      const monthlyRevenue =
-        payments
-          ?.filter((p: any) => new Date(p.paid_at!).getMonth() === currentMonth)
-          .reduce((sum: number, p: any) => sum + p.amount_cents, 0) || 0
-
-      // Get attendance data
-      const today = new Date().toISOString().split("T")[0]
-      const { count: attendanceToday } = await (supabase as any)
-        .from("attendance")
-        .select("*", { count: "exact", head: true })
-        .eq("tenant_id", user?.tenant_id)
-        .gte("checkin_at", `${today}T00:00:00`)
-        .lt("checkin_at", `${today}T23:59:59`)
-
-      // Get new members this month
-      const { count: newMembersThisMonth } = await (supabase as any)
-        .from("members")
-        .select("*", { count: "exact", head: true })
-        .eq("tenant_id", user?.tenant_id)
-        .gte("created_at", new Date(new Date().getFullYear(), currentMonth, 1).toISOString())
-
-      // Get membership distribution
-      const { data: membershipData } = await (supabase as any)
-        .from("members")
-        .select("memberships(name)")
-        .eq("tenant_id", user?.tenant_id)
-        .eq("status", "active")
-
-      const membershipDistribution: { [key: string]: number } = {}
-      membershipData?.forEach((member: any) => {
-        const name = member.memberships?.name || "No Plan"
-        membershipDistribution[name] = (membershipDistribution[name] || 0) + 1
-      })
-
-      // Get revenue trend (last 6 months)
-      const revenueTrend = []
-      for (let i = 5; i >= 0; i--) {
-        const month = new Date()
-        month.setMonth(month.getMonth() - i)
-        const monthStart = new Date(month.getFullYear(), month.getMonth(), 1)
-        const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0)
-
-        const monthRevenue =
-          payments
-            ?.filter((p: any) => {
-              const paidDate = new Date(p.paid_at!)
-              return paidDate >= monthStart && paidDate <= monthEnd
-            })
-            .reduce((sum: number, p: any) => sum + p.amount_cents, 0) || 0
-
-        revenueTrend.push({
-          month: month.toLocaleDateString("en-US", { month: "short" }),
-          revenue: monthRevenue,
-        })
-      }
-
-      // Get attendance trend (last 7 days)
-      const attendanceTrend = []
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split("T")[0]
-
-        const { count: dayAttendance } = await (supabase as any)
-          .from("attendance")
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", user?.tenant_id)
-          .gte("checkin_at", `${dateStr}T00:00:00`)
-          .lt("checkin_at", `${dateStr}T23:59:59`)
-
-        attendanceTrend.push({
-          date: date.toLocaleDateString("en-US", { weekday: "short" }),
-          count: dayAttendance || 0,
-        })
-      }
-
-      return {
-        totalMembers: totalMembers || 0,
-        activeMembers: activeMembers || 0,
-        totalRevenue,
-        monthlyRevenue,
-        attendanceToday: attendanceToday || 0,
-        newMembersThisMonth: newMembersThisMonth || 0,
-        membershipDistribution,
-        revenueTrend,
-        attendanceTrend,
-      }
+      const response = await dashboardApi.getStats()
+      if (response.error) throw response.error
+      return response.data as DashboardStats
     },
     enabled: !!user?.tenant_id && user?.role !== "super_admin",
   })

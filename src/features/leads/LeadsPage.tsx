@@ -1,8 +1,10 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { leadsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
+import { useNavigate } from "react-router-dom"
 import {
+    ArrowLeft,
     Search,
     Plus,
     MoreVertical,
@@ -41,19 +43,22 @@ import { useToast } from "@/components/ui/use-toast"
 
 export interface Lead {
     id: string
-    full_name: string
+    full_name?: string
+    fullName?: string
     email: string | null
     phone: string
     status: 'new' | 'contacted' | 'trial' | 'converted' | 'lost'
     source: string
     notes: string | null
-    created_at: string
+    created_at?: string
+    createdAt?: string
 }
 
 export const LeadsPage: React.FC = () => {
     const { user } = useAuth()
     const { toast } = useToast()
     const queryClient = useQueryClient()
+    const navigate = useNavigate()
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
@@ -62,13 +67,9 @@ export const LeadsPage: React.FC = () => {
     const { data: leads } = useQuery({
         queryKey: ["leads", user?.tenant_id],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("leads")
-                .select("*")
-                .eq("tenant_id", user?.tenant_id)
-                .order("created_at", { ascending: false })
-            if (error) throw error
-            return data as Lead[]
+            const response = await leadsApi.list(user?.tenant_id || "")
+            if (response.error) throw response.error
+            return response.data as Lead[]
         },
         enabled: !!user?.tenant_id,
     })
@@ -77,8 +78,7 @@ export const LeadsPage: React.FC = () => {
     const saveLeadMutation = useMutation({
         mutationFn: async (formData: FormData) => {
             const data = {
-                tenant_id: user?.tenant_id,
-                full_name: formData.get("full_name") as string,
+                fullName: formData.get("full_name") as string,
                 email: formData.get("email") as string,
                 phone: formData.get("phone") as string,
                 status: formData.get("status") as string,
@@ -87,14 +87,11 @@ export const LeadsPage: React.FC = () => {
             }
 
             if (selectedLead) {
-                const { error } = await supabase
-                    .from("leads")
-                    .update(data)
-                    .eq("id", selectedLead.id)
-                if (error) throw error
+                const response = await leadsApi.update(selectedLead.id, data)
+                if (response.error) throw response.error
             } else {
-                const { error } = await supabase.from("leads").insert([data])
-                if (error) throw error
+                const response = await leadsApi.create(data)
+                if (response.error) throw response.error
             }
         },
         onSuccess: () => {
@@ -111,8 +108,8 @@ export const LeadsPage: React.FC = () => {
     // Delete Mutation
     const deleteLeadMutation = useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase.from("leads").delete().eq("id", id)
-            if (error) throw error
+            const response = await leadsApi.delete(id)
+            if (response.error) throw response.error
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["leads"] })
@@ -128,7 +125,7 @@ export const LeadsPage: React.FC = () => {
     }
 
     const filteredLeads = leads?.filter(lead =>
-        lead.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (lead.fullName || lead.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         lead.phone.includes(searchQuery)
     )
 
@@ -143,7 +140,13 @@ export const LeadsPage: React.FC = () => {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Lead Management</h1>
+                <div className="flex items-center space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => navigate("/front-desk")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                        <ArrowLeft className="h-4 w-4" /> Back to Desk
+                    </Button>
+                    <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+                    <h1 className="text-3xl font-bold tracking-tight">Lead Management</h1>
+                </div>
                 <Button onClick={() => { setSelectedLead(null); setIsAddOpen(true) }}>
                     <Plus className="mr-2 h-4 w-4" /> Add New Lead
                 </Button>
@@ -168,7 +171,7 @@ export const LeadsPage: React.FC = () => {
                         <CardHeader className="pb-2">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <CardTitle className="text-lg">{lead.full_name}</CardTitle>
+                                    <CardTitle className="text-lg">{lead.fullName || lead.full_name}</CardTitle>
                                     <CardDescription className="flex items-center mt-1">
                                         <Badge variant="secondary" className={statusColors[lead.status]}>
                                             {lead.status.toUpperCase()}

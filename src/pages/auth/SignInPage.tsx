@@ -54,32 +54,38 @@ export const SignInPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-md">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-950">
+      {/* Ambient background glows */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-1/4 left-1/4 h-72 w-72 rounded-full bg-indigo-500/20 mix-blend-screen filter blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 h-72 w-72 rounded-full bg-purple-500/20 mix-blend-screen filter blur-3xl animate-pulse delay-700" />
+      </div>
+
+      <div className="w-full max-w-md px-4">
         <div className="flex justify-center mb-8">
           <div className="flex items-center space-x-2">
-            <Activity className="h-10 w-10 text-primary" />
-            <span className="text-3xl font-bold">GymPro</span>
+            <Activity className="h-12 w-12 text-indigo-400 drop-shadow-[0_0_15px_rgba(99,102,241,0.5)]" />
+            <span className="text-4xl font-extrabold tracking-tight text-white">Gym<span className="text-indigo-400">Pro</span></span>
           </div>
         </div>
 
-        <Card>
+        <Card className="border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
-            <CardDescription className="text-center">
+            <CardTitle className="text-2xl font-bold text-center text-white">Welcome back</CardTitle>
+            <CardDescription className="text-center text-slate-400">
               Sign in to your account to continue
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="bg-red-950/50 border-red-500/30 text-red-200">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-slate-300">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -88,11 +94,12 @@ export const SignInPage: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
+                  className="bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-indigo-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-slate-300">Password</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -102,10 +109,11 @@ export const SignInPage: React.FC = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={isLoading}
+                    className="bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-indigo-500"
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -113,7 +121,7 @@ export const SignInPage: React.FC = () => {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-all duration-200" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>

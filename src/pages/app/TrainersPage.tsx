@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { trainersApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Trainer, UserRole } from "@/types"
 import { formatCurrency } from "@/lib/utils"
@@ -57,20 +57,18 @@ export const TrainersPage: React.FC = () => {
   const { data: trainers, isLoading } = useQuery({
     queryKey: ["trainers", searchQuery],
     queryFn: async () => {
-      let query = supabase
-        .from("trainers")
-        .select("*")
-        .eq("tenant_id", user?.tenant_id)
-
-      if (searchQuery) {
-        query = query.or(`full_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
-      }
-
-      query = query.order("created_at", { ascending: false })
-
-      const { data, error } = await query
-      if (error) throw error
-      return data as Trainer[]
+       const response = await trainersApi.list(user?.tenant_id || "")
+       if (response.error) throw response.error
+       const list = (response.data || []) as Trainer[]
+       if (searchQuery) {
+         const q = searchQuery.toLowerCase()
+         return list.filter((t: any) => 
+            (t.fullName ?? t.full_name ?? "").toLowerCase().includes(q) || 
+            (t.email ?? "").toLowerCase().includes(q) ||
+            (t.phone ?? "").toLowerCase().includes(q)
+         )
+       }
+       return list
     },
     enabled: !!user?.tenant_id,
   })
@@ -93,17 +91,13 @@ export const TrainersPage: React.FC = () => {
         is_active: true,
       }
 
+      let response;
       if (selectedTrainer) {
-        const { error } = await supabase
-          .from("trainers")
-          .update(data)
-          .eq("id", selectedTrainer.id)
-          .eq("tenant_id", user.tenant_id)
-        if (error) throw error
+        response = await trainersApi.update(selectedTrainer.id, data)
       } else {
-        const { error } = await supabase.from("trainers").insert([data])
-        if (error) throw error
+        response = await trainersApi.create(data)
       }
+      if (response.error) throw response.error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trainers"] })
@@ -119,12 +113,8 @@ export const TrainersPage: React.FC = () => {
   // Delete Mutation
   const deleteTrainerMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("trainers")
-        .delete()
-        .eq("id", id)
-        .eq("tenant_id", user?.tenant_id)
-      if (error) throw error
+      const response = await trainersApi.delete(id)
+      if (response.error) throw response.error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trainers"] })
@@ -201,7 +191,7 @@ export const TrainersPage: React.FC = () => {
             <TableBody>
               {trainers?.map((trainer) => (
                 <TableRow key={trainer.id}>
-                  <TableCell className="font-medium">{trainer.full_name}</TableCell>
+                  <TableCell className="font-medium">{trainer.fullName ?? trainer.full_name}</TableCell>
                   <TableCell>
                     <div className="flex flex-col space-y-1 text-sm">
                       <div className="flex items-center">
@@ -223,10 +213,10 @@ export const TrainersPage: React.FC = () => {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell>{formatCurrency(trainer.hourly_rate_cents || 0)}/hr</TableCell>
+                  <TableCell>{formatCurrency(trainer.hourlyRateCents ?? trainer.hourly_rate_cents ?? 0)}/hr</TableCell>
                   <TableCell>
-                    <Badge variant={trainer.is_active ? "default" : "secondary"}>
-                      {trainer.is_active ? "Active" : "Inactive"}
+                    <Badge variant={(trainer.isActive ?? trainer.is_active) ? "default" : "secondary"}>
+                      {(trainer.isActive ?? trainer.is_active) ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
                   {canManageTrainers && (
@@ -322,7 +312,7 @@ export const TrainersPage: React.FC = () => {
                   name="hourly_rate"
                   type="number"
                   step="0.01"
-                  defaultValue={(selectedTrainer?.hourly_rate_cents || 0) / 100}
+                  defaultValue={(selectedTrainer?.hourlyRateCents ?? selectedTrainer?.hourly_rate_cents ?? 0) / 100}
                 />
               </div>
               <div className="grid gap-2">

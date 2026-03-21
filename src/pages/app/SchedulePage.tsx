@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { schedulesApi, servicesApi, trainersApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -40,12 +40,9 @@ export const SchedulePage: React.FC = () => {
   const { data: schedule } = useQuery({
     queryKey: ["schedules", user?.tenant_id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("schedules")
-        .select("*, service:services(*), trainer:trainers(*)")
-        .eq("tenant_id", user?.tenant_id)
-      if (error) throw error
-      return data as ScheduleSlot[]
+      const response = await schedulesApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      return response.data as ScheduleSlot[]
     },
     enabled: !!user?.tenant_id
   })
@@ -54,8 +51,10 @@ export const SchedulePage: React.FC = () => {
   const { data: services } = useQuery({
     queryKey: ["services", user?.tenant_id],
     queryFn: async () => {
-      const { data } = await supabase.from("services").select("*").eq("tenant_id", user?.tenant_id).eq("type", "class")
-      return data as Service[] || []
+      const response = await servicesApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      const list = (response.data || []) as Service[]
+      return list.filter(s => s.type === "class")
     },
     enabled: !!user?.tenant_id
   })
@@ -64,8 +63,9 @@ export const SchedulePage: React.FC = () => {
   const { data: trainers } = useQuery({
     queryKey: ["trainers", user?.tenant_id],
     queryFn: async () => {
-      const { data } = await supabase.from("trainers").select("*").eq("tenant_id", user?.tenant_id)
-      return data as Trainer[] || []
+      const response = await trainersApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      return (response.data || []) as Trainer[]
     },
     enabled: !!user?.tenant_id
   })
@@ -76,15 +76,14 @@ export const SchedulePage: React.FC = () => {
       if (!formService) throw new Error("Please select a class/service")
 
       const data = {
-        tenant_id: user?.tenant_id,
         day_of_week: parseInt(formDay),
         start_time: formData.get("time") as string,
         duration_minutes: parseInt(formData.get("duration") as string),
         service_id: formService,
         trainer_id: formTrainer === "none" ? null : formTrainer
       }
-      const { error } = await supabase.from("schedules").insert([data])
-      if (error) throw error
+      const response = await schedulesApi.create(data)
+      if (response.error) throw response.error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"] })
@@ -97,8 +96,8 @@ export const SchedulePage: React.FC = () => {
   // Delete Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("schedules").delete().eq("id", id)
-      if (error) throw error
+      const response = await schedulesApi.delete(id)
+      if (response.error) throw response.error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"] })
@@ -112,7 +111,7 @@ export const SchedulePage: React.FC = () => {
   }
 
   // Filter slots for current view
-  const daySlots = schedule?.filter(s => s.day_of_week === selectedDay).sort((a, b) => a.start_time.localeCompare(b.start_time))
+  const daySlots = schedule?.filter(s => (s.dayOfWeek ?? s.day_of_week) === selectedDay).sort((a, b) => a.start_time.localeCompare(b.start_time))
 
   return (
     <div className="space-y-6">
@@ -170,9 +169,9 @@ export const SchedulePage: React.FC = () => {
                     <div>
                       <h4 className="font-bold text-lg">{slot.service?.name || "Unknown Class"}</h4>
                       <div className="flex items-center text-sm text-muted-foreground space-x-3">
-                        <span className="flex items-center"><Clock className="mr-1 h-3 w-3" /> {slot.duration_minutes}m</span>
+                        <span className="flex items-center"><Clock className="mr-1 h-3 w-3" /> {slot.durationMinutes ?? slot.duration_minutes}m</span>
                         {slot.trainer && (
-                          <span className="flex items-center"><User className="mr-1 h-3 w-3" /> {slot.trainer.full_name}</span>
+                          <span className="flex items-center"><User className="mr-1 h-3 w-3" /> {slot.trainer.fullName ?? slot.trainer.full_name}</span>
                         )}
                       </div>
                     </div>
@@ -188,7 +187,7 @@ export const SchedulePage: React.FC = () => {
       ) : (
         <div className="space-y-6">
           {DAYS.map((day, index) => {
-            const slots = schedule?.filter(s => s.day_of_week === index).sort((a, b) => a.start_time.localeCompare(b.start_time))
+            const slots = schedule?.filter(s => (s.dayOfWeek ?? s.day_of_week) === index).sort((a, b) => a.start_time.localeCompare(b.start_time))
             if (!slots || slots.length === 0) return null
 
             return (
@@ -205,7 +204,7 @@ export const SchedulePage: React.FC = () => {
                           <div>
                             <p className="font-medium">{slot.service?.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {slot.duration_minutes}m • {slot.trainer?.full_name || 'No Trainer'}
+                              {slot.durationMinutes ?? slot.duration_minutes}m • {slot.trainer ? (slot.trainer.fullName ?? slot.trainer.full_name) : 'No Trainer'}
                             </p>
                           </div>
                         </div>

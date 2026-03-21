@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { productsApi, paymentsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatCurrency } from "@/lib/utils"
 import { ShoppingCart, Plus, Minus, Trash2, Package, CreditCard } from "lucide-react"
@@ -15,8 +15,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 interface Product {
     id: string
     name: string
-    price_cents: number
-    stock_quantity: number
+    price_cents?: number
+    priceCents?: number
+    stock_quantity?: number
+    stockQuantity?: number
     category: string
     description: string
 }
@@ -37,13 +39,9 @@ export const POSPage: React.FC = () => {
     const { data: products } = useQuery({
         queryKey: ["products", user?.tenant_id],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("products")
-                .select("*")
-                .eq("tenant_id", user?.tenant_id)
-                .order("name")
-            if (error) throw error
-            return data as Product[]
+            const response = await productsApi.list(user?.tenant_id || "")
+            if (response.error) throw response.error
+            return response.data as Product[]
         },
         enabled: !!user?.tenant_id,
     })
@@ -76,14 +74,13 @@ export const POSPage: React.FC = () => {
     const addProductMutation = useMutation({
         mutationFn: async (formData: FormData) => {
             const data = {
-                tenant_id: user?.tenant_id,
                 name: formData.get("name") as string,
-                price_cents: Math.round(parseFloat(formData.get("price") as string) * 100),
-                stock_quantity: parseInt(formData.get("stock") as string),
+                priceCents: Math.round(parseFloat(formData.get("price") as string) * 100),
+                stockQuantity: parseInt(formData.get("stock") as string),
                 category: formData.get("category") as string,
             }
-            const { error } = await supabase.from("products").insert([data])
-            if (error) throw error
+            const response = await productsApi.create(data)
+            if (response.error) throw response.error
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["products"] })
@@ -96,34 +93,19 @@ export const POSPage: React.FC = () => {
     // Checkout Mutation
     const checkoutMutation = useMutation({
         mutationFn: async () => {
-            // 1. Record Sale (simplified, typically goes to 'orders' or 'payments')
-            // For now, let's just create a 'Payment' record per item or a bulk one.
-            // Better: update stock
             for (const item of cart) {
-                // Update stock
-                // Skipping complex atomic updates for speed, doing straightforward update
+                const updateResponse = await productsApi.update(item.id, {
+                    stockQuantity: (item.stockQuantity || item.stock_quantity || 0) - item.quantity
+                })
+                if (updateResponse.error) console.error("Stock update failed", updateResponse.error)
 
-                const { error: updateError } = await supabase
-                    .from("products")
-                    .update({ stock_quantity: item.stock_quantity - item.quantity })
-                    .eq("id", item.id)
-
-                if (updateError) console.error("Stock update failed", updateError)
-
-                // Record Payment (Income)
-                await supabase.from("payments").insert({
-                    tenant_id: user?.tenant_id,
-                    amount_cents: item.price_cents * item.quantity,
+                await paymentsApi.create({
+                    amountCents: (item.priceCents || item.price_cents || 0) * item.quantity,
                     currency: "INR",
                     status: "paid",
-                    provider: "cash", // Assuming cash for POS
+                    provider: "cash",
                     metadata: { type: "pos_sale", product_name: item.name, quantity: item.quantity },
-                    member_id: null // Guest/Walk-in sale
-                    // Note: Schema might require member_id. If so, we might need a "Walk-in Member" placeholder or make it nullable.
-                    // Based on type def: 'member_id' is string, not nullable in interface but let's check SQL.
-                    // SQL often allows null if not NOT NULL. Checking types... Member is required in types.
-                    // Workaround: We will just NOT create a payment record if member_id is strict, OR we skip payment recording for now and just do stock.
-                    // Actually, let's record it as an anonymous sale if possible.
+                    memberId: null
                 })
             }
         },
@@ -136,7 +118,7 @@ export const POSPage: React.FC = () => {
         onError: (err: any) => toast({ title: "Checkout Failed", description: err.message, variant: "destructive" })
     })
 
-    const cartTotal = cart.reduce((sum, item) => sum + (item.price_cents * item.quantity), 0)
+    const cartTotal = cart.reduce((sum, item) => sum + ((item.priceCents || item.price_cents || 0) * item.quantity), 0)
 
     return (
         <div className="flex h-[calc(100vh-2rem)] gap-4 flex-col md:flex-row">
@@ -174,9 +156,9 @@ export const POSPage: React.FC = () => {
                             </CardHeader>
                             <CardContent className="p-4 pt-0">
                                 <div className="flex justify-between items-center mt-2">
-                                    <span className="font-bold text-lg">{formatCurrency(product.price_cents)}</span>
-                                    <Badge variant={product.stock_quantity > 0 ? "outline" : "destructive"}>
-                                        {product.stock_quantity > 0 ? `${product.stock_quantity} left` : "Out of Stock"}
+                                    <span className="font-bold text-lg">{formatCurrency(product.priceCents || product.price_cents || 0)}</span>
+                                    <Badge variant={(product.stockQuantity ?? product.stock_quantity ?? 0) > 0 ? "outline" : "destructive"}>
+                                        {(product.stockQuantity ?? product.stock_quantity ?? 0) > 0 ? `${product.stockQuantity ?? product.stock_quantity} left` : "Out of Stock"}
                                     </Badge>
                                 </div>
                             </CardContent>
@@ -200,7 +182,7 @@ export const POSPage: React.FC = () => {
                             <div key={item.id} className="flex justify-between items-center bg-muted/50 p-2 rounded-lg">
                                 <div className="flex-1 min-w-0 mr-2">
                                     <p className="font-medium text-sm truncate">{item.name}</p>
-                                    <p className="text-xs text-muted-foreground">{formatCurrency(item.price_cents)} x {item.quantity}</p>
+                                    <p className="text-xs text-muted-foreground">{formatCurrency(item.priceCents || item.price_cents || 0)} x {item.quantity}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.id, -1)}><Minus className="h-3 w-3" /></Button>

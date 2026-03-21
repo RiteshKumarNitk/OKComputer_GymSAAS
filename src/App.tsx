@@ -22,6 +22,7 @@ import { AnalyticsPage } from "@/pages/app/AnalyticsPage"
 import { ReportsPage } from "@/pages/app/ReportsPage"
 import { SettingsPage } from "@/pages/app/SettingsPage"
 import { ProfilePage } from "@/pages/app/ProfilePage"
+import { PlansPage } from "@/pages/app/PlansPage"
 import { UnauthorizedPage } from "@/pages/auth/UnauthorizedPage"
 import { NotFoundPage } from "@/pages/auth/NotFoundPage"
 import { SuperAdminDashboard } from "@/pages/admin/superadmin/Dashboard"
@@ -38,6 +39,7 @@ import { RenewalsPage } from "@/features/renewals/RenewalsPage"
 import { POSPage } from "@/features/pos/POSPage"
 import { LockersPage } from "@/features/lockers/LockersPage"
 import { OperationsPage } from "@/pages/app/OperationsPage"
+import { StaffPage } from "@/pages/app/StaffPage"
 import { MemberLayout } from "@/features/member-portal/MemberLayout"
 import { MemberDashboard } from "@/features/member-portal/MemberDashboard"
 
@@ -94,6 +96,7 @@ function App() {
                         <Route path="/members" element={<MembersPage />} />
                         <Route path="/trainers" element={<TrainersPage />} />
                         <Route path="/front-desk" element={<FrontDeskPage />} />
+                        <Route path="/staff" element={<StaffPage />} />
                         <Route path="/leads" element={<LeadsPage />} />
                         <Route path="/renewals" element={<RenewalsPage />} />
                         <Route path="/pos" element={<POSPage />} />
@@ -105,6 +108,7 @@ function App() {
                         <Route path="/schedule" element={<SchedulePage />} />
                         <Route path="/billing" element={<BillingPage />} />
                         <Route path="/workouts" element={<WorkoutsPage />} />
+                        <Route path="/plans" element={<PlansPage />} />
                         <Route path="/diet-plans" element={<DietPlansPage />} />
                         <Route path="/analytics" element={<AnalyticsPage />} />
                         <Route path="/reports" element={<ReportsPage />} />

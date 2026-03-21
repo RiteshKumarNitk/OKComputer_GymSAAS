@@ -1,11 +1,13 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { expensesApi, paymentsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import {
-  TrendingDown
+  TrendingDown,
+  ArrowLeft
 } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -51,6 +53,7 @@ interface Expense {
 
 export const BillingPage: React.FC = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
@@ -59,13 +62,9 @@ export const BillingPage: React.FC = () => {
   const { data: expenses } = useQuery({
     queryKey: ["expenses", user?.tenant_id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("expenses")
-        .select("*")
-        .eq("tenant_id", user?.tenant_id)
-        .order("expense_date", { ascending: false })
-      if (error) throw error
-      return data as Expense[]
+      const response = await expensesApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      return response.data as Expense[]
     },
     enabled: !!user?.tenant_id,
   })
@@ -76,7 +75,6 @@ export const BillingPage: React.FC = () => {
       const amount = parseFloat(formData.get("amount") as string) * 100 // Convert to cents
 
       const data = {
-        tenant_id: user?.tenant_id,
         title: formData.get("title") as string,
         amount_cents: Math.round(amount),
         category: formData.get("category") as string,
@@ -84,8 +82,8 @@ export const BillingPage: React.FC = () => {
         notes: formData.get("notes") as string,
       }
 
-      const { error } = await supabase.from("expenses").insert([data])
-      if (error) throw error
+      const response = await expensesApi.create(data)
+      if (response.error) throw response.error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] })
@@ -101,15 +99,9 @@ export const BillingPage: React.FC = () => {
   const { data: payments } = useQuery({
     queryKey: ["recent-payments", user?.tenant_id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payments")
-        .select("*, members(full_name)")
-        .eq("tenant_id", user?.tenant_id)
-        .eq("status", "paid")
-        .order("paid_at", { ascending: false })
-        .limit(20)
-      if (error) throw error
-      return data
+      const response = await paymentsApi.list(user?.tenant_id || "", undefined, "paid")
+      if (response.error) throw response.error
+      return response.data || []
     },
     enabled: !!user?.tenant_id,
   })
@@ -125,7 +117,13 @@ export const BillingPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Billing & Finance</h1>
+        <div className="flex items-center space-x-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/front-desk")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+             <ArrowLeft className="h-4 w-4" /> Back to Desk
+          </Button>
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+          <h1 className="text-3xl font-bold tracking-tight">Billing & Finance</h1>
+        </div>
         <Dialog open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
           <DialogTrigger asChild>
             <Button variant="destructive">
@@ -203,8 +201,8 @@ export const BillingPage: React.FC = () => {
                     payments?.map((payment: any) => (
                       <div key={payment.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
                         <div>
-                          <p className="font-medium text-sm">{payment.members?.full_name || "Unknown Member"}</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(payment.paid_at)}</p>
+                          <p className="font-medium text-sm">{payment.member?.fullName || "Unknown Member"}</p>
+                          <p className="text-xs text-muted-foreground">{formatDate(payment.paidAt || payment.paid_at)}</p>
                         </div>
                         <div className="text-emerald-600 font-bold">
                           +{formatCurrency(payment.amount_cents)}

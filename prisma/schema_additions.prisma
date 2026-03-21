@@ -1,0 +1,506 @@
+// ============================================================
+// GYM OWL — SCHEMA EXPANSION
+// Add these models + enums to your existing schema.prisma
+// ============================================================
+
+
+// =====================
+// NEW ENUMS TO ADD
+// =====================
+
+enum Gender {
+  male
+  female
+  other
+  prefer_not_to_say
+}
+
+enum BloodGroup {
+  A_pos
+  A_neg
+  B_pos
+  B_neg
+  AB_pos
+  AB_neg
+  O_pos
+  O_neg
+}
+
+enum FitnessGoal {
+  weight_loss
+  muscle_gain
+  endurance
+  flexibility
+  general_fitness
+  sports_performance
+  rehabilitation
+}
+
+enum StaffStatus {
+  active
+  on_leave
+  terminated
+  probation
+}
+
+enum LeaveType {
+  casual
+  sick
+  earned
+  unpaid
+}
+
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+enum MessageChannel {
+  sms
+  whatsapp
+  email
+  in_app
+  push
+}
+
+enum MessageStatus {
+  pending
+  sent
+  delivered
+  failed
+  read
+}
+
+enum CampaignStatus {
+  draft
+  scheduled
+  running
+  completed
+  cancelled
+}
+
+enum RazorpayWebhookEvent {
+  payment_captured
+  payment_failed
+  refund_processed
+  subscription_activated
+  subscription_cancelled
+  subscription_charged
+}
+
+enum InvoiceStatus {
+  draft
+  sent
+  paid
+  overdue
+  cancelled
+  void
+}
+
+enum BodyMeasurementType {
+  weight_kg
+  height_cm
+  chest_cm
+  waist_cm
+  hips_cm
+  bicep_cm
+  thigh_cm
+  body_fat_percent
+  bmi
+}
+
+
+// =====================
+// 1. MEMBER HEALTH & FITNESS PROFILE
+// =====================
+
+// Expanded health profile — one per member
+// Add to Member model: healthProfile MemberHealthProfile?
+model MemberHealthProfile {
+  id                  String      @id @default(uuid())
+  tenantId            String
+  memberId            String      @unique
+  gender              Gender?
+  bloodGroup          BloodGroup?
+  height              Float?      // cm
+  weight              Float?      // kg at enrollment
+  bmi                 Float?      // calculated on save
+  fitnessGoal         FitnessGoal?
+  activityLevel       String?     // 'sedentary', 'light', 'moderate', 'active', 'very_active'
+  medicalConditions   String[]    @default([])  // e.g. ["diabetes", "hypertension"]
+  allergies           String[]    @default([])
+  medications         String[]    @default([])
+  injuryHistory       Json?       @default("[]") // [{ part, description, year }]
+  emergencyContact    Json?       // { name, phone, relation }
+  doctorClearance     Boolean     @default(false)
+  doctorName          String?
+  doctorPhone         String?
+  notes               String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  // Relations
+  member              Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  measurements        BodyMeasurement[]
+}
+
+// Tracks body measurements over time — for progress charts
+// Add to Member model: measurements BodyMeasurement[]
+model BodyMeasurement {
+  id              String              @id @default(uuid())
+  tenantId        String
+  memberId        String
+  healthProfileId String
+  type            BodyMeasurementType
+  value           Float
+  unit            String              // 'kg', 'cm', '%'
+  recordedAt      DateTime            @default(now())
+  recordedBy      String?             // UserProfile.id — trainer or staff who measured
+  notes           String?
+  createdAt       DateTime            @default(now())
+
+  // Relations
+  member          Member              @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  healthProfile   MemberHealthProfile @relation(fields: [healthProfileId], references: [id], onDelete: Cascade)
+}
+
+// Member check-in goals and streaks — gamification layer
+// Add to Member model: fitnessStats MemberFitnessStats?
+model MemberFitnessStats {
+  id                    String    @id @default(uuid())
+  tenantId              String
+  memberId              String    @unique
+  totalCheckIns         Int       @default(0)
+  currentStreak         Int       @default(0)   // consecutive days
+  longestStreak         Int       @default(0)
+  lastCheckInDate       DateTime?
+  weeklyGoal            Int?      @default(3)   // target check-ins per week
+  totalWorkoutsCompleted Int      @default(0)
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  member                Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+
+// =====================
+// 2. STAFF & HR MANAGEMENT
+// =====================
+
+// Staff profile — covers all non-member staff (manager, trainer, frontdesk)
+// Linked to UserProfile via userId
+// Add to Tenant model: staffProfiles StaffProfile[]
+model StaffProfile {
+  id                String      @id @default(uuid())
+  tenantId          String
+  userId            String      @unique  // Links to UserProfile
+  employeeCode      String      // e.g. "EMP-001"
+  department        String?     // 'training', 'front_desk', 'management', 'cleaning'
+  designation       String?     // 'Senior Trainer', 'Branch Manager'
+  joiningDate       DateTime
+  status            StaffStatus @default(active)
+  salaryPerMonth    Int?        // in paise
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankIFSC          String?
+  panNumber         String?
+  aadhaarNumber     String?     // masked — last 4 digits only in display
+  address           Json?
+  emergencyContact  Json?
+  documents         Json?       @default("[]") // [{ type, url, name }]
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attendance        StaffAttendance[]
+  leaves            StaffLeave[]
+  salarySlips       SalarySlip[]
+
+  @@unique([tenantId, employeeCode])
+}
+
+// Staff daily attendance — separate from member attendance
+// Add to Tenant model: staffAttendance StaffAttendance[]
+model StaffAttendance {
+  id              String    @id @default(uuid())
+  tenantId        String
+  staffId         String
+  date            DateTime  // date only — store as start of day
+  checkInAt       DateTime?
+  checkOutAt      DateTime?
+  hoursWorked     Float?
+  isPresent       Boolean   @default(true)
+  isHoliday       Boolean   @default(false)
+  notes           String?
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staff           StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, date])
+}
+
+// Staff leave requests
+// Add to Tenant model: staffLeaves StaffLeave[]
+model StaffLeave {
+  id          String      @id @default(uuid())
+  tenantId    String
+  staffId     String
+  leaveType   LeaveType
+  startDate   DateTime
+  endDate     DateTime
+  totalDays   Int
+  reason      String?
+  status      LeaveStatus @default(pending)
+  approvedBy  String?     // UserProfile.id
+  approvedAt  DateTime?
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staff       StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+// Monthly salary slips
+// Add to Tenant model: salarySlips SalarySlip[]
+model SalarySlip {
+  id              String    @id @default(uuid())
+  tenantId        String
+  staffId         String
+  month           Int       // 1-12
+  year            Int
+  basicSalary     Int       // paise
+  deductions      Int       @default(0)  // paise
+  bonuses         Int       @default(0)  // paise
+  netSalary       Int       // paise — computed: basic + bonuses - deductions
+  daysWorked      Int?
+  daysAbsent      Int?
+  isPaid          Boolean   @default(false)
+  paidAt          DateTime?
+  paymentMethod   String?   // 'bank_transfer', 'cash', 'upi'
+  notes           String?
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staff           StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, month, year])
+}
+
+
+// =====================
+// 3. COMMUNICATIONS & MESSAGING
+// =====================
+
+// Individual message log — every SMS/WhatsApp/email sent
+// Add to Tenant model: messages Message[]
+model Message {
+  id            String          @id @default(uuid())
+  tenantId      String
+  memberId      String?         // null = sent to non-member (lead, visitor)
+  channel       MessageChannel
+  recipient     String          // phone number or email
+  subject       String?         // for email only
+  body          String
+  status        MessageStatus   @default(pending)
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  provider      String?         // 'twilio', 'msg91', 'sendgrid'
+  providerMsgId String?         // for delivery tracking
+  campaignId    String?         // link to Campaign if bulk
+  metadata      Json?           @default("{}")
+  createdAt     DateTime        @default(now())
+
+  // Relations
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaign      Campaign?       @relation(fields: [campaignId], references: [id])
+}
+
+// Bulk messaging campaigns — e.g. "Renewal reminder", "Festive offer"
+// Add to Tenant model: campaigns Campaign[]
+model Campaign {
+  id              String          @id @default(uuid())
+  tenantId        String
+  name            String
+  channel         MessageChannel
+  subject         String?
+  body            String          // supports {{member_name}}, {{expiry_date}} placeholders
+  status          CampaignStatus  @default(draft)
+  targetAudience  Json?           // { filter: 'expiring_in_7_days' | 'all_active' | 'inactive' }
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  totalRecipients Int             @default(0)
+  totalSent       Int             @default(0)
+  totalFailed     Int             @default(0)
+  createdBy       String?         // UserProfile.id
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages        Message[]
+}
+
+// Notification templates — reusable for auto-triggers
+// e.g. "membership_expiry_7d", "welcome_member", "payment_receipt"
+// Add to Tenant model: messageTemplates MessageTemplate[]
+model MessageTemplate {
+  id          String          @id @default(uuid())
+  tenantId    String
+  name        String          // 'Welcome Message', 'Expiry Reminder'
+  triggerKey  String?         // 'membership_expiry_7d', 'new_member', 'payment_done'
+  channel     MessageChannel
+  subject     String?
+  body        String          // supports {{placeholders}}
+  isActive    Boolean         @default(true)
+  isSystem    Boolean         @default(false)  // system templates can't be deleted
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relations
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, triggerKey])
+}
+
+
+// =====================
+// 4. PAYMENT & INVOICING (RAZORPAY)
+// =====================
+
+// Razorpay order — created before payment, links to Payment on success
+// Add to Tenant model: razorpayOrders RazorpayOrder[]
+model RazorpayOrder {
+  id                  String        @id @default(uuid())
+  tenantId            String
+  memberId            String
+  membershipId        String?
+  razorpayOrderId     String        @unique  // rzp order id from API
+  amountPaise         Int
+  currency            String        @default("INR")
+  status              String        @default("created") // 'created', 'attempted', 'paid'
+  attempts            Int           @default(0)
+  receipt             String?       // your internal reference
+  notes               Json?         @default("{}")
+  expiresAt           DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  tenant              Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  webhookEvents       RazorpayWebhookLog[]
+  payment             Payment?      // populated after payment capture
+}
+
+// Webhook event log — every Razorpay webhook stored for audit + replay
+// Add to Tenant model: razorpayWebhooks RazorpayWebhookLog[]
+model RazorpayWebhookLog {
+  id              String                @id @default(uuid())
+  tenantId        String
+  orderId         String?               // RazorpayOrder.id
+  event           RazorpayWebhookEvent
+  razorpayEventId String                @unique  // webhook event id from Razorpay
+  payload         Json                  // full raw payload — never discard
+  processed       Boolean               @default(false)
+  processedAt     DateTime?
+  error           String?               // if processing failed
+  createdAt       DateTime              @default(now())
+
+  // Relations
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order           RazorpayOrder?        @relation(fields: [orderId], references: [id])
+}
+
+// GST-compliant invoice — generated after every payment
+// Separate from SaasInvoice (which is platform-level)
+// Add to Tenant model: invoices Invoice[]
+model Invoice {
+  id              String        @id @default(uuid())
+  tenantId        String
+  memberId        String
+  paymentId       String?       @unique
+  invoiceNumber   String        @unique  // e.g. "GYM-2024-00123"
+  invoiceDate     DateTime      @default(now())
+  dueDate         DateTime?
+  status          InvoiceStatus @default(draft)
+  subtotalPaise   Int
+  discountPaise   Int           @default(0)
+  taxPercent      Float         @default(18)   // GST %
+  taxPaise        Int           @default(0)
+  totalPaise      Int
+  currency        String        @default("INR")
+  notes           String?
+  lineItems       Json          @default("[]")
+  // lineItems: [{ description, quantity, unitPricePaise, totalPaise }]
+  billingAddress  Json?
+  gymDetails      Json?         // snapshot of gym name/GST at time of invoice
+  pdfUrl          String?       // stored PDF link
+  sentAt          DateTime?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Discount / coupon codes — applied at checkout
+// Add to Tenant model: discounts Discount[]
+model Discount {
+  id              String    @id @default(uuid())
+  tenantId        String
+  code            String    // e.g. "WELCOME20"
+  description     String?
+  discountPercent Float?    // either percent or flat — not both
+  discountPaise   Int?
+  maxUsage        Int?      // null = unlimited
+  usedCount       Int       @default(0)
+  minOrderPaise   Int?      // minimum order value to apply
+  validFrom       DateTime  @default(now())
+  validUntil      DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+}
+
+
+// =====================
+// ADD THESE RELATIONS TO EXISTING MODELS
+// =====================
+
+// In Tenant model, add:
+//   staffProfiles       StaffProfile[]
+//   staffAttendance     StaffAttendance[]
+//   staffLeaves         StaffLeave[]
+//   salarySlips         SalarySlip[]
+//   messages            Message[]
+//   campaigns           Campaign[]
+//   messageTemplates    MessageTemplate[]
+//   razorpayOrders      RazorpayOrder[]
+//   razorpayWebhooks    RazorpayWebhookLog[]
+//   invoices            Invoice[]
+//   discounts           Discount[]
+
+// In Member model, add:
+//   healthProfile       MemberHealthProfile?
+//   measurements        BodyMeasurement[]
+//   fitnessStats        MemberFitnessStats?
+
+// In Payment model, add:
+//   razorpayOrder       RazorpayOrder?  @relation(fields: [razorpayOrderId], references: [id])
+//   razorpayOrderId     String?         @unique
+//   invoice             Invoice?

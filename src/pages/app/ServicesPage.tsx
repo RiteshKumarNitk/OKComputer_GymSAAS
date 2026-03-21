@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { servicesApi, membershipsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,13 +34,9 @@ export const ServicesPage: React.FC = () => {
     const { data: services } = useQuery({
         queryKey: ["services", user?.tenant_id],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("services")
-                .select("*")
-                .eq("tenant_id", user?.tenant_id)
-                .order("created_at", { ascending: false })
-            if (error) throw error
-            return data as Service[]
+             const response = await servicesApi.list(user?.tenant_id || "")
+             if (response.error) throw response.error
+             return response.data as Service[]
         },
         enabled: !!user?.tenant_id,
     })
@@ -49,19 +45,18 @@ export const ServicesPage: React.FC = () => {
         mutationFn: async (formData: FormData) => {
             if (!user?.tenant_id) throw new Error("Tenant ID Missing")
             const data = {
-                tenant_id: user.tenant_id,
                 name: formData.get("name") as string,
                 description: formData.get("description") as string,
                 type: formData.get("type") as string,
                 capacity: formData.get("capacity") ? parseInt(formData.get("capacity") as string) : null,
             }
+            let response;
             if (editingService) {
-                const { error } = await supabase.from("services").update(data).eq("id", editingService.id)
-                if (error) throw error
+                response = await servicesApi.update(editingService.id, data)
             } else {
-                const { error } = await supabase.from("services").insert([data])
-                if (error) throw error
+                response = await servicesApi.create(data)
             }
+            if (response.error) throw response.error
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["services"] })
@@ -74,8 +69,8 @@ export const ServicesPage: React.FC = () => {
 
     const deleteService = async (id: string) => {
         if (!confirm("Delete this service?")) return
-        const { error } = await supabase.from("services").delete().eq("id", id)
-        if (error) toast({ title: "Error", description: error.message, variant: "destructive" })
+        const response = await servicesApi.delete(id)
+        if (response.error) toast({ title: "Error", description: response.error.message || "Failed to delete", variant: "destructive" })
         else {
             queryClient.invalidateQueries({ queryKey: ["services"] })
             toast({ title: "Success", description: "Service deleted" })
@@ -86,14 +81,9 @@ export const ServicesPage: React.FC = () => {
     const { data: memberships } = useQuery({
         queryKey: ["memberships", user?.tenant_id],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("memberships")
-                .select("*")
-                .eq("tenant_id", user?.tenant_id)
-                .eq("is_active", true)
-                .order("price_cents", { ascending: true })
-            if (error) throw error
-            return data as Membership[]
+             const response = await membershipsApi.list(user?.tenant_id || "")
+             if (response.error) throw response.error
+             return response.data as Membership[]
         },
         enabled: !!user?.tenant_id,
     })
@@ -114,13 +104,13 @@ export const ServicesPage: React.FC = () => {
                 description: formData.get("description") as string,
             }
 
+            let response;
             if (editingMembership) {
-                const { error } = await supabase.from("memberships").update(data).eq("id", editingMembership.id)
-                if (error) throw error
+                response = await membershipsApi.update(editingMembership.id, data)
             } else {
-                const { error } = await supabase.from("memberships").insert([data])
-                if (error) throw error
+                response = await membershipsApi.create(data)
             }
+            if (response.error) throw response.error
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["memberships"] })
@@ -134,9 +124,8 @@ export const ServicesPage: React.FC = () => {
 
     const deleteMembership = async (id: string) => {
         if (!confirm("Delete this membership plan? Existing members on this plan will NOT be affected, but new members cannot select it.")) return
-        // Soft delete usually better, but for now hard delete or set is_active false
-        const { error } = await supabase.from("memberships").update({ is_active: false }).eq("id", id)
-        if (error) toast({ title: "Error", description: error.message, variant: "destructive" })
+        const response = await membershipsApi.update(id, { isActive: false })
+        if (response.error) toast({ title: "Error", description: response.error.message || "Failed to deactivate", variant: "destructive" })
         else {
             queryClient.invalidateQueries({ queryKey: ["memberships"] })
             toast({ title: "Success", description: "Membership plan deactivated" })
@@ -195,9 +184,9 @@ export const ServicesPage: React.FC = () => {
                                 <CardHeader>
                                     <CardTitle className="flex justify-between items-center">
                                         <span>{plan.name}</span>
-                                        <span className="text-xl font-bold text-green-600">{formatCurrency(plan.price_cents)}</span>
+                                        <span className="text-xl font-bold text-green-600">{formatCurrency(plan.priceCents ?? plan.price_cents)}</span>
                                     </CardTitle>
-                                    <CardDescription>{plan.duration_days} Days Validity</CardDescription>
+                                    <CardDescription>{plan.durationDays ?? plan.duration_days} Days Validity</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-sm text-muted-foreground mb-4">{plan.description || "No description provided."}</p>
@@ -336,11 +325,11 @@ export const ServicesPage: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="m-price">Price (₹)</Label>
-                                <Input id="m-price" name="price" type="number" placeholder="1000" defaultValue={editingMembership ? editingMembership.price_cents / 100 : ""} required />
+                                <Input id="m-price" name="price" type="number" placeholder="1000" defaultValue={editingMembership ? (editingMembership.priceCents ?? editingMembership.price_cents) / 100 : ""} required />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="m-duration">Duration (Days)</Label>
-                                <Input id="m-duration" name="duration" type="number" placeholder="30" defaultValue={editingMembership?.duration_days} required />
+                                <Input id="m-duration" name="duration" type="number" placeholder="30" defaultValue={editingMembership?.durationDays ?? editingMembership?.duration_days} required />
                             </div>
                         </div>
                         <div className="space-y-2">

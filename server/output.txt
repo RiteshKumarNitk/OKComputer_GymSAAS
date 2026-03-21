@@ -1,0 +1,11 @@
+0. Executing seedAdmin...
+1. Inside seedAdmin
+DATABASE_URL present: true
+2. Adapter created
+3. PrismaClient created
+4. Hashing password
+5. Password hashed
+6. Finding unique user email...
+7. Unique find complete. Existing: Not Found
+✅ Super Admin created!
+8. seedAdmin resolved

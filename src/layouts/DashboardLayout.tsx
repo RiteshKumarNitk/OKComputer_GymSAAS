@@ -1,6 +1,8 @@
 import React, { useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/features/auth/AuthContext"
+import { useQuery } from "@tanstack/react-query"
+import { tenantsApi } from "@/api/apiClient"
 import type { UserRole } from "@/types"
 import {
   Home,
@@ -44,7 +46,7 @@ const navigation: NavItem[] = [
     title: "Dashboard",
     href: "/dashboard",
     icon: <Home className="h-4 w-4" />,
-    roles: ["super_admin", "gym_owner", "manager", "trainer", "frontdesk"],
+    roles: ["super_admin", "gym_owner", "manager", "frontdesk", "trainer"],
   },
   {
     title: "Platform Pulse",
@@ -80,47 +82,53 @@ const navigation: NavItem[] = [
     title: "Prospects (Leads)",
     href: "/leads",
     icon: <Users className="h-4 w-4" />,
-    roles: ["gym_owner", "manager", "frontdesk"],
+    roles: ["gym_owner", "manager"],
     permission: "view_leads",
   },
   {
     title: "Members",
     href: "/members",
     icon: <Users className="h-4 w-4" />,
-    roles: ["gym_owner", "manager", "trainer", "frontdesk"],
+    roles: ["gym_owner", "manager"],
     permission: "view_members",
   },
   {
-    title: "Front Desk (POS)",
-    href: "/front-desk",
+    title: "Front Desk (Reception)",
+    href: "/front-desk?view=frontdesk",
     icon: <Users className="h-4 w-4" />,
-    roles: ["gym_owner", "manager", "frontdesk"],
+    roles: ["manager", "frontdesk"],
+  },
+  {
+    title: "Trainer Desk",
+    href: "/front-desk?view=trainer",
+    icon: <Dumbbell className="h-4 w-4" />,
+    roles: ["manager", "trainer"],
   },
   {
     title: "Attendance",
     href: "/attendance",
     icon: <QrCode className="h-4 w-4" />,
-    roles: ["gym_owner", "manager", "trainer", "frontdesk"],
+    roles: ["gym_owner", "manager", "frontdesk"],
     permission: "view_attendance",
   },
   {
     title: "Billing & Invoices",
     href: "/billing",
     icon: <CreditCard className="h-4 w-4" />,
-    roles: ["gym_owner", "manager", "frontdesk"],
+    roles: ["gym_owner", "manager"],
     permission: "view_billing",
   },
   {
-    title: "Workouts",
-    href: "/workouts",
-    icon: <Dumbbell className="h-4 w-4" />,
-    roles: ["gym_owner", "manager", "trainer"],
+    title: "Membership Plans",
+    href: "/plans",
+    icon: <CreditCard className="h-4 w-4" />,
+    roles: ["gym_owner"],
   },
   {
-    title: "Diet Plans",
-    href: "/diet-plans",
-    icon: <Apple className="h-4 w-4" />,
-    roles: ["gym_owner", "manager", "trainer"],
+    title: "Staff Management",
+    href: "/staff",
+    icon: <Users className="h-4 w-4" />,
+    roles: ["gym_owner"],
   },
   {
     title: "Reports & Analytics",
@@ -132,7 +140,7 @@ const navigation: NavItem[] = [
     title: "Settings",
     href: "/settings",
     icon: <Settings className="h-4 w-4" />,
-    roles: ["gym_owner", "manager"],
+    roles: ["gym_owner"],
   },
 ]
 
@@ -141,6 +149,16 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   const { user, signOut, hasRole, hasPermission, tenantFeatures } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant", user?.tenant_id],
+    queryFn: async () => {
+      const response = await tenantsApi.get(user?.tenant_id || "")
+      if (response.error) throw response.error
+      return response.data
+    },
+    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+  })
 
   const filteredNavigation = navigation.filter((item) => {
     const hasRequiredRole = hasRole(item.roles)
@@ -153,7 +171,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
       return item.href.startsWith('/super-admin') || item.href === '/dashboard'
     }
 
-    if (['dashboard', 'settings', 'super-admin'].includes(featureKey)) return hasRequiredRole && hasRequiredPermission
+    if (['dashboard', 'settings', 'super-admin', 'staff'].includes(featureKey)) return hasRequiredRole && hasRequiredPermission
 
     if (tenantFeatures === null) return hasRequiredRole && hasRequiredPermission
 
@@ -215,27 +233,33 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
           {/* Navigation */}
           <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto bg-slate-900">
-            {filteredNavigation.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
-                  location.pathname === item.href
-                    ? "bg-primary text-white shadow-lg shadow-primary/25"
-                    : "text-slate-400 hover:bg-white/5 hover:text-white"
-                )}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <div className={cn(
-                  "mr-3 p-1 rounded-md transition-colors",
-                  location.pathname === item.href ? "bg-white/20" : "bg-transparent group-hover:bg-white/10"
-                )}>
-                  {item.icon}
-                </div>
-                <span className="flex-1">{item.title}</span>
-              </Link>
-            ))}
+            {filteredNavigation.map((item) => {
+              const itemPath = item.href.split('?')[0]
+              const itemQuery = item.href.split('?')[1] || ""
+              const isActive = location.pathname === itemPath && (!itemQuery || location.search.includes(itemQuery))
+
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    "flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                    isActive
+                      ? "bg-primary text-white shadow-lg shadow-primary/25"
+                      : "text-slate-400 hover:bg-white/5 hover:text-white"
+                  )}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <div className={cn(
+                    "mr-3 p-1 rounded-md transition-colors",
+                    isActive ? "bg-white/20" : "bg-transparent group-hover:bg-white/10"
+                  )}>
+                    {item.icon}
+                  </div>
+                  <span className="flex-1">{item.title}</span>
+                </Link>
+              )
+            })}
           </nav>
 
           {/* User menu */}
@@ -291,14 +315,24 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             <Menu className="h-4 w-4" />
           </Button>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
             <h1 className="text-lg font-semibold">
-              {filteredNavigation.find((item) => item.href === location.pathname)?.title || "Dashboard"}
+              {filteredNavigation.find((item) => {
+                 const itemPath = item.href.split('?')[0]
+                 return location.pathname === itemPath && (!item.href.includes('?') || location.search.includes(item.href.split('?')[1]))
+              })?.title || "Dashboard"}
             </h1>
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* Add any top bar actions here */}
+            {/* Gym Name displayed top right */}
+            {user?.role !== "super_admin" && (
+                <div className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 rounded-full border border-indigo-100 dark:border-indigo-900">
+                    <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-400">
+                         {tenant?.gymName || tenant?.name || (user?.tenant_id ? "Loading..." : "My Gym")} 
+                    </span>
+                </div>
+            )}
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { frontDeskApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import {
     Search,
@@ -43,10 +43,12 @@ import { UserRole } from "@/types"
 
 interface FrontDeskStaff {
     id: string
-    full_name: string
+    full_name?: string
+    fullName?: string
     email: string
     phone: string
-    is_active: boolean
+    is_active?: boolean
+    isActive?: boolean
 }
 
 export const StaffManagement: React.FC = () => {
@@ -64,13 +66,9 @@ export const StaffManagement: React.FC = () => {
     const { data: staffList } = useQuery({
         queryKey: ["front_desk", user?.tenant_id],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("front_desk")
-                .select("*")
-                .eq("tenant_id", user?.tenant_id)
-                .order("created_at", { ascending: false })
-            if (error) throw error
-            return data as FrontDeskStaff[]
+             const response = await frontDeskApi.list(user?.tenant_id || "")
+             if (response.error) throw response.error
+             return response.data as FrontDeskStaff[]
         },
         enabled: !!user?.tenant_id,
     })
@@ -83,22 +81,18 @@ export const StaffManagement: React.FC = () => {
             }
 
             const data = {
-                tenant_id: user.tenant_id,
-                full_name: formData.get("full_name") as string,
+                fullName: formData.get("full_name") as string,
                 email: formData.get("email") as string,
                 phone: formData.get("phone") as string,
-                is_active: true,
+                isActive: true,
             }
 
             if (selectedStaff) {
-                const { error } = await supabase
-                    .from("front_desk")
-                    .update(data)
-                    .eq("id", selectedStaff.id)
-                if (error) throw error
+                const response = await frontDeskApi.update(selectedStaff.id, data)
+                if (response.error) throw response.error
             } else {
-                const { error } = await supabase.from("front_desk").insert([data])
-                if (error) throw error
+                const response = await frontDeskApi.create(data)
+                if (response.error) throw response.error
             }
         },
         onSuccess: () => {
@@ -118,8 +112,8 @@ export const StaffManagement: React.FC = () => {
     // Delete Mutation
     const deleteStaffMutation = useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase.from("front_desk").delete().eq("id", id)
-            if (error) throw error
+             const response = await frontDeskApi.delete(id)
+             if (response.error) throw response.error
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["front_desk"] })

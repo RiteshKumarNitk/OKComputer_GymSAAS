@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { workoutsApi, memberWorkoutsApi, membersApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -45,13 +45,9 @@ export const WorkoutsPage: React.FC = () => {
   const { data: workouts } = useQuery({
     queryKey: ["workouts", user?.tenant_id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("workouts")
-        .select("*")
-        .eq("tenant_id", user?.tenant_id)
-        .order("created_at", { ascending: false })
-      if (error) throw error
-      return data as Workout[]
+      const response = await workoutsApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      return response.data as Workout[]
     },
     enabled: !!user?.tenant_id
   })
@@ -60,8 +56,9 @@ export const WorkoutsPage: React.FC = () => {
   const { data: members } = useQuery({
     queryKey: ["members-basic", user?.tenant_id],
     queryFn: async () => {
-      const { data } = await supabase.from("members").select("id, full_name, member_code").eq("tenant_id", user?.tenant_id).eq("status", "active")
-      return data as Member[]
+      const response = await membersApi.list(user?.tenant_id || "", "", "active")
+      if (response.error) throw response.error
+      return response.data as Member[]
     },
     enabled: isAssignOpen
   })
@@ -72,14 +69,13 @@ export const WorkoutsPage: React.FC = () => {
       if (!formData.get("name")) throw new Error("Workout name is required")
 
       const data = {
-        tenant_id: user?.tenant_id,
         name: formData.get("name"),
         description: formData.get("description"),
         difficulty: difficulty,
         exercises: exercises
       }
-      const { error } = await supabase.from("workouts").insert([data])
-      if (error) throw error
+      const response = await workoutsApi.create(data)
+      if (response.error) throw response.error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] })
@@ -101,12 +97,8 @@ export const WorkoutsPage: React.FC = () => {
         difficulty: difficulty,
         exercises: exercises
       }
-      const { error } = await supabase
-        .from("workouts")
-        .update(data)
-        .eq("id", selectedWorkout.id)
-
-      if (error) throw error
+      const response = await workoutsApi.update(selectedWorkout.id, data)
+      if (response.error) throw response.error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] })
@@ -121,12 +113,11 @@ export const WorkoutsPage: React.FC = () => {
   const assignMutation = useMutation({
     mutationFn: async (memberId: string) => {
       if (!selectedWorkout) return
-      const { error } = await supabase.from("member_workouts").insert({
-        tenant_id: user?.tenant_id,
+      const response = await memberWorkoutsApi.assign({
         member_id: memberId,
         workout_id: selectedWorkout.id
       })
-      if (error) throw error
+      if (response.error) throw response.error
     },
     onSuccess: () => {
       setIsAssignOpen(false)

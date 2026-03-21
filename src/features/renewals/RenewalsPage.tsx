@@ -1,8 +1,7 @@
 import React, { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { membersApi, membershipsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
-import { Member } from "@/types"
 import { formatDate } from "@/lib/utils"
 import {
     RefreshCw,
@@ -31,36 +30,42 @@ export const RenewalsPage: React.FC = () => {
     const navigate = useNavigate()
     const [searchQuery, setSearchQuery] = useState("")
 
+    // Fetch Memberships for lookup
+    const { data: memberships } = useQuery({
+        queryKey: ["memberships", user?.tenant_id],
+        queryFn: async () => {
+            const res = await membershipsApi.list(user?.tenant_id || "")
+            if (res.error) throw res.error
+            return res.data || []
+        },
+        enabled: !!user?.tenant_id
+    })
+
     // Fetch Expiring & Expired Members
     const { data: members, isLoading } = useQuery({
         queryKey: ["renewals", user?.tenant_id],
         queryFn: async () => {
             if (!user?.tenant_id) return [];
 
+            const response = await membersApi.list(user.tenant_id)
+            if (response.error) throw response.error
+            const allMembers = response.data || []
+
             const thirtyDaysFromNow = new Date()
             thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
-            const futureDate = thirtyDaysFromNow.toISOString()
 
-            // Fetch members expiring soon or already expired (and not inactive)
-            const { data, error } = await supabase
-                .from("members")
-                .select(`*, membership:memberships(name)`)
-                .eq("tenant_id", user.tenant_id)
-                .neq("status", "inactive")
-                // We want expired people AND people whose plan_expires_at is < 30 days
-                // Complex OR logic using Supabase syntax
-                // "plan_expires_at.lte.FUTURE_DATE" includes past (expired) and next 30 days
-                .lte("plan_expires_at", futureDate)
-                .order("plan_expires_at", { ascending: true }) // Most urgent first
-
-            if (error) throw error
-            return data as Member[]
+            return allMembers.filter((m: any) => {
+                if (m.status === "inactive") return false
+                const expiry = m.planExpiresAt || m.plan_expires_at
+                if (!expiry) return false
+                return new Date(expiry) <= thirtyDaysFromNow
+            })
         },
         enabled: !!user?.tenant_id,
     })
 
-    const filteredMembers = members?.filter(member =>
-        member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const filteredMembers = members?.filter((member: any) =>
+        (member.fullName || member.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (member.phone && member.phone.includes(searchQuery))
     )
 
@@ -119,9 +124,12 @@ export const RenewalsPage: React.FC = () => {
                                     <TableCell colSpan={6} className="text-center py-8">Loading...</TableCell>
                                 </TableRow>
                             )}
-                            {filteredMembers?.map((member) => {
-                                const daysLeft = getDaysRemaining(member.plan_expires_at);
+                            {filteredMembers?.map((member: any) => {
+                                const expiryDate = member.planExpiresAt || member.plan_expires_at
+                                const daysLeft = getDaysRemaining(expiryDate);
                                 const isExpired = daysLeft < 0;
+                                const plan = memberships?.find((m: any) => m.id === (member.currentPlanId || member.current_plan_id))
+                                const planName = plan ? plan.name : "Unknown Plan"
 
                                 return (
                                     <TableRow key={member.id} className={isExpired ? "bg-red-50 dark:bg-red-950/10" : ""}>
@@ -137,13 +145,13 @@ export const RenewalsPage: React.FC = () => {
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            <div className="font-medium">{member.full_name}</div>
+                                            <div className="font-medium">{member.fullName || member.full_name}</div>
                                             <div className="text-xs text-muted-foreground flex items-center gap-1">
                                                 <Phone className="h-3 w-3" /> {member.phone}
                                             </div>
                                         </TableCell>
-                                        <TableCell>{member.membership?.name || "Unknown Plan"}</TableCell>
-                                        <TableCell>{member.plan_expires_at ? formatDate(member.plan_expires_at) : 'N/A'}</TableCell>
+                                        <TableCell>{planName}</TableCell>
+                                        <TableCell>{expiryDate ? formatDate(expiryDate) : 'N/A'}</TableCell>
                                         <TableCell>
                                             <span className={isExpired ? "text-red-600 font-bold" : "text-yellow-600 font-bold"}>
                                                 {isExpired ? `${Math.abs(daysLeft)} days ago` : `${daysLeft} days`}

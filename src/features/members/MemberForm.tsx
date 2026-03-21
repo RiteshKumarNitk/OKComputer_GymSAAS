@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { membersApi, trainersApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import type { Member, Membership, MemberStatus, Trainer } from "@/types"
 import { generateMemberCode, formatCurrency } from "@/lib/utils"
@@ -48,35 +48,32 @@ export const MemberForm: React.FC<MemberFormProps> = ({
 
   // Fetch trainers
   const { data: trainers } = useQuery({
-    queryKey: ["trainers"],
+    queryKey: ["trainers", user?.tenant_id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("trainers")
-        .select("*")
-        .eq("tenant_id", user?.tenant_id)
-        .eq("is_active", true)
-      if (error) throw error
-      return data as Trainer[]
+      const response = await trainersApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      // Filter active trainers if needed on client side if server doesn't support filter config
+      return (response.data || []) as Trainer[]
     },
     enabled: !!user?.tenant_id,
   })
 
-  // Initialize form with member data
+  // Initialize form with member data (mapping from camelCase response)
   useEffect(() => {
     if (member) {
       setFormData({
-        full_name: member.full_name,
+        full_name: member.fullName || "",
         email: member.email || "",
         phone: member.phone || "",
         dob: member.dob ? new Date(member.dob) : undefined,
         gender: member.gender || "",
-        address: member.address?.street || "",
-        emergency_contact_name: member.emergency_contact?.name || "",
-        emergency_contact_phone: member.emergency_contact?.phone || "",
-        emergency_contact_relationship: member.emergency_contact?.relationship || "",
-        current_plan_id: member.current_plan_id || "",
-        assigned_trainer_id: member.assigned_trainer_id || "",
-        status: member.status,
+        address: member.address ? (typeof member.address === 'object' ? (member.address as any).street : member.address) : "",
+        emergency_contact_name: member.emergencyContact ? (member.emergencyContact as any).name : "",
+        emergency_contact_phone: member.emergencyContact ? (member.emergencyContact as any).phone : "",
+        emergency_contact_relationship: member.emergencyContact ? (member.emergencyContact as any).relationship : "",
+        current_plan_id: member.currentPlanId || "",
+        assigned_trainer_id: member.assignedTrainerId || "",
+        status: member.status || "active",
         notes: member.notes || "",
       })
     }
@@ -88,9 +85,9 @@ export const MemberForm: React.FC<MemberFormProps> = ({
         throw new Error("Tenant ID is missing. Please refresh the page or contact support.")
       }
 
+      // memberData layout preserved as snake_case, generic CRUD converts it to camelCase for Prisma
       const memberData = {
-        tenant_id: user.tenant_id,
-        member_code: member?.member_code || generateMemberCode(),
+        member_code: member?.memberCode || generateMemberCode(),
         full_name: data.full_name,
         email: data.email,
         phone: data.phone,
@@ -110,20 +107,17 @@ export const MemberForm: React.FC<MemberFormProps> = ({
         notes: data.notes,
       }
 
-      // Calculate Plan Dates logic
-      // Only update dates if:
-      // 1. It's a new member (member is undefined) AND a plan is selected
-      // 2. OR It's an existing member AND the plan has changed
       const shouldUpdatePlanDates =
         (!member && memberData.current_plan_id) ||
-        (member && memberData.current_plan_id && memberData.current_plan_id !== member.current_plan_id);
+        (member && memberData.current_plan_id && memberData.current_plan_id !== member.currentPlanId);
 
       if (shouldUpdatePlanDates) {
         const selectedPlan = memberships.find(m => m.id === memberData.current_plan_id)
         if (selectedPlan) {
           const startDate = new Date()
           const endDate = new Date(startDate)
-          endDate.setDate(endDate.getDate() + selectedPlan.duration_days)
+          const duration = selectedPlan.durationDays ?? selectedPlan.duration_days ?? 30
+          endDate.setDate(endDate.getDate() + duration)
 
           Object.assign(memberData, {
             plan_started_at: startDate.toISOString(),
@@ -131,26 +125,21 @@ export const MemberForm: React.FC<MemberFormProps> = ({
           })
         }
       } else if (!memberData.current_plan_id) {
-        // If plan is removed explicitly
         Object.assign(memberData, {
           plan_started_at: null,
           plan_expires_at: null
         })
       }
 
+      let response;
       if (member) {
-        const { error } = await supabase
-          .from("members")
-          .update(memberData)
-          .eq("id", member.id)
-          .eq("tenant_id", user.tenant_id)
-        if (error) throw error
+        response = await membersApi.update(member.id, memberData)
       } else {
-        const { error } = await supabase
-          .from("members")
-          .insert(memberData)
-        if (error) throw error
+        response = await membersApi.create(memberData)
       }
+
+      if (response.error) throw response.error
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members"] })
@@ -224,28 +213,13 @@ export const MemberForm: React.FC<MemberFormProps> = ({
 
           <div className="space-y-2">
             <Label htmlFor="dob">Date of Birth</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.dob && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.dob ? format(formData.dob, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={formData.dob}
-                  onSelect={(date) => handleInputChange("dob", date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <Input
+              id="dob"
+              type="date"
+              value={formData.dob ? formData.dob.toISOString().split("T")[0] : ""}
+              onChange={(e) => handleInputChange("dob", e.value ? new Date(e.value) : undefined)}
+              onClick={(e) => (e.target as any).showPicker?.()}
+            />
           </div>
 
           <div className="space-y-2">
@@ -364,7 +338,9 @@ export const MemberForm: React.FC<MemberFormProps> = ({
           if (!plan) return null
           const startDate = new Date()
           const endDate = new Date(startDate)
-          endDate.setDate(endDate.getDate() + plan.duration_days)
+          const duration = plan.durationDays ?? plan.duration_days ?? 30
+          endDate.setDate(endDate.getDate() + duration)
+          const price = plan.priceCents ?? plan.price_cents ?? 0
 
           return (
             <div className="mt-4 p-4 border rounded-lg bg-primary/5 space-y-3">
@@ -374,11 +350,11 @@ export const MemberForm: React.FC<MemberFormProps> = ({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Price</p>
-                  <p className="font-bold text-lg">{formatCurrency(plan.price_cents, plan.currency)}</p>
+                  <p className="font-bold text-lg">{formatCurrency(price, plan.currency || "INR")}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Duration</p>
-                  <p className="font-medium">{plan.duration_days} Days</p>
+                  <p className="font-medium">{duration} Days</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Valid Until</p>

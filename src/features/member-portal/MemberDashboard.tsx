@@ -1,7 +1,7 @@
 import React, { useMemo } from "react"
 import { useAuth } from "@/features/auth/AuthContext"
 import { useQuery } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { membersApi } from "@/api/apiClient"
 import { QRCodeSVG } from "qrcode.react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,22 +17,12 @@ export const MemberDashboard: React.FC = () => {
     const { data: member, isLoading } = useQuery({
         queryKey: ["my-profile", user?.id],
         queryFn: async () => {
-            // We need to find the member record linked to this user_id
-            // Since a user might belong to a tenant, we filter by tenant_id if available or just user_id
-            // Assuming 1:1 mapping for simplicity in this SaaS model per tenant
-            const { data, error } = await supabase
-                .from("members")
-                .select("*, membership:memberships(name), attendance(count)")
-                .eq("user_id", user?.id)
-                .single()
-
-            if (error) {
-                // Fallback: If no member record is found, it might be a staff testing the view
-                // or a new user who hasn't been linked yet.
-                console.error("Error fetching member profile:", error)
+            const response = await membersApi.list(user?.tenant_id || "")
+            if (response.error) {
+                console.error("Error fetching member profile:", response.error)
                 return null
             }
-            return data
+            return response.data && response.data.length > 0 ? response.data[0] : null
         },
         enabled: !!user?.id
     })

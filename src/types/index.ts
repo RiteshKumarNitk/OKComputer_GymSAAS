@@ -69,6 +69,12 @@ export interface Membership {
   is_active: boolean
   created_at: string
   updated_at: string
+
+  // camelCase analogs for backend parity
+  tenantId?: string
+  durationDays?: number
+  priceCents?: number
+  isActive?: boolean
 }
 
 export interface Member {
@@ -93,6 +99,17 @@ export interface Member {
   created_at: string
   updated_at: string
   membership?: Membership
+
+  // camelCase analogs for backend parity
+  tenantId?: string
+  userId?: string | null
+  memberCode?: string
+  fullName?: string
+  currentPlanId?: string | null
+  planStartedAt?: string | null
+  planExpiresAt?: string | null
+  assignedTrainerId?: string | null
+  emergencyContact?: any | null
 }
 
 export type MemberStatus = "active" | "inactive" | "suspended" | "expired"
@@ -143,6 +160,14 @@ export interface Trainer {
   avatar_url: string | null
   created_at: string
   updated_at: string
+
+  // camelCase analogs for backend parity
+  tenantId?: string
+  userId?: string | null
+  fullName?: string
+  hourlyRateCents?: number | null
+  isActive?: boolean
+  avatarUrl?: string | null
 }
 
 export interface TrainerSlot {

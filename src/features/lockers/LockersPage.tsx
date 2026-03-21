@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { lockersApi, membersApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Lock, Unlock, Key, Trash2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,11 +14,15 @@ import { formatDate } from "@/lib/utils"
 
 interface Locker {
     id: string
-    locker_number: string
+    locker_number?: string
+    lockerNumber?: string
     status: 'available' | 'occupied' | 'maintenance'
-    assigned_to_member_id: string | null
-    expires_at: string | null
+    assigned_to_member_id?: string | null
+    assignedToMemberId?: string | null
+    expires_at?: string | null
+    expiresAt?: string | null
     members?: { full_name: string, phone: string }
+    member?: { fullName: string }
 }
 
 export const LockersPage: React.FC = () => {
@@ -33,13 +37,9 @@ export const LockersPage: React.FC = () => {
     const { data: lockers } = useQuery({
         queryKey: ["lockers", user?.tenant_id],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("lockers")
-                .select("*, members(full_name, phone)")
-                .eq("tenant_id", user?.tenant_id)
-                .order("locker_number", { ascending: true }) // Assuming numeric strings sort might be weird but acceptable for now
-            if (error) throw error
-            return data as unknown as Locker[] // Supabase types are weird with joins sometimes
+            const response = await lockersApi.list(user?.tenant_id || "")
+            if (response.error) throw response.error
+            return response.data as unknown as Locker[]
         },
         enabled: !!user?.tenant_id,
     })
@@ -48,8 +48,9 @@ export const LockersPage: React.FC = () => {
     const { data: members } = useQuery({
         queryKey: ["active-members", user?.tenant_id],
         queryFn: async () => {
-            const { data } = await supabase.from("members").select("id, full_name").eq("tenant_id", user?.tenant_id).eq("status", "active")
-            return data
+            const response = await membersApi.list(user?.tenant_id || "", undefined, "active")
+            if (response.error) throw response.error
+            return response.data
         },
         enabled: !!user?.tenant_id
     })
@@ -57,12 +58,11 @@ export const LockersPage: React.FC = () => {
     // Add Locker
     const addLockerMutation = useMutation({
         mutationFn: async (number: string) => {
-            const { error } = await supabase.from("lockers").insert({
-                tenant_id: user?.tenant_id,
-                locker_number: number,
+            const response = await lockersApi.create({
+                lockerNumber: number,
                 status: 'available'
             })
-            if (error) throw error
+            if (response.error) throw response.error
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["lockers"] })
@@ -75,12 +75,12 @@ export const LockersPage: React.FC = () => {
     // Assign/Release Locker
     const updateLockerMutation = useMutation({
         mutationFn: async (vars: { id: string, status: string, memberId?: string | null }) => {
-            const { error } = await supabase.from("lockers").update({
+            const response = await lockersApi.update(vars.id, {
                 status: vars.status,
-                assigned_to_member_id: vars.memberId ?? null,
-                expires_at: vars.status === 'occupied' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null // Default 30 days
-            }).eq("id", vars.id)
-            if (error) throw error
+                assignedToMemberId: vars.memberId ?? null,
+                expiresAt: vars.status === 'occupied' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null
+            })
+            if (response.error) throw response.error
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["lockers"] })
@@ -93,7 +93,8 @@ export const LockersPage: React.FC = () => {
     // Delete Locker
     const deleteLocker = async (id: string) => {
         if (!confirm("Remove this locker?")) return;
-        await supabase.from("lockers").delete().eq("id", id)
+        const response = await lockersApi.delete(id)
+        if (response.error) throw response.error
         queryClient.invalidateQueries({ queryKey: ["lockers"] })
     }
 
@@ -131,11 +132,11 @@ export const LockersPage: React.FC = () => {
                             <div className={`p-3 rounded-full mb-3 ${locker.status === 'occupied' ? 'bg-red-200 text-red-700' : 'bg-green-200 text-green-700'}`}>
                                 {locker.status === 'occupied' ? <Lock className="h-6 w-6" /> : <Unlock className="h-6 w-6" />}
                             </div>
-                            <h3 className="font-bold text-lg">{locker.locker_number}</h3>
+                            <h3 className="font-bold text-lg">{locker.lockerNumber || locker.locker_number}</h3>
                             {locker.status === 'occupied' ? (
                                 <div className="text-xs text-red-600 mt-1">
-                                    <p className="font-medium">{locker.members?.full_name || "Unknown"}</p>
-                                    <p>Exp: {formatDate(locker.expires_at || "")}</p>
+                                    <p className="font-medium">{locker.member?.fullName || locker.members?.full_name || "Unknown"}</p>
+                                    <p>Exp: {formatDate(locker.expiresAt || locker.expires_at || "")}</p>
                                 </div>
                             ) : (
                                 <p className="text-xs text-green-600 mt-1">Available</p>
@@ -158,8 +159,8 @@ export const LockersPage: React.FC = () => {
                     {selectedLocker?.status === 'occupied' ? (
                         <div className="space-y-4">
                             <div className="p-4 bg-muted rounded-md">
-                                <p className="text-sm">Assigned to: <strong>{selectedLocker.members?.full_name}</strong></p>
-                                <p className="text-sm">Expires: {formatDate(selectedLocker.expires_at || "")}</p>
+                                <p className="text-sm">Assigned to: <strong>{selectedLocker.member?.fullName || selectedLocker.members?.full_name}</strong></p>
+                                <p className="text-sm">Expires: {formatDate(selectedLocker.expiresAt || selectedLocker.expires_at || "")}</p>
                             </div>
                             <Button variant="destructive" className="w-full" onClick={() => updateLockerMutation.mutate({ id: selectedLocker.id, status: 'available', memberId: null })}>
                                 <Key className="mr-2 h-4 w-4" /> Release Locker

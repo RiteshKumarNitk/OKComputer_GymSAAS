@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  
 }
 
 // =====================
@@ -97,6 +98,109 @@ enum SaasInvoiceStatus {
   overdue
 }
 
+enum Gender {
+  male
+  female
+  other
+  prefer_not_to_say
+}
+
+enum BloodGroup {
+  A_pos
+  A_neg
+  B_pos
+  B_neg
+  AB_pos
+  AB_neg
+  O_pos
+  O_neg
+}
+
+enum FitnessGoal {
+  weight_loss
+  muscle_gain
+  endurance
+  flexibility
+  general_fitness
+  sports_performance
+  rehabilitation
+}
+
+enum StaffStatus {
+  active
+  on_leave
+  terminated
+  probation
+}
+
+enum LeaveType {
+  casual
+  sick
+  earned
+  unpaid
+}
+
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+enum MessageChannel {
+  sms
+  whatsapp
+  email
+  in_app
+  push
+}
+
+enum MessageStatus {
+  pending
+  sent
+  delivered
+  failed
+  read
+}
+
+enum CampaignStatus {
+  draft
+  scheduled
+  running
+  completed
+  cancelled
+}
+
+enum RazorpayWebhookEvent {
+  payment_captured
+  payment_failed
+  refund_processed
+  subscription_activated
+  subscription_cancelled
+  subscription_charged
+}
+
+enum InvoiceStatus {
+  draft
+  sent
+  paid
+  overdue
+  cancelled
+  void
+}
+
+enum BodyMeasurementType {
+  weight_kg
+  height_cm
+  chest_cm
+  waist_cm
+  hips_cm
+  bicep_cm
+  thigh_cm
+  body_fat_percent
+  bmi
+}
+
 // =====================
 // MODELS
 // =====================
@@ -159,12 +263,27 @@ model Tenant {
   schedules               Schedule[]
   memberWorkouts         MemberWorkout[]
   memberDiets            MemberDiet[]
+  membershipHistories    MembershipHistory[]
+  // Staff & HR
+  staffProfiles          StaffProfile[]
+  staffAttendance        StaffAttendance[]
+  staffLeaves            StaffLeave[]
+  salarySlips            SalarySlip[]
+  // Communications
+  messages               Message[]
+  campaigns              Campaign[]
+  messageTemplates       MessageTemplate[]
+  // Payments & Invoicing
+  razorpayOrders         RazorpayOrder[]
+  razorpayWebhooks       RazorpayWebhookLog[]
+  invoices               Invoice[]
+  discounts              Discount[]
 }
 
 model UserProfile {
   id            String    @id @default(uuid())
   email         String    @unique
-  password      String?   // For NextAuth credentials
+  passwordHash  String?   // bcrypt hash — never store plaintext. Remove this field entirely if using Supabase Auth.
   fullName      String?
   phone         String?
   avatarUrl     String?
@@ -205,6 +324,7 @@ model Membership {
   tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   members         Member[]
   payments        Payment[]
+  membershipHistory MembershipHistory[]
 }
 
 model Member {
@@ -216,7 +336,7 @@ model Member {
   email             String?
   phone             String?
   dob               DateTime?
-  gender            String?
+  gender            Gender?
   address           Json?
   emergencyContact  Json?
   joinedAt          DateTime      @default(now())
@@ -241,6 +361,11 @@ model Member {
   diets            MemberDiet[]
   complaints        Complaint[]
   lockers           Locker[]
+  membershipHistory MembershipHistory[]
+  // Health & Fitness
+  healthProfile     MemberHealthProfile?
+  measurements      BodyMeasurement[]
+  fitnessStats      MemberFitnessStats?
 
   @@unique([tenantId, memberCode])
 }
@@ -250,6 +375,7 @@ model Payment {
   tenantId              String
   memberId              String
   membershipId          String?
+  razorpayOrderId       String?         @unique  // links to RazorpayOrder on capture
   amountCents           Int
   currency              String
   provider              PaymentProvider?
@@ -264,6 +390,9 @@ model Payment {
   tenant                Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   member                Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
   membership            Membership?     @relation(fields: [membershipId], references: [id])
+  razorpayOrder         RazorpayOrder?  @relation(fields: [razorpayOrderId], references: [razorpayOrderId])
+  membershipHistory     MembershipHistory[]
+  invoice               Invoice?
 }
 
 model Attendance {
@@ -544,7 +673,7 @@ model SaasPlan {
   id            String    @id @default(uuid())
   name          String
   description   String?
-  priceInr      Decimal   @db.Decimal
+  pricePaise    Int       // Price in paise (1 INR = 100 paise) — consistent with priceCents convention
   durationDays  Int?      @default(365)
   features      Json      @default("[]")
   isActive      Boolean?  @default(true)
@@ -555,19 +684,19 @@ model SaasPlan {
 }
 
 model SaasSubscription {
-  id            String    @id @default(uuid())
-  tenantId      String
-  planId        String?
-  startDate     DateTime? @default(now())
-  endDate       DateTime?
-  pricePaidInr  Decimal?  @db.Decimal
-  status        String?   @default("active") // 'active', 'expired', 'cancelled', 'trial'
-  createdAt     DateTime? @default(now())
+  id               String             @id @default(uuid())
+  tenantId         String
+  planId           String?
+  startDate        DateTime?          @default(now())
+  endDate          DateTime?
+  pricePaidPaise   Int?               // Amount paid in paise — consistent with priceCents convention
+  status           SubscriptionStatus @default(active)
+  createdAt        DateTime?          @default(now())
 
   // Relations
-  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  plan          SaasPlan? @relation(fields: [planId], references: [id])
-  invoices      SaasInvoice[]
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan             SaasPlan?          @relation(fields: [planId], references: [id])
+  invoices         SaasInvoice[]
 }
 
 model SaasInvoice {
@@ -575,7 +704,7 @@ model SaasInvoice {
   tenantId        String
   subscriptionId  String?
   invoiceNumber   String?           @unique
-  amountInr       Decimal?          @db.Decimal
+  amountPaise     Int?              // Amount in paise — consistent with priceCents convention
   status          SaasInvoiceStatus @default(pending)
   paymentDate     DateTime?
   createdAt       DateTime?         @default(now())
@@ -628,4 +757,359 @@ model FrontDesk {
   // Relations
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      UserProfile? @relation("UserToFrontDesk", fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// =====================
+// MEMBERSHIP HISTORY
+// =====================
+
+// Tracks every plan a member has ever held.
+// Created on every new enrollment or renewal — never overwrite Member.currentPlanId without logging here first.
+model MembershipHistory {
+  id            String      @id @default(uuid())
+  tenantId      String
+  memberId      String
+  membershipId  String      // Which plan was held
+  paymentId     String?     // The payment that triggered this enrollment (nullable for manual/free entries)
+  startedAt     DateTime    // When this plan period began
+  expiresAt     DateTime    // When this plan period ends/ended
+  endedAt       DateTime?   // Set when manually terminated before expiry
+  notes         String?     // e.g. "Renewal", "Upgrade from Basic", "Complimentary"
+  createdAt     DateTime    @default(now())
+
+  // Relations
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member        Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  membership    Membership  @relation(fields: [membershipId], references: [id])
+  payment       Payment?    @relation(fields: [paymentId], references: [id])
+}
+
+// =====================
+// MEMBER HEALTH & FITNESS
+// =====================
+
+model MemberHealthProfile {
+  id                  String      @id @default(uuid())
+  tenantId            String
+  memberId            String      @unique
+  bloodGroup          BloodGroup?
+  height              Float?      // cm
+  weight              Float?      // kg at enrollment
+  bmi                 Float?      // calculated on save
+  fitnessGoal         FitnessGoal?
+  activityLevel       String?     // 'sedentary', 'light', 'moderate', 'active', 'very_active'
+  medicalConditions   String[]    @default([])
+  allergies           String[]    @default([])
+  medications         String[]    @default([])
+  injuryHistory       Json?       @default("[]") // [{ part, description, year }]
+  emergencyContact    Json?
+  doctorClearance     Boolean     @default(false)
+  doctorName          String?
+  doctorPhone         String?
+  notes               String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  // Relations
+  member              Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  measurements        BodyMeasurement[]
+}
+
+model BodyMeasurement {
+  id              String              @id @default(uuid())
+  tenantId        String
+  memberId        String
+  healthProfileId String
+  type            BodyMeasurementType
+  value           Float
+  unit            String              // 'kg', 'cm', '%'
+  recordedAt      DateTime            @default(now())
+  recordedBy      String?             // UserProfile.id
+  notes           String?
+  createdAt       DateTime            @default(now())
+
+  // Relations
+  member          Member              @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  healthProfile   MemberHealthProfile @relation(fields: [healthProfileId], references: [id], onDelete: Cascade)
+}
+
+model MemberFitnessStats {
+  id                     String    @id @default(uuid())
+  tenantId               String
+  memberId               String    @unique
+  totalCheckIns          Int       @default(0)
+  currentStreak          Int       @default(0)
+  longestStreak          Int       @default(0)
+  lastCheckInDate        DateTime?
+  weeklyGoal             Int?      @default(3)
+  totalWorkoutsCompleted Int       @default(0)
+  updatedAt              DateTime  @updatedAt
+
+  // Relations
+  member                 Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+// =====================
+// STAFF & HR MANAGEMENT
+// =====================
+
+model StaffProfile {
+  id                String      @id @default(uuid())
+  tenantId          String
+  userId            String      @unique
+  employeeCode      String
+  department        String?
+  designation       String?
+  joiningDate       DateTime
+  status            StaffStatus @default(active)
+  salaryPerMonth    Int?        // paise
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankIFSC          String?
+  panNumber         String?
+  aadhaarNumber     String?     // masked — last 4 digits only in display
+  address           Json?
+  emergencyContact  Json?
+  documents         Json?       @default("[]") // [{ type, url, name }]
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attendance        StaffAttendance[]
+  leaves            StaffLeave[]
+  salarySlips       SalarySlip[]
+
+  @@unique([tenantId, employeeCode])
+}
+
+model StaffAttendance {
+  id            String       @id @default(uuid())
+  tenantId      String
+  staffId       String
+  date          DateTime
+  checkInAt     DateTime?
+  checkOutAt    DateTime?
+  hoursWorked   Float?
+  isPresent     Boolean      @default(true)
+  isHoliday     Boolean      @default(false)
+  notes         String?
+  createdAt     DateTime     @default(now())
+
+  // Relations
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staff         StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, date])
+}
+
+model StaffLeave {
+  id          String       @id @default(uuid())
+  tenantId    String
+  staffId     String
+  leaveType   LeaveType
+  startDate   DateTime
+  endDate     DateTime
+  totalDays   Int
+  reason      String?
+  status      LeaveStatus  @default(pending)
+  approvedBy  String?      // UserProfile.id
+  approvedAt  DateTime?
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staff       StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model SalarySlip {
+  id              String       @id @default(uuid())
+  tenantId        String
+  staffId         String
+  month           Int
+  year            Int
+  basicSalary     Int          // paise
+  deductions      Int          @default(0)
+  bonuses         Int          @default(0)
+  netSalary       Int          // paise
+  daysWorked      Int?
+  daysAbsent      Int?
+  isPaid          Boolean      @default(false)
+  paidAt          DateTime?
+  paymentMethod   String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+
+  // Relations
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staff           StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, month, year])
+}
+
+// =====================
+// COMMUNICATIONS & MESSAGING
+// =====================
+
+model Message {
+  id              String          @id @default(uuid())
+  tenantId        String
+  memberId        String?
+  channel         MessageChannel
+  recipient       String
+  subject         String?
+  body            String
+  status          MessageStatus   @default(pending)
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  readAt          DateTime?
+  provider        String?
+  providerMsgId   String?
+  campaignId      String?
+  metadata        Json?           @default("{}")
+  createdAt       DateTime        @default(now())
+
+  // Relations
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaign        Campaign?       @relation(fields: [campaignId], references: [id])
+}
+
+model Campaign {
+  id              String          @id @default(uuid())
+  tenantId        String
+  name            String
+  channel         MessageChannel
+  subject         String?
+  body            String          // supports {{member_name}}, {{expiry_date}}
+  status          CampaignStatus  @default(draft)
+  targetAudience  Json?
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  totalRecipients Int             @default(0)
+  totalSent       Int             @default(0)
+  totalFailed     Int             @default(0)
+  createdBy       String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages        Message[]
+}
+
+model MessageTemplate {
+  id          String          @id @default(uuid())
+  tenantId    String
+  name        String
+  triggerKey  String?         // 'membership_expiry_7d', 'new_member', 'payment_done'
+  channel     MessageChannel
+  subject     String?
+  body        String
+  isActive    Boolean         @default(true)
+  isSystem    Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relations
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, triggerKey])
+}
+
+// =====================
+// PAYMENTS & INVOICING (RAZORPAY)
+// =====================
+
+model RazorpayOrder {
+  id                String                 @id @default(uuid())
+  tenantId          String
+  memberId          String
+  membershipId      String?
+  razorpayOrderId   String                 @unique
+  amountPaise       Int
+  currency          String                 @default("INR")
+  status            String                 @default("created") // 'created', 'attempted', 'paid'
+  attempts          Int                    @default(0)
+  receipt           String?
+  notes             Json?                  @default("{}")
+  expiresAt         DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  // Relations
+  tenant            Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  webhookEvents     RazorpayWebhookLog[]
+  payment           Payment?
+}
+
+model RazorpayWebhookLog {
+  id                String               @id @default(uuid())
+  tenantId          String
+  orderId           String?
+  event             RazorpayWebhookEvent
+  razorpayEventId   String               @unique
+  payload           Json
+  processed         Boolean              @default(false)
+  processedAt       DateTime?
+  error             String?
+  createdAt         DateTime             @default(now())
+
+  // Relations
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order             RazorpayOrder?       @relation(fields: [orderId], references: [id])
+}
+
+model Invoice {
+  id              String        @id @default(uuid())
+  tenantId        String
+  memberId        String
+  paymentId       String?       @unique
+  invoiceNumber   String        @unique
+  invoiceDate     DateTime      @default(now())
+  dueDate         DateTime?
+  status          InvoiceStatus @default(draft)
+  subtotalPaise   Int
+  discountPaise   Int           @default(0)
+  taxPercent      Float         @default(18)
+  taxPaise        Int           @default(0)
+  totalPaise      Int
+  currency        String        @default("INR")
+  notes           String?
+  lineItems       Json          @default("[]")
+  billingAddress  Json?
+  gymDetails      Json?
+  pdfUrl          String?
+  sentAt          DateTime?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payment         Payment?      @relation(fields: [paymentId], references: [id])
+}
+
+model Discount {
+  id              String    @id @default(uuid())
+  tenantId        String
+  code            String
+  description     String?
+  discountPercent Float?
+  discountPaise   Int?
+  maxUsage        Int?
+  usedCount       Int       @default(0)
+  minOrderPaise   Int?
+  validFrom       DateTime  @default(now())
+  validUntil      DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
 }

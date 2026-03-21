@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { branchesApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,13 +25,9 @@ export const BranchesPage: React.FC = () => {
     const { data: branches } = useQuery({
         queryKey: ["branches", user?.tenant_id],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("branches")
-                .select("*")
-                .eq("tenant_id", user?.tenant_id)
-                .order("created_at", { ascending: false })
-            if (error) throw error
-            return data as Branch[]
+             const response = await branchesApi.list(user?.tenant_id || "")
+             if (response.error) throw response.error
+             return response.data as Branch[]
         },
         enabled: !!user?.tenant_id,
     })
@@ -39,27 +35,19 @@ export const BranchesPage: React.FC = () => {
     // Create/Update Mutation
     const mutation = useMutation({
         mutationFn: async (formData: FormData) => {
-            if (!user?.tenant_id) {
-                throw new Error("Tenant ID is missing. Please refresh the page or contact support.")
-            }
-
             const data = {
-                tenant_id: user.tenant_id,
                 name: formData.get("name") as string,
                 address: formData.get("address") as string,
                 phone: formData.get("phone") as string,
             }
-
+            
+            let response;
             if (editingBranch) {
-                const { error } = await supabase
-                    .from("branches")
-                    .update(data)
-                    .eq("id", editingBranch.id)
-                if (error) throw error
+                response = await branchesApi.update(editingBranch.id, data)
             } else {
-                const { error } = await supabase.from("branches").insert([data])
-                if (error) throw error
+                response = await branchesApi.create(data)
             }
+            if (response.error) throw response.error
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["branches"] })
@@ -83,9 +71,9 @@ export const BranchesPage: React.FC = () => {
 
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure you want to delete this branch?")) return
-        const { error } = await supabase.from("branches").delete().eq("id", id)
-        if (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" })
+        const response = await branchesApi.delete(id)
+        if (response.error) {
+            toast({ title: "Error", description: response.error.message || "Delete failed", variant: "destructive" })
         } else {
             queryClient.invalidateQueries({ queryKey: ["branches"] })
             toast({ title: "Success", description: "Branch deleted successfully" })

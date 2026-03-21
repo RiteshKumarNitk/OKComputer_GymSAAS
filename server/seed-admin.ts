@@ -20,7 +20,11 @@ async function seedAdmin() {
     // Check if already exists
     const existing = await prisma.userProfile.findUnique({ where: { email } })
     if (existing) {
-        console.log("⚠️  Super admin already exists:", existing.email, "| role:", existing.role)
+        await prisma.userProfile.update({
+            where: { email },
+            data: { password: hashed, role: "super_admin", isActive: true },
+        })
+        console.log("✅ Super Admin password updated!")
         await prisma.$disconnect()
         return
     }

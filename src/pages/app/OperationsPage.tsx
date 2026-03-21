@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { visitorsApi, complaintsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatDate } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -32,22 +32,21 @@ export const OperationsPage: React.FC = () => {
     const { data: visitors } = useQuery({
         queryKey: ["visitors", user?.tenant_id],
         queryFn: async () => {
-            const { data, error } = await supabase.from("visitors").select("*").eq("tenant_id", user?.tenant_id).order("visit_time", { ascending: false })
-            if (error) throw error
-            return data
+             const response = await visitorsApi.list(user?.tenant_id || "")
+             if (response.error) throw response.error
+             return response.data
         },
         enabled: !!user?.tenant_id
     })
 
     const addVisitorMutation = useMutation({
         mutationFn: async (formData: FormData) => {
-            const { error } = await supabase.from("visitors").insert({
-                tenant_id: user?.tenant_id,
+            const response = await visitorsApi.create({
                 name: formData.get("name"),
                 phone: formData.get("phone"),
                 visit_purpose: formData.get("purpose")
             })
-            if (error) throw error
+            if (response.error) throw response.error
         },
         onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["visitors"] }); setIsAddVisitorOpen(false); toast({ title: "Visitor Logged" }) }
     })
@@ -56,32 +55,30 @@ export const OperationsPage: React.FC = () => {
     const { data: complaints } = useQuery({
         queryKey: ["complaints", user?.tenant_id],
         queryFn: async () => {
-            const { data, error } = await supabase.from("complaints").select("*, members(full_name)").eq("tenant_id", user?.tenant_id).order("created_at", { ascending: false })
-            if (error) throw error
-            return data
+             const response = await complaintsApi.list(user?.tenant_id || "")
+             if (response.error) throw response.error
+             return response.data
         },
         enabled: !!user?.tenant_id
     })
 
     const addComplaintMutation = useMutation({
         mutationFn: async (formData: FormData) => {
-            // We won't link member for simplicity unless we add a dropdown, assuming "Anonymous" or manual mostly for now
-            // Or better: pass null if not selected
-            const { error } = await supabase.from("complaints").insert({
-                tenant_id: user?.tenant_id,
+            const response = await complaintsApi.create({
                 title: formData.get("title"),
                 description: formData.get("description"),
                 priority: formData.get("priority"),
                 status: 'open'
             })
-            if (error) throw error
+            if (response.error) throw response.error
         },
         onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["complaints"] }); setIsAddComplaintOpen(false); toast({ title: "Complaint Logged" }) }
     })
 
     const updateComplaintStatus = async (id: string, status: string) => {
-        await supabase.from("complaints").update({ status }).eq("id", id)
-        queryClient.invalidateQueries({ queryKey: ["complaints"] })
+        const response = await complaintsApi.update(id, { status })
+        if (response.error) toast({ title: "Error", description: response.error.message || "Failed to update", variant: "destructive" })
+        else queryClient.invalidateQueries({ queryKey: ["complaints"] })
     }
 
     return (
@@ -132,9 +129,9 @@ export const OperationsPage: React.FC = () => {
                             <TableBody>
                                 {visitors?.map((v: any) => (
                                     <TableRow key={v.id}>
-                                        <TableCell>{formatDate(v.visit_time, "h:mm a")}</TableCell>
+                                        <TableCell>{formatDate(v.visitTime ?? v.visit_time, "h:mm a")}</TableCell>
                                         <TableCell className="font-medium">{v.name}</TableCell>
-                                        <TableCell><Badge variant="outline">{v.visit_purpose}</Badge></TableCell>
+                                        <TableCell><Badge variant="outline">{v.visitPurpose ?? v.visit_purpose}</Badge></TableCell>
                                         <TableCell>{v.phone || "-"}</TableCell>
                                     </TableRow>
                                 ))}
@@ -176,7 +173,7 @@ export const OperationsPage: React.FC = () => {
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <CardTitle className="text-base">{ticket.title}</CardTitle>
-                                            <CardDescription className="text-xs">{formatDate(ticket.created_at)} • {ticket.members?.full_name || "General"}</CardDescription>
+                                            <CardDescription className="text-xs">{formatDate(ticket.createdAt ?? ticket.created_at)} • {ticket.member ? (ticket.member.fullName ?? ticket.member.full_name) : "General"}</CardDescription>
                                         </div>
                                         <Badge className={ticket.status === 'resolved' ? 'bg-green-500' : 'bg-yellow-500'}>{ticket.status}</Badge>
                                     </div>

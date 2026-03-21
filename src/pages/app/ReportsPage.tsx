@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { reportsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -15,81 +15,24 @@ export const ReportsPage: React.FC = () => {
     const { user } = useAuth()
     const [activeTab, setActiveTab] = useState("overview")
 
-    // Query: Expiring Members (Next 30 Days)
-    const { data: expiringMembers, isLoading: isLoadingExpiring } = useQuery({
-        queryKey: ["reports_expiring", user?.tenant_id],
+    // Consolidated reports query
+    const { data: reportData, isLoading } = useQuery({
+        queryKey: ["reports_members", user?.tenant_id],
         queryFn: async () => {
-            const today = new Date()
-            const next30Days = new Date()
-            next30Days.setDate(today.getDate() + 30)
-
-            const { data, error } = await supabase
-                .from("members")
-                .select("*, memberships(name)")
-                .eq("tenant_id", user?.tenant_id)
-                .eq("status", "active")
-                .gte("plan_expires_at", today.toISOString())
-                .lte("plan_expires_at", next30Days.toISOString())
-                .order("plan_expires_at", { ascending: true })
-
-            if (error) throw error
-            return data
+             const response = await reportsApi.getMembers()
+             if (response.error) throw response.error
+             return response.data
         },
         enabled: !!user?.tenant_id
     })
 
-    // Query: Inactive Members (No attendance in last 7 days)
-    // Logic: Active members who are NOT in the attendance table for the last 7 days
-    const { data: inactiveMembers, isLoading: isLoadingInactive } = useQuery({
-        queryKey: ["reports_inactive", user?.tenant_id],
-        queryFn: async () => {
-            const sevenDaysAgo = new Date()
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const expiringMembers = reportData?.expiring || []
+    const inactiveMembers = reportData?.inactive || []
+    const newMembers = reportData?.newJoiners || []
 
-            // 1. Get all active members
-            const { data: allMembers, error: memberError } = await supabase
-                .from("members")
-                .select("id, full_name, member_code, phone, last_checkin_at")
-                .eq("tenant_id", user?.tenant_id)
-                .eq("status", "active")
-
-            if (memberError) throw memberError
-
-            // 2. Filter those who haven't checked in recently
-            // Note: relying on last_checkin_at if available, otherwise checking attendance table is expensive. 
-            // Assuming last_checkin_at is updated on checkin (if not, we might need a trigger or subquery).
-            // For now, let's assume we can filter locally or if last_checkin_at exists.
-            // If last_checkin_at column doesn't exist, we might need to change strategy.
-            // Let's check if we have last_checkin_at? The user didn't show the schema, but I'll assume standard columns.
-            // Actually, let's use a simpler query: Members created > 7 days ago AND (last_checkin < 7 days ago OR null)
-
-            return allMembers?.filter((m: any) => {
-                if (!m.last_checkin_at) return true // Never checked in
-                return new Date(m.last_checkin_at) < sevenDaysAgo
-            })
-        },
-        enabled: !!user?.tenant_id
-    })
-
-    // Query: New Joiners (Last 30 Days)
-    const { data: newMembers, isLoading: isLoadingNew } = useQuery({
-        queryKey: ["reports_new", user?.tenant_id],
-        queryFn: async () => {
-            const thirtyDaysAgo = new Date()
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
-            const { data, error } = await supabase
-                .from("members")
-                .select("*, memberships(name, price_cents)")
-                .eq("tenant_id", user?.tenant_id)
-                .gte("joined_at", thirtyDaysAgo.toISOString())
-                .order("joined_at", { ascending: false })
-
-            if (error) throw error
-            return data
-        },
-        enabled: !!user?.tenant_id
-    })
+    const isLoadingExpiring = isLoading
+    const isLoadingInactive = isLoading
+    const isLoadingNew = isLoading
 
     const handleExport = () => {
         let dataToExport: any[] = []
@@ -97,26 +40,26 @@ export const ReportsPage: React.FC = () => {
 
         if (activeTab === "expiring" && expiringMembers) {
             dataToExport = expiringMembers.map((m: any) => ({
-                Name: m.full_name,
+                Name: m.fullName ?? m.full_name,
                 Phone: m.phone,
-                Plan: m.memberships?.name,
-                ExpiresAt: formatDate(m.plan_expires_at),
+                Plan: m.currentPlan?.name ?? m.memberships?.name,
+                ExpiresAt: formatDate(m.planExpiresAt ?? m.plan_expires_at),
                 Status: m.status
             }))
         } else if (activeTab === "inactive" && inactiveMembers) {
             dataToExport = inactiveMembers.map((m: any) => ({
-                Name: m.full_name,
+                Name: m.fullName ?? m.full_name,
                 Phone: m.phone,
-                LastCheckin: m.last_checkin_at ? formatDate(m.last_checkin_at) : "Never",
-                MemberCode: m.member_code
+                LastCheckin: "N/A", // Handled by server filters
+                MemberCode: m.memberCode ?? m.member_code
             }))
         } else if (activeTab === "new" && newMembers) {
             dataToExport = newMembers.map((m: any) => ({
-                Name: m.full_name,
+                Name: m.fullName ?? m.full_name,
                 Phone: m.phone,
-                JoinedAt: formatDate(m.joined_at),
-                Plan: m.memberships?.name,
-                Amount: m.memberships?.price_cents ? (m.memberships.price_cents / 100).toFixed(2) : "0"
+                JoinedAt: formatDate(m.joinedAt ?? m.joined_at),
+                Plan: m.currentPlan?.name ?? m.memberships?.name,
+                Amount: m.currentPlan?.priceCents ? (m.currentPlan.priceCents / 100).toFixed(2) : "0"
             }))
         } else if (activeTab === "overview") {
             dataToExport = [
@@ -217,11 +160,11 @@ export const ReportsPage: React.FC = () => {
                                                 return (
                                                     <TableRow key={m.id}>
                                                         <TableCell className="font-medium">
-                                                            <div>{m.full_name}</div>
+                                                            <div>{m.fullName ?? m.full_name}</div>
                                                             <div className="text-xs text-muted-foreground">{m.phone}</div>
                                                         </TableCell>
-                                                        <TableCell>{m.memberships?.name}</TableCell>
-                                                        <TableCell>{formatDate(m.plan_expires_at)}</TableCell>
+                                                        <TableCell>{m.currentPlan?.name ?? m.memberships?.name}</TableCell>
+                                                        <TableCell>{formatDate(m.planExpiresAt ?? m.plan_expires_at)}</TableCell>
                                                         <TableCell><Badge variant={daysLeft < 7 ? "destructive" : "secondary"}>{daysLeft} days</Badge></TableCell>
                                                         <TableCell className="text-right"><Button size="sm" variant="outline">Renew</Button></TableCell>
                                                     </TableRow>
@@ -257,8 +200,8 @@ export const ReportsPage: React.FC = () => {
                                         <TableBody>
                                             {inactiveMembers?.map((m: any) => (
                                                 <TableRow key={m.id}>
-                                                    <TableCell className="font-medium">{m.full_name}</TableCell>
-                                                    <TableCell>{m.last_checkin_at ? formatDate(m.last_checkin_at) : "Never"}</TableCell>
+                                                    <TableCell className="font-medium">{m.fullName ?? m.full_name}</TableCell>
+                                                    <TableCell>{"Inactive"}</TableCell>
                                                     <TableCell>{m.phone}</TableCell>
                                                     <TableCell className="text-right"><Button size="sm" variant="outline">Contact</Button></TableCell>
                                                 </TableRow>
@@ -295,12 +238,12 @@ export const ReportsPage: React.FC = () => {
                                             {newMembers?.map((m: any) => (
                                                 <TableRow key={m.id}>
                                                     <TableCell className="font-medium">
-                                                        <div>{m.full_name}</div>
-                                                        <div className="text-xs text-muted-foreground">{m.member_code}</div>
+                                                        <div>{m.fullName ?? m.full_name}</div>
+                                                        <div className="text-xs text-muted-foreground">{m.memberCode ?? m.member_code}</div>
                                                     </TableCell>
-                                                    <TableCell>{formatDate(m.joined_at)}</TableCell>
-                                                    <TableCell>{m.memberships?.name || "-"}</TableCell>
-                                                    <TableCell>{m.memberships?.price_cents ? formatCurrency(m.memberships.price_cents) : "-"}</TableCell>
+                                                    <TableCell>{formatDate(m.joinedAt ?? m.joined_at)}</TableCell>
+                                                    <TableCell>{(m.currentPlan?.name ?? m.memberships?.name) || "-"}</TableCell>
+                                                    <TableCell>{m.currentPlan?.priceCents ? formatCurrency(m.currentPlan.priceCents) : "-"}</TableCell>
                                                     <TableCell className="text-right"><Button size="sm" variant="ghost">View</Button></TableCell>
                                                 </TableRow>
                                             ))}

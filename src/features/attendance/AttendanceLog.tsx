@@ -1,6 +1,6 @@
 import React from "react"
 import { useQuery } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { attendanceApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import type { Attendance } from "@/types"
 
@@ -24,16 +24,15 @@ export const AttendanceLog: React.FC = () => {
     const { data: logs, isLoading } = useQuery({
         queryKey: ["attendance-log", today],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("attendance")
-                .select("*, member:members(full_name, member_code, status)")
-                .eq("tenant_id", user?.tenant_id)
-                .gte("checkin_at", `${today}T00:00:00`)
-                .lt("checkin_at", `${today}T23:59:59`)
-                .order("checkin_at", { ascending: false })
-
-            if (error) throw error
-            return data as (Attendance & { member: { full_name: string; member_code: string; status: string } })[]
+            const response = await attendanceApi.list(user?.tenant_id || "")
+            if (response.error) throw response.error
+            
+            // Client-side filter for today
+            const filtered = response.data?.filter((log: any) => 
+                (log.checkinAt || log.checkin_at || "").startsWith(today)
+            ) || []
+            
+            return filtered as any[]
         },
         enabled: !!user?.tenant_id,
     })
@@ -77,26 +76,26 @@ export const AttendanceLog: React.FC = () => {
                                 logs.map((log) => (
                                     <TableRow key={log.id}>
                                         <TableCell className="font-medium">
-                                            {new Date(log.checkin_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {new Date(log.checkinAt || log.checkin_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center space-x-2">
                                                 <Avatar className="h-6 w-6">
                                                     <AvatarFallback className="text-xs">
-                                                        {log.member?.full_name.substring(0, 2).toUpperCase()}
+                                                        {(log.member?.fullName || log.member?.full_name || "??").substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
-                                                <span>{log.member?.full_name}</span>
+                                                <span>{log.member?.fullName || log.member?.full_name}</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{log.member?.member_code}</TableCell>
+                                        <TableCell>{log.member?.memberCode || log.member?.member_code}</TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className="text-xs">
                                                 Checked In
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right text-muted-foreground text-xs">
-                                            {log.device_info?.type || "Manual"}
+                                            {(log.deviceInfo || log.device_info)?.type || "Manual"}
                                         </TableCell>
                                     </TableRow>
                                 ))

@@ -1,6 +1,6 @@
 import React from "react"
 import { useQuery } from "@tanstack/react-query"
-import { supabase } from "@/api/supabase"
+import { attendanceApi, paymentsApi, memberWorkoutsApi } from "@/api/apiClient"
 import type { Member } from "@/types"
 import { formatDate, formatCurrency, calculateAge } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,14 +20,9 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
   const { data: attendance } = useQuery({
     queryKey: ["member-attendance", member.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("attendance")
-        .select("*")
-        .eq("member_id", member.id)
-        .order("checkin_at", { ascending: false })
-        .limit(10)
-      if (error) throw error
-      return data
+      const response = await attendanceApi.list(member.tenantId || "", member.id)
+      if (response.error) throw response.error
+      return response.data?.slice(0, 10)
     },
   })
 
@@ -35,14 +30,9 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
   const { data: payments } = useQuery({
     queryKey: ["member-payments", member.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payments")
-        .select("*, memberships(name)")
-        .eq("member_id", member.id)
-        .order("created_at", { ascending: false })
-        .limit(10)
-      if (error) throw error
-      return data
+      const response = await paymentsApi.list(member.tenantId || "", member.id)
+      if (response.error) throw response.error
+      return response.data?.slice(0, 10)
     },
   })
 
@@ -50,13 +40,9 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
   const { data: workouts } = useQuery({
     queryKey: ["member-workouts", member.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("member_workouts")
-        .select("*, workouts(name, description)")
-        .eq("member_id", member.id)
-        .order("assigned_at", { ascending: false })
-      if (error) throw error
-      return data
+      const response = await memberWorkoutsApi.list(member.id)
+      if (response.error) throw response.error
+      return response.data
     },
   })
 
@@ -99,7 +85,7 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
             <div className="mt-2">
               <span className="text-sm font-medium">{member.membership.name}</span>
               <span className="text-sm text-muted-foreground ml-2">
-                {formatCurrency(member.membership.price_cents, member.membership.currency)} / {member.membership.duration_days} days
+                {formatCurrency(member.membership.priceCents || member.membership.price_cents, member.membership.currency)} / {member.membership.durationDays || member.membership.duration_days} days
               </span>
             </div>
           )}
@@ -226,14 +212,14 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
                   {attendance.map((record: any) => (
                     <div key={record.id} className="flex items-center justify-between p-2 bg-muted rounded">
                       <div>
-                        <span className="font-medium">{formatDate(record.checkin_at)}</span>
+                        <span className="font-medium">{formatDate(record.checkinAt || record.checkin_at)}</span>
                         <span className="text-sm text-muted-foreground ml-2">
-                          {new Date(record.checkin_at).toLocaleTimeString()}
+                          {new Date(record.checkinAt || record.checkin_at).toLocaleTimeString()}
                         </span>
                       </div>
-                      {record.checkout_at && (
+                      {(record.checkoutAt || record.checkout_at) && (
                         <div className="text-sm text-muted-foreground">
-                          Duration: {Math.round((new Date(record.checkout_at).getTime() - new Date(record.checkin_at).getTime()) / (1000 * 60))} min
+                          Duration: {Math.round((new Date(record.checkoutAt || record.checkout_at).getTime() - new Date(record.checkinAt || record.checkin_at).getTime()) / (1000 * 60))} min
                         </div>
                       )}
                     </div>
@@ -257,15 +243,15 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
                   {payments.map((payment: any) => (
                     <div key={payment.id} className="flex items-center justify-between p-2 bg-muted rounded">
                       <div>
-                        <span className="font-medium">{formatDate(payment.paid_at || payment.created_at)}</span>
-                        {payment.memberships && (
+                        <span className="font-medium">{formatDate(payment.paidAt || payment.paid_at || payment.createdAt || payment.created_at)}</span>
+                        {(payment.membership || payment.memberships) && (
                           <span className="text-sm text-muted-foreground ml-2">
-                            {payment.memberships.name}
+                            {payment.membership?.name || payment.memberships?.name}
                           </span>
                         )}
                       </div>
                       <div className="text-right">
-                        <div className="font-medium">{formatCurrency(payment.amount_cents)}</div>
+                        <div className="font-medium">{formatCurrency(payment.amountCents || payment.amount_cents)}</div>
                         <div className="text-sm text-muted-foreground capitalize">{payment.provider}</div>
                       </div>
                     </div>
@@ -289,19 +275,19 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
                   {workouts.map((workout: any) => (
                     <div key={workout.id} className="p-2 bg-muted rounded">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">{workout.workouts.name}</span>
+                        <span className="font-medium">{workout.workout?.name || workout.workouts?.name}</span>
                         <span className="text-sm text-muted-foreground">
-                          {formatDate(workout.assigned_at)}
+                          {formatDate(workout.assignedAt || workout.assigned_at)}
                         </span>
                       </div>
-                      {workout.workouts.description && (
+                      {(workout.workout?.description || workout.workouts?.description) && (
                         <p className="text-sm text-muted-foreground mt-1">
-                          {workout.workouts.description}
+                          {workout.workout?.description || workout.workouts?.description}
                         </p>
                       )}
-                      {workout.completed_at && (
+                      {(workout.completedAt || workout.completed_at) && (
                         <Badge variant="default" className="mt-2">
-                          Completed {formatDate(workout.completed_at)}
+                          Completed {formatDate(workout.completedAt || workout.completed_at)}
                         </Badge>
                       )}
                     </div>
