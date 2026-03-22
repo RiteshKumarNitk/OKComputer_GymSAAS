@@ -9,7 +9,6 @@ import {
   Users,
   CreditCard,
   Dumbbell,
-  Apple,
   Settings,
   LogOut,
   Menu,

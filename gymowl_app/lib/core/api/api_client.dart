@@ -1,11 +1,18 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storage/storage_service.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final storage = ref.watch(storageServiceProvider);
+  
+  // Port 3001 matches server/index.ts
+  final baseUrl = kIsWeb 
+      ? 'http://localhost:3001/api' 
+      : 'http://10.0.2.2:3001/api';
+
   return ApiClient(
-    baseUrl: 'https://api.gymowl.com', // Replace with staging/prod later
+    baseUrl: baseUrl,
     storageService: storage,
   );
 });

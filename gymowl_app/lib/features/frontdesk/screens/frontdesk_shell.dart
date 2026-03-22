@@ -11,10 +11,9 @@ class FrontdeskShell extends StatefulWidget {
 
 class _FrontdeskShellState extends State<FrontdeskShell> {
   int _getCurrentIndex(BuildContext context) {
-    // Currently only /frontdesk is defined which is the scanner
     final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/frontdesk')) return 0;
-    return 0;
+    if (location == '/frontdesk/scanner') return 1;
+    return 0; // Default to Dashboard (/frontdesk)
   }
 
   @override
@@ -22,27 +21,46 @@ class _FrontdeskShellState extends State<FrontdeskShell> {
     final currentIndex = _getCurrentIndex(context);
 
     return Scaffold(
+      extendBody: true,
       body: widget.child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        backgroundColor: Colors.deepOrange.shade900,
-        unselectedItemColor: Colors.orange.shade200,
-        selectedItemColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              context.go('/frontdesk');
-              break;
-            // Add other cases as sub-routes expand
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.qr_code_scanner), label: 'Scanner'),
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Visitors'),
-          BottomNavigationBarItem(icon: Icon(Icons.edit), label: 'Manual'),
-          BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: "Today's Log"),
-        ],
+      bottomNavigationBar: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1F38),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            )
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BottomNavigationBar(
+            currentIndex: currentIndex,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            selectedItemColor: Colors.orangeAccent,
+            unselectedItemColor: Colors.grey[400],
+            type: BottomNavigationBarType.fixed,
+            onTap: (index) {
+              switch (index) {
+                case 0:
+                  context.go('/frontdesk');
+                  break;
+                case 1:
+                  context.go('/frontdesk/scanner');
+                  break;
+              }
+            },
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Operations'),
+              BottomNavigationBarItem(icon: Icon(Icons.qr_code_scanner), label: 'Scanner'),
+            ],
+          ),
+        ),
       ),
     );
   }

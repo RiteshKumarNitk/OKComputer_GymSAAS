@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { membersApi, trainersApi } from "@/api/apiClient"
+import { membersApi, trainersApi, uploadApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import type { Member, Membership, MemberStatus, Trainer } from "@/types"
 import { generateMemberCode, formatCurrency } from "@/lib/utils"
@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
+import { Camera } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface MemberFormProps {
   member?: Member | null
@@ -44,6 +45,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
     assigned_trainer_id: "",
     status: "active" as MemberStatus,
     notes: "",
+    avatarUrl: "",
   })
 
   // Fetch trainers
@@ -75,6 +77,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
         assigned_trainer_id: member.assignedTrainerId || "",
         status: member.status || "active",
         notes: member.notes || "",
+        avatarUrl: member.avatarUrl || member.avatar_url || "",
       })
     }
   }, [member])
@@ -105,6 +108,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
         assigned_trainer_id: (data.assigned_trainer_id && data.assigned_trainer_id !== "none") ? data.assigned_trainer_id : null,
         status: data.status,
         notes: data.notes,
+        avatarUrl: data.avatarUrl,
       }
 
       const shouldUpdatePlanDates =
@@ -156,11 +160,48 @@ export const MemberForm: React.FC<MemberFormProps> = ({
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const response = await uploadApi.uploadImage(file)
+      if (response?.url) {
+        handleInputChange("avatarUrl", response.url)
+      }
+    } catch (error) {
+      console.error("Image upload failed:", error)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Personal Information */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Personal Information</h3>
+
+        <div className="flex justify-center mb-6">
+          <div className="relative">
+            <Avatar className="h-24 w-24 border-2 border-slate-200 dark:border-slate-800">
+              <AvatarImage src={formData.avatarUrl || ""} />
+              <AvatarFallback className="text-xl font-bold bg-slate-100 dark:bg-slate-800">
+                {formData.full_name ? formData.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase() : "M"}
+              </AvatarFallback>
+            </Avatar>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              id="avatar_upload"
+              onChange={handleImageUpload}
+            />
+            <Label
+              htmlFor="avatar_upload"
+              className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-1.5 rounded-full cursor-pointer shadow-lg hover:bg-primary/90 transition-colors"
+            >
+              <Camera className="h-4 w-4" />
+            </Label>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -217,7 +258,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
               id="dob"
               type="date"
               value={formData.dob ? formData.dob.toISOString().split("T")[0] : ""}
-              onChange={(e) => handleInputChange("dob", e.value ? new Date(e.value) : undefined)}
+              onChange={(e) => handleInputChange("dob", e.target.value ? new Date(e.target.value) : undefined)}
               onClick={(e) => (e.target as any).showPicker?.()}
             />
           </div>

@@ -96,20 +96,21 @@ export interface Member {
   status: MemberStatus
   notes: string | null
   assigned_trainer_id?: string | null
-  created_at: string
-  updated_at: string
-  membership?: Membership
+  avatar_url?: string | null
+  avatarUrl?: string | null
 
   // camelCase analogs for backend parity
   tenantId?: string
   userId?: string | null
   memberCode?: string
   fullName?: string
+  joinedAt?: string
   currentPlanId?: string | null
   planStartedAt?: string | null
   planExpiresAt?: string | null
   assignedTrainerId?: string | null
   emergencyContact?: any | null
+  currentPlan?: Membership
 }
 
 export type MemberStatus = "active" | "inactive" | "suspended" | "expired"

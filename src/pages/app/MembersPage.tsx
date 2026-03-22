@@ -133,13 +133,13 @@ export const MembersPage: React.FC = () => {
     const csvContent = [
       ["Member Code", "Name", "Email", "Phone", "Status", "Membership", "Joined Date"],
       ...members.map((member) => [
-        member.member_code,
-        member.full_name,
+        member.memberCode ?? member.member_code,
+        member.fullName ?? member.full_name,
         member.email || "",
         member.phone || "",
         member.status,
         member.membership?.name || "No Plan",
-        formatDate(member.joined_at),
+        formatDate(member.joinedAt ?? member.joined_at),
       ]),
     ]
       .map((row) => row.join(","))
@@ -247,15 +247,15 @@ export const MembersPage: React.FC = () => {
                   <TableBody>
                     {members?.map((member) => (
                       <TableRow key={member.id}>
-                        <TableCell className="font-medium">{member.member_code}</TableCell>
-                        <TableCell>{member.full_name}</TableCell>
+                        <TableCell className="font-medium">{member.memberCode ?? member.member_code}</TableCell>
+                        <TableCell>{member.fullName ?? member.full_name}</TableCell>
                         <TableCell>{member.email}</TableCell>
                         <TableCell>{member.phone}</TableCell>
                         <TableCell>
-                          {member.membership?.name || "No Plan"}
-                          {member.membership && (
+                          {member.currentPlan?.name ?? member.membership?.name ?? "No Plan"}
+                          {(member.currentPlan ?? member.membership) && (
                             <div className="text-xs text-muted-foreground">
-                              {formatCurrency(member.membership.priceCents ?? member.membership.price_cents ?? 0, member.membership.currency || "INR")} / {member.membership.durationDays ?? member.membership.duration_days ?? 0} days
+                              {formatCurrency((member.currentPlan ?? member.membership).priceCents ?? (member.currentPlan ?? member.membership).price_cents ?? 0, (member.currentPlan ?? member.membership).currency || "INR")} / {(member.currentPlan ?? member.membership).durationDays ?? (member.currentPlan ?? member.membership).duration_days ?? 0} days
                             </div>
                           )}
                         </TableCell>
@@ -264,7 +264,7 @@ export const MembersPage: React.FC = () => {
                             {member.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{formatDate(member.joined_at)}</TableCell>
+                        <TableCell>{formatDate(member.joinedAt ?? member.joined_at)}</TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

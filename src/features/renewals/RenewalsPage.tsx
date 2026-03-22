@@ -24,11 +24,53 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useNavigate } from "react-router-dom"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useToast } from "@/components/ui/use-toast"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 
 export const RenewalsPage: React.FC = () => {
     const { user } = useAuth()
     const navigate = useNavigate()
+    const { toast } = useToast()
+    const queryClient = useQueryClient()
     const [searchQuery, setSearchQuery] = useState("")
+
+    const [isRenewOpen, setIsRenewOpen] = useState(false)
+    const [selectedMember, setSelectedMember] = useState<any>(null)
+    const [selectedPlanId, setSelectedPlanId] = useState<string>("")
+
+    const renewMutation = useMutation({
+        mutationFn: async () => {
+            if (!selectedMember) return
+            const response = await membersApi.renew({ id: selectedMember.id, planId: selectedPlanId || undefined })
+            if (response.error) throw response.error
+            return response.data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["renewals"] })
+            setIsRenewOpen(false)
+            toast({ title: "Success", description: "Membership renewed successfully" })
+        },
+        onError: (error: any) => {
+            toast({ title: "Error", description: error.message, variant: "destructive" })
+        }
+    })
 
     // Fetch Memberships for lookup
     const { data: memberships } = useQuery({
@@ -173,7 +215,11 @@ export const RenewalsPage: React.FC = () => {
                                                 >
                                                     <MessageCircle className="h-4 w-4 text-green-600" />
                                                 </Button>
-                                                <Button size="sm" onClick={() => navigate("/billing")}>
+                                                <Button size="sm" onClick={() => {
+                                                    setSelectedMember(member)
+                                                    setSelectedPlanId(member.currentPlanId || member.current_plan_id || "")
+                                                    setIsRenewOpen(true)
+                                                }}>
                                                     <RefreshCw className="mr-2 h-3 w-3" /> Renew
                                                 </Button>
                                             </div>
@@ -193,6 +239,39 @@ export const RenewalsPage: React.FC = () => {
                     </Table>
                 </CardContent>
             </Card>
+            <Dialog open={isRenewOpen} onOpenChange={setIsRenewOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Renew Membership</DialogTitle>
+                        <DialogDescription>
+                            Renewing membership for <b>{(selectedMember?.fullName ?? selectedMember?.full_name)}</b>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Select Plan</Label>
+                            <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a membership plan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {memberships?.map((plan: any) => (
+                                        <SelectItem key={plan.id} value={plan.id}>
+                                            {plan.name} ({plan.durationDays || plan.duration_days} days)
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsRenewOpen(false)}>Cancel</Button>
+                        <Button onClick={() => renewMutation.mutate()} disabled={renewMutation.isPending}>
+                            {renewMutation.isPending ? "Renewing..." : "Confirm Renew"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/checkin_provider.dart';
 
 class CheckinScreen extends ConsumerWidget {
@@ -35,7 +36,7 @@ class CheckinScreen extends ConsumerWidget {
                   ],
                 ),
                 child: QrImageView(
-                  data: 'MEMBER-123456', // Placeholder user identifier
+                  data: ref.watch(authProvider).user?.id ?? 'UNKNOWN',
                   version: QrVersions.auto,
                   size: 200.0,
                 ),

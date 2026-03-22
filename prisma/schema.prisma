@@ -304,6 +304,8 @@ model UserProfile {
   createdDietPlans DietPlan[] @relation("CreatedDietPlans")
   assignedWorkouts MemberWorkout[] @relation("AssignedWorkouts")
   assignedDiets    MemberDiet[] @relation("AssignedDiets")
+
+  @@index([phone])
 }
 
 model Membership {
@@ -346,6 +348,7 @@ model Member {
   status            MemberStatus  @default(active)
   notes             String?
   assignedTrainerId String?
+  avatarUrl         String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 

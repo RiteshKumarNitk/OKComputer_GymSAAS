@@ -1,6 +1,6 @@
 import React from "react"
 import { useQuery } from "@tanstack/react-query"
-import { attendanceApi, paymentsApi, memberWorkoutsApi } from "@/api/apiClient"
+import { attendanceApi, paymentsApi, memberWorkoutsApi, invoicesApi } from "@/api/apiClient"
 import type { Member } from "@/types"
 import { formatDate, formatCurrency, calculateAge } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,6 +36,16 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
     },
   })
 
+  // Fetch invoices
+  const { data: invoices } = useQuery({
+    queryKey: ["member-invoices", member.id],
+    queryFn: async () => {
+      const response = await invoicesApi.list(member.tenantId || "", member.id)
+      if (response.error) throw response.error
+      return response.data
+    },
+  })
+
   // Fetch assigned workouts
   const { data: workouts } = useQuery({
     queryKey: ["member-workouts", member.id],
@@ -67,25 +77,25 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
       <div className="flex items-start space-x-4">
         <Avatar className="h-20 w-20">
           <AvatarFallback className="text-2xl">
-            {member.full_name.split(" ").map((n) => n[0]).join("").toUpperCase()}
+            {(member.fullName ?? member.full_name ?? "").split(" ").map((n) => n[0]).join("").toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <h2 className="text-2xl font-bold">{member.full_name}</h2>
+          <h2 className="text-2xl font-bold">{member.fullName ?? member.full_name}</h2>
           <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
             <span className="flex items-center">
               <User className="h-4 w-4 mr-1" />
-              {member.member_code}
+              {member.memberCode ?? member.member_code}
             </span>
             <Badge variant={getStatusBadgeVariant(member.status)}>
               {member.status}
             </Badge>
           </div>
-          {member.membership && (
+          {(member.currentPlan ?? member.membership) && (
             <div className="mt-2">
-              <span className="text-sm font-medium">{member.membership.name}</span>
+              <span className="text-sm font-medium">{(member.currentPlan ?? member.membership).name}</span>
               <span className="text-sm text-muted-foreground ml-2">
-                {formatCurrency(member.membership.priceCents || member.membership.price_cents, member.membership.currency)} / {member.membership.durationDays || member.membership.duration_days} days
+                {formatCurrency((member.currentPlan ?? member.membership).priceCents ?? (member.currentPlan ?? member.membership).price_cents ?? 0, (member.currentPlan ?? member.membership).currency || "INR")} / {(member.currentPlan ?? member.membership).durationDays ?? (member.currentPlan ?? member.membership).duration_days ?? 0} days
               </span>
             </div>
           )}
@@ -97,6 +107,7 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
           <TabsTrigger value="info">Personal Info</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="workouts">Workouts</TabsTrigger>
         </TabsList>
 
@@ -143,7 +154,7 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
               <CardContent className="space-y-3">
                 <div>
                   <span className="text-sm font-medium">Joined Date:</span>
-                  <span className="ml-2">{formatDate(member.joined_at)}</span>
+                  <span className="ml-2">{formatDate(member.joinedAt ?? member.joined_at)}</span>
                 </div>
                 {member.plan_started_at && (
                   <div>
@@ -166,7 +177,7 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
               </CardContent>
             </Card>
 
-            {member.emergency_contact && (
+            {(member.emergencyContact ?? member.emergency_contact) && (
               <Card className="md:col-span-2">
                 <CardHeader>
                   <CardTitle>Emergency Contact</CardTitle>
@@ -174,15 +185,15 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
                 <CardContent className="space-y-2">
                   <div>
                     <span className="text-sm font-medium">Name:</span>
-                    <span className="ml-2">{member.emergency_contact.name}</span>
+                    <span className="ml-2">{(member.emergencyContact ?? member.emergency_contact).name}</span>
                   </div>
                   <div>
                     <span className="text-sm font-medium">Phone:</span>
-                    <span className="ml-2">{member.emergency_contact.phone}</span>
+                    <span className="ml-2">{(member.emergencyContact ?? member.emergency_contact).phone}</span>
                   </div>
                   <div>
                     <span className="text-sm font-medium">Relationship:</span>
-                    <span className="ml-2">{member.emergency_contact.relationship}</span>
+                    <span className="ml-2">{(member.emergencyContact ?? member.emergency_contact).relationship}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -259,6 +270,38 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
                 </div>
               ) : (
                 <p className="text-muted-foreground">No payment records found</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="invoices">
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoices</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {invoices && invoices.length > 0 ? (
+                <div className="space-y-2">
+                  {invoices.map((invoice: any) => (
+                    <div key={invoice.id} className="flex items-center justify-between p-3 bg-muted rounded">
+                      <div>
+                        <span className="font-medium">{invoice.invoiceNumber || invoice.invoice_number}</span>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Date: {formatDate(invoice.invoiceDate || invoice.invoice_date)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">{formatCurrency(invoice.totalPaise || invoice.total_paise || 0)}</div>
+                        <Badge variant={invoice.status === "paid" ? "default" : "secondary"} className="mt-1">
+                          {invoice.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No invoices found</p>
               )}
             </CardContent>
           </Card>

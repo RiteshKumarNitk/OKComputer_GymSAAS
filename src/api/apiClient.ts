@@ -40,6 +40,7 @@ export const membersApi = {
     create: (data: any) => request<any>("/members", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/members?id=${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/members?id=${id}`, { method: "DELETE" }),
+    renew: (data: { id: string; planId?: string }) => request<any>("/members/renew", { method: "POST", body: JSON.stringify(data) }),
 }
 
 // ========== MEMBERSHIPS ==========
@@ -55,6 +56,12 @@ export const paymentsApi = {
     list: (tenantId: string, memberId?: string, status?: string) =>
         request<any[]>(`/payments?tenantId=${tenantId}${memberId ? `&memberId=${memberId}` : ""}${status ? `&status=${status}` : ""}`),
     create: (data: any) => request<any>("/payments", { method: "POST", body: JSON.stringify(data) }),
+}
+
+// ========== INVOICES ==========
+export const invoicesApi = {
+    list: (tenantId: string, memberId?: string, status?: string) =>
+        request<any[]>(`/invoices?tenantId=${tenantId}${memberId ? `&memberId=${memberId}` : ""}${status ? `&status=${status}` : ""}`),
 }
 
 // ========== ATTENDANCE ==========
@@ -220,7 +227,7 @@ export const usersApi = {
 export const billingApi = {
     getPlans: () => request<any[]>("/saas_plans"),
     getSubscription: (tenantId: string) => request<any>(`/saas_subscriptions?tenantId=${tenantId}`),
-    getInvoices: (tenantId: string) => request<any[]>(`/saas_invoices?tenantId=${tenantId}`),
+    getInvoices: (param: string) => request<any[]>(param === "all" ? "/invoices" : `/saas_invoices?tenantId=${param}`),
     subscribe: (data: any) => request<any>("/saas_subscriptions", { method: "POST", body: JSON.stringify(data) }),
     updatePlan: (id: string, data: any) => request<any>(`/saas_plans?id=${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     createInvoice: (data: any) => request<any>("/saas_invoices", { method: "POST", body: JSON.stringify(data) }),
