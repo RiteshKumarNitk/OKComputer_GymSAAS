@@ -863,7 +863,12 @@ createCrudRoutes("members", "member", {
 createCrudRoutes("memberships", "membership", { filterFields: ["isActive"] })
 createCrudRoutes("trainers", "trainer", { searchFields: ["fullName", "email"], filterFields: ["isActive"] })
 createCrudRoutes("trainer-slots", "trainerSlot", { include: { trainer: true, bookedBy: true }, filterFields: ["trainerId"] })
-createCrudRoutes("schedules", "schedule", { include: { service: true, trainer: true } })
+createCrudRoutes("schedules", "schedule", { 
+    include: { service: true, trainer: true },
+    roles: {
+        list: ["admin", "manager", "staff", "trainer", "member"]
+    }
+})
 createCrudRoutes("workouts", "workout")
 createCrudRoutes("diet-plans", "dietPlan")
 createCrudRoutes("services", "service")

@@ -1,6 +1,6 @@
 import React from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
-import { Home, User, Calendar } from "lucide-react"
+import { Home, User, Calendar, Dumbbell, Apple } from "lucide-react"
 
 export const MemberLayout: React.FC = () => {
     const navigate = useNavigate()
@@ -8,6 +8,8 @@ export const MemberLayout: React.FC = () => {
 
     const navItems = [
         { icon: Home, label: "Home", path: "/member/dashboard" },
+        { icon: Dumbbell, label: "Workouts", path: "/member/workouts" },
+        { icon: Apple, label: "Diets", path: "/member/diets" },
         { icon: Calendar, label: "Schedule", path: "/member/schedule" },
         { icon: User, label: "Profile", path: "/member/profile" },
     ]

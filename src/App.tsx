@@ -43,6 +43,9 @@ import { StaffPage } from "@/pages/app/StaffPage"
 import { MemberLayout } from "@/features/member-portal/MemberLayout"
 import { MemberDashboard } from "@/features/member-portal/MemberDashboard"
 import { MemberProfile } from "@/features/member-portal/MemberProfile"
+import { MemberSchedule } from "@/features/member-portal/MemberSchedule"
+import { MemberWorkouts } from "@/features/member-portal/MemberWorkouts"
+import { MemberDiets } from "@/features/member-portal/MemberDiets"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -75,7 +78,9 @@ function App() {
                 </ProtectedRoute>
               }>
                 <Route path="dashboard" element={<MemberDashboard />} />
-                <Route path="schedule" element={<div className="p-4">Schedule Coming Soon</div>} />
+                <Route path="workouts" element={<MemberWorkouts />} />
+                <Route path="diets" element={<MemberDiets />} />
+                <Route path="schedule" element={<MemberSchedule />} />
                 <Route path="profile" element={<MemberProfile />} />
                 <Route index element={<Navigate to="dashboard" replace />} />
               </Route>
