@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/router.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -26,15 +27,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _submit() {
-    if (_formKey.currentState!.validate()) {
-      if (_isEmailLogin) {
-        final email = _emailController.text.trim();
-        final password = _passwordController.text;
-        ref.read(authProvider.notifier).emailLogin(email, password);
-      } else {
-        final phone = _phoneController.text.trim();
-        ref.read(authProvider.notifier).verifyPhoneNumber(phone);
-      }
+    if (_isEmailLogin) {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+      if (email.isEmpty || password.isEmpty) return;
+      ref.read(authProvider.notifier).emailLogin(email, password);
+    } else {
+      final phone = _phoneController.text.trim();
+      if (phone.isEmpty) return;
+      ref.read(authProvider.notifier).verifyPhoneNumber(phone);
     }
   }
 
@@ -45,7 +46,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Écoute les changements d'état pour naviguer ou afficher des erreurs
     ref.listen(authProvider, (previous, next) {
       if (next.verificationId != null && previous?.verificationId == null) {
-        context.push('/otp');
+        final router = ref.read(routerProvider);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          debugPrint('DEBUG: PostFrameCallback Navigating to /otp');
+          router.go('/otp');
+        });
       }
       if (next.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -75,8 +80,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               color: Colors.white.withOpacity(0.95),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
-                child: Form(
-                  key: _formKey,
+                child: Container(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -165,7 +169,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
                         TextButton(
                           onPressed: () {
                             setState(() {

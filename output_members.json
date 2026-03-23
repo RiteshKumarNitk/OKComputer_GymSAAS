@@ -1,0 +1,48 @@
+{
+  "members": [
+    {
+      "id": "bbf1f93b-bcf0-4c3c-8465-2b0b350d7557",
+      "tenantId": "66d31cc5-15e4-40f4-a051-153494f24575",
+      "userId": "test-user-profile-id",
+      "fullName": "Test Gym Member",
+      "phone": "8949491687"
+    },
+    {
+      "id": "1c6afde8-bf9b-4b6e-ae00-af698a573ac4",
+      "tenantId": "66d31cc5-15e4-40f4-a051-153494f24575",
+      "userId": "c5829cf0-4980-405a-aba4-4967bf8fcec2",
+      "fullName": "nisha",
+      "phone": "8946887702"
+    },
+    {
+      "id": "a2251ab4-2065-4160-be28-8504f03dba3f",
+      "tenantId": "66d31cc5-15e4-40f4-a051-153494f24575",
+      "userId": "a17a021e-2c72-428c-94d7-37d4a07137c2",
+      "fullName": "Sumon",
+      "phone": "8949491687"
+    }
+  ],
+  "users": [
+    {
+      "id": "test-user-profile-id",
+      "tenantId": "66d31cc5-15e4-40f4-a051-153494f24575",
+      "fullName": null,
+      "phone": "8949491687",
+      "email": "testmember@example.com"
+    },
+    {
+      "id": "c5829cf0-4980-405a-aba4-4967bf8fcec2",
+      "tenantId": "66d31cc5-15e4-40f4-a051-153494f24575",
+      "fullName": "nisha",
+      "phone": "8946887702",
+      "email": "nisha@gmail.com"
+    },
+    {
+      "id": "a17a021e-2c72-428c-94d7-37d4a07137c2",
+      "tenantId": "66d31cc5-15e4-40f4-a051-153494f24575",
+      "fullName": "Sumon",
+      "phone": "8949491687",
+      "email": "sumon@gmail.com"
+    }
+  ]
+}

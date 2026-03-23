@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/storage_service.dart';
 import '../models/auth_user.dart';
@@ -9,6 +10,7 @@ class AuthState {
   final String? error;
   final String? verificationId;
   final String? mockOtp;
+  final String? phone;
 
   AuthState({
     this.isLoading = false,
@@ -16,6 +18,7 @@ class AuthState {
     this.error,
     this.verificationId,
     this.mockOtp,
+    this.phone,
   });
 
   AuthState copyWith({
@@ -24,6 +27,7 @@ class AuthState {
     String? error,
     String? verificationId,
     String? mockOtp,
+    String? phone,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
@@ -31,6 +35,7 @@ class AuthState {
       error: error ?? this.error,
       verificationId: verificationId ?? this.verificationId,
       mockOtp: mockOtp ?? this.mockOtp,
+      phone: phone ?? this.phone,
     );
   }
 }
@@ -51,14 +56,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> verifyPhoneNumber(String phone) async {
-    state = state.copyWith(isLoading: true, error: null);
+    debugPrint('DEBUG: verifyPhoneNumber starting for $phone');
+    state = AuthState(isLoading: true);
     try {
-      // Bypassing Firebase for now
       const generatedOtp = '123456'; // Static or random
+      debugPrint('DEBUG: Setting MOCK_VERIFICATION_ID');
       state = state.copyWith(
         isLoading: false,
         verificationId: 'MOCK_VERIFICATION_ID',
         mockOtp: generatedOtp,
+        phone: phone,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -74,19 +81,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       if (state.verificationId == 'MOCK_VERIFICATION_ID') {
         if (smsCode == state.mockOtp) {
-          // Mock Success for Member
-          final mockUser = AuthUser(
-            id: 'mock_member_id_123',
-            fullName: 'Test Member',
-            phone: '1234567890',
-            role: 'member',
-          );
-          await _storage.saveAuthData(
-            token: 'mock_token_abc_123',
-            role: 'member',
-            tenantId: '',
-          );
-          state = state.copyWith(isLoading: false, user: mockUser);
+          final response = await _apiClient.dio.post('/auth/phone', data: {
+            'idToken': 'TEST_BYPASS',
+            'phone': state.phone,
+          });
+
+          if (response.statusCode == 200) {
+            final data = response.data;
+            final token = data['token'];
+            final userJson = data['user'];
+            final authUser = AuthUser.fromJson(userJson);
+
+            await _storage.saveAuthData(
+              token: token,
+              role: authUser.role,
+              tenantId: authUser.tenantId ?? '',
+            );
+
+            state = state.copyWith(isLoading: false, user: authUser);
+          } else {
+            state = state.copyWith(isLoading: false, error: 'Login failed');
+          }
         } else {
           state = state.copyWith(isLoading: false, error: 'Invalid OTP');
         }

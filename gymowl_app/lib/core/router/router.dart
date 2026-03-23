@@ -12,6 +12,8 @@ import '../../features/frontdesk/screens/frontdesk_shell.dart';
 import '../../features/member/screens/member_home_screen.dart';
 import '../../features/member/screens/payment_screen.dart';
 import '../../features/member/screens/checkin_screen.dart';
+import '../../features/member/screens/profile_screen.dart';
+import '../../features/member/screens/workouts_tracker_screen.dart';
 
 import '../../features/frontdesk/screens/scanner_screen.dart';
 import '../../features/frontdesk/screens/frontdesk_dashboard_screen.dart';
@@ -28,15 +30,25 @@ import '../../features/manager/screens/members_manage_screen.dart';
 import '../../features/manager/screens/reports_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final notifier = ValueNotifier<int>(0);
+  
+  ref.listen(authProvider, (previous, next) {
+    if (previous?.user != next.user) {
+      notifier.value++;
+    }
+  });
 
   return GoRouter(
     initialLocation: '/splash',
+    refreshListenable: notifier,
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
       final loggingIn = state.matchedLocation == '/login';
       final inOtp = state.matchedLocation == '/otp';
       final inSplash = state.matchedLocation == '/splash';
       final loggedIn = authState.user != null;
+
+      debugPrint('DEBUG: Redirect matchedLocation=${state.matchedLocation} loggingIn=$loggingIn inOtp=$inOtp inSplash=$inSplash loggedIn=$loggedIn');
 
       if (inSplash && !loggedIn) return null; // Wait on Splash timer
       if (!loggedIn && !loggingIn && !inOtp && !inSplash) return '/login';
@@ -78,6 +90,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: '/member', builder: (context, state) => const MemberHomeScreen()),
           GoRoute(path: '/member/checkin', builder: (context, state) => const CheckinScreen()),
+          GoRoute(path: '/member/workouts', builder: (context, state) => const WorkoutsTrackerScreen()),
+          GoRoute(path: '/member/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/member/payment', builder: (context, state) => const PaymentScreen()),
         ],
       ),
@@ -101,9 +115,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       ShellRoute(
-        builder: (context, state, child) => FrontdeskShell(child: child),
+        builder: (context, state, child) => MemberShell(child: child),
         routes: [
-          GoRoute(path: '/frontdesk', builder: (context, state) => const FrontdeskDashboardScreen()),
+          GoRoute(path: '/frontdesk', builder: (context, state) => const MemberHomeScreen()),
+          GoRoute(path: '/frontdesk/operations', builder: (context, state) => const FrontdeskDashboardScreen()),
           GoRoute(path: '/frontdesk/scanner', builder: (context, state) => const ScannerScreen()),
           GoRoute(path: '/frontdesk/search', builder: (context, state) => const MemberSearchScreen()),
           GoRoute(path: '/frontdesk/add-member', builder: (context, state) => const AddMemberScreen()),
@@ -113,6 +128,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             final id = state.pathParameters['id']!;
             return MemberDetailsScreen(memberId: id);
           }),
+        ],
+      ),
+      ShellRoute(
+        builder: (context, state, child) => MemberShell(child: child),
+        routes: [
+          GoRoute(path: '/member', builder: (context, state) => const MemberHomeScreen()),
+          GoRoute(path: '/member/checkin', builder: (context, state) => const CheckinScreen()),
+          GoRoute(path: '/member/workouts', builder: (context, state) => const WorkoutsTrackerScreen()),
+          GoRoute(path: '/member/profile', builder: (context, state) => const ProfileScreen()),
+          GoRoute(path: '/member/schedule', builder: (context, state) => const Scaffold(body: Center(child: Text('Schedule Coming Soon')))),
+          GoRoute(path: '/member/payment', builder: (context, state) => const PaymentScreen()),
         ],
       ),
     ],

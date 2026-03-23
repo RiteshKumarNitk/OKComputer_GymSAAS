@@ -1,75 +1,82 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../auth/providers/auth_provider.dart';
 
-class MemberShell extends StatefulWidget {
+class MemberShell extends ConsumerStatefulWidget {
   final Widget child;
   const MemberShell({super.key, required this.child});
 
   @override
-  State<MemberShell> createState() => _MemberShellState();
+  ConsumerState<MemberShell> createState() => _MemberShellState();
 }
 
-class _MemberShellState extends State<MemberShell> {
-  int _getCurrentIndex(BuildContext context) {
+class _MemberShellState extends ConsumerState<MemberShell> {
+  int _getCurrentIndex(BuildContext context, List<Map<String, dynamic>> items) {
     final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/member/checkin')) return 1;
-    return 0; // Default Home
+    for (int i = 0; i < items.length; i++) {
+         if (location.startsWith(items[i]['route'])) return i;
+    }
+    return 0;
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _getCurrentIndex(context);
+    final authState = ref.watch(authProvider);
+    final role = authState.user?.role ?? 'member';
+    final isStaff = role == 'frontdesk' || role == 'manager';
+
+    final List<Map<String, dynamic>> navItems = [
+      {'label': 'HOME', 'icon': Icons.home_rounded, 'route': isStaff ? '/frontdesk' : '/member'},
+      {'label': 'WORKOUTS', 'icon': Icons.fitness_center_rounded, 'route': '/member/workouts'},
+      {'label': 'SCHEDULE', 'icon': Icons.calendar_today_rounded, 'route': '/member/schedule'},
+      if (isStaff) {'label': 'OPERATIONS', 'icon': Icons.dashboard_customize_rounded, 'route': '/frontdesk/operations'},
+      {'label': 'PROFILE', 'icon': Icons.person_rounded, 'route': isStaff ? '/frontdesk/profile' : '/member/profile'},
+    ];
+
+    final currentIndex = _getCurrentIndex(context, navItems);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F6FA),
       extendBody: true,
       body: widget.child,
       bottomNavigationBar: Container(
-        margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
         height: 68,
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1F38),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 5))
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildNavItem(0, Icons.home_rounded, 'Home', currentIndex == 0),
-            _buildNavItem(1, Icons.qr_code_scanner_rounded, 'Check-in', currentIndex == 1),
-            _buildNavItem(2, Icons.fitness_center_rounded, 'Workouts', currentIndex == 2),
-            _buildNavItem(3, Icons.person_rounded, 'Profile', currentIndex == 3),
-          ],
-        ),
-      ),
-    );
-  }
+          children: navItems.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            final isSelected = index == currentIndex;
 
-  Widget _buildNavItem(int index, IconData icon, String label, bool isSelected) {
-    return GestureDetector(
-      onTap: () {
-        switch (index) {
-          case 0: context.go('/member'); break;
-          case 1: context.go('/member/checkin'); break;
-          case 2: context.go('/member/workouts'); break;
-          case 3: context.go('/member/profile'); break;
-        }
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: isSelected ? const Color(0xFFFF5722) : Colors.white70, size: 24),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? const Color(0xFFFF5722) : Colors.white70,
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
+            return GestureDetector(
+              onTap: () => context.go(item['route']),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(horizontal: isSelected ? 16 : 8, vertical: 8),
+                decoration: isSelected
+                    ? BoxDecoration(color: const Color(0xFF00E676), borderRadius: BorderRadius.circular(20))
+                    : null,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(item['icon'], color: isSelected ? const Color(0xFF1A1F38) : Colors.grey[500], size: 22),
+                    if (isSelected) ...[
+                      const SizedBox(width: 8),
+                      Text(item['label'], style: const TextStyle(color: Color(0xFF1A1F38), fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

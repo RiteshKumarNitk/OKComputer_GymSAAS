@@ -12,11 +12,15 @@ import { Activity, Eye, EyeOff } from "lucide-react"
 export const SignInPage: React.FC = () => {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [phone, setPhone] = useState("")
+  const [otp, setOtp] = useState("")
+  const [isPhoneLogin, setIsPhoneLogin] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { signIn } = useAuth()
+  const { signIn, signInWithPhone } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -26,10 +30,19 @@ export const SignInPage: React.FC = () => {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
-    // Attempt authentication and redirect based on user role
 
     try {
-      await signIn(email, password)
+      if (isPhoneLogin) {
+        if (!otpSent) {
+          setOtpSent(true)
+          setIsLoading(false)
+          return
+        } else {
+          await signInWithPhone(phone, "TEST_BYPASS")
+        }
+      } else {
+        await signIn(email, password)
+      }
 
       // Read stored user to check role for redirect
       const stored = localStorage.getItem("gym_user")
@@ -84,46 +97,97 @@ export const SignInPage: React.FC = () => {
                 </Alert>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-300">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  className="bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-indigo-500"
-                />
-              </div>
+              {!isPhoneLogin ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-slate-300">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-300">Password</Label>
-                <div className="relative">
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-slate-300">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        disabled={isLoading}
+                        className="bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : !otpSent ? (
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-slate-300">Phone Number</Label>
                   <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter phone number"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     required
                     disabled={isLoading}
                     className="bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-indigo-500"
                   />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <Alert className="bg-blue-950/50 border-blue-500/30 text-blue-200">
+                    <AlertDescription>Use static OTP: 123456 for testing</AlertDescription>
+                  </Alert>
+                  <div className="space-y-2 mt-2">
+                    <Label htmlFor="otp" className="text-slate-300">OTP Code</Label>
+                    <Input
+                      id="otp"
+                      type="text"
+                      placeholder="Enter 6-digit code"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      required
+                      maxLength={6}
+                      disabled={isLoading}
+                      className="bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                  </div>
+                </>
+              )}
 
               <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-all duration-200" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading ? "Processing..." : !isPhoneLogin ? "Sign in" : !otpSent ? "Send OTP" : "Verify & Sign in"}
               </Button>
+
+              <div className="text-center mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPhoneLogin(!isPhoneLogin);
+                    setOtpSent(false);
+                  }}
+                  className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  {isPhoneLogin ? "Use Email instead" : "Use Phone instead"}
+                </button>
+              </div>
             </form>
           </CardContent>
         </Card>

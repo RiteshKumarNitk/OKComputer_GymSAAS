@@ -17,7 +17,8 @@ export const MemberDashboard: React.FC = () => {
     const { data: member, isLoading } = useQuery({
         queryKey: ["my-profile", user?.id],
         queryFn: async () => {
-            const response = await membersApi.list(user?.tenant_id || "")
+            const tenantId = user?.tenantId || (user as any)?.tenant_id || ""
+            const response = await membersApi.list(tenantId)
             if (response.error) {
                 console.error("Error fetching member profile:", response.error)
                 return null
@@ -29,7 +30,7 @@ export const MemberDashboard: React.FC = () => {
 
     const qrData = useMemo(() => {
         if (!member) return ""
-        return generateQrCodeData(member.id, member.tenant_id)
+        return generateQrCodeData(member.id, member.tenantId)
     }, [member])
 
     if (isLoading) {
@@ -59,7 +60,7 @@ export const MemberDashboard: React.FC = () => {
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-xl font-bold">Hi, {member.full_name.split(" ")[0]}!</h1>
+                    <h1 className="text-xl font-bold">Hi, {(member.fullName || "Member").split(" ")[0]}!</h1>
                     <p className="text-xs text-muted-foreground">{formatDate(new Date(), "EEEE, MMM d")}</p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => signOut()}>
@@ -77,7 +78,7 @@ export const MemberDashboard: React.FC = () => {
                         <QRCodeSVG value={qrData} size={150} level="H" />
                     </div>
                     <div className="text-center">
-                        <h2 className="text-lg font-bold tracking-wide">{member.member_code}</h2>
+                        <h2 className="text-lg font-bold tracking-wide">{member.memberCode}</h2>
                         <p className="text-indigo-200 text-xs">Scan at entrance</p>
                     </div>
                 </div>
@@ -94,7 +95,7 @@ export const MemberDashboard: React.FC = () => {
                 <Card className="bg-blue-50/50 border-blue-100">
                     <CardContent className="p-4 flex flex-col items-center justify-center text-center">
                         <span className="text-xs text-blue-600 font-semibold uppercase mb-1">Plan</span>
-                        <span className="font-bold text-sm text-gray-800">{member.membership?.name || "No Plan"}</span>
+                        <span className="font-bold text-sm text-gray-800">{member.currentPlan?.name || "No Plan"}</span>
                     </CardContent>
                 </Card>
             </div>
@@ -111,7 +112,7 @@ export const MemberDashboard: React.FC = () => {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-medium">Next Expiry</p>
-                                    <p className="text-xs text-muted-foreground">{member.plan_expires_at ? formatDate(member.plan_expires_at) : "N/A"}</p>
+                                    <p className="text-xs text-muted-foreground">{member.planExpiresAt ? formatDate(member.planExpiresAt) : "N/A"}</p>
                                 </div>
                             </div>
                             <div className="flex items-center p-3 hover:bg-gray-50 transition-colors">
@@ -120,7 +121,7 @@ export const MemberDashboard: React.FC = () => {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-medium">Joined</p>
-                                    <p className="text-xs text-muted-foreground">{calculateAge(member.joined_at)} years ago</p>
+                                    <p className="text-xs text-muted-foreground">{calculateAge(member.joinedAt)} years ago</p>
                                 </div>
                             </div>
                         </div>
