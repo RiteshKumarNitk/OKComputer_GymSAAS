@@ -42,6 +42,7 @@ import { OperationsPage } from "@/pages/app/OperationsPage"
 import { StaffPage } from "@/pages/app/StaffPage"
 import { MemberLayout } from "@/features/member-portal/MemberLayout"
 import { MemberDashboard } from "@/features/member-portal/MemberDashboard"
+import { MemberProfile } from "@/features/member-portal/MemberProfile"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -75,7 +76,7 @@ function App() {
               }>
                 <Route path="dashboard" element={<MemberDashboard />} />
                 <Route path="schedule" element={<div className="p-4">Schedule Coming Soon</div>} />
-                <Route path="profile" element={<div className="p-4">Profile Coming Soon</div>} />
+                <Route path="profile" element={<MemberProfile />} />
                 <Route index element={<Navigate to="dashboard" replace />} />
               </Route>
 
