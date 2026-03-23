@@ -14,7 +14,7 @@ class MemberShell extends ConsumerStatefulWidget {
 class _MemberShellState extends ConsumerState<MemberShell> {
   int _getCurrentIndex(BuildContext context, List<Map<String, dynamic>> items) {
     final location = GoRouterState.of(context).matchedLocation;
-    for (int i = 0; i < items.length; i++) {
+    for (int i = items.length - 1; i >= 0; i--) {
          if (location.startsWith(items[i]['route'])) return i;
     }
     return 0;
@@ -41,12 +41,10 @@ class _MemberShellState extends ConsumerState<MemberShell> {
       extendBody: true,
       body: widget.child,
       bottomNavigationBar: Container(
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
         height: 68,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,

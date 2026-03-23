@@ -14,6 +14,7 @@ import '../../features/member/screens/payment_screen.dart';
 import '../../features/member/screens/checkin_screen.dart';
 import '../../features/member/screens/profile_screen.dart';
 import '../../features/member/screens/workouts_tracker_screen.dart';
+import '../../features/member/screens/calories_calculator_screen.dart';
 
 import '../../features/frontdesk/screens/scanner_screen.dart';
 import '../../features/frontdesk/screens/frontdesk_dashboard_screen.dart';
@@ -92,7 +93,21 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/member/checkin', builder: (context, state) => const CheckinScreen()),
           GoRoute(path: '/member/workouts', builder: (context, state) => const WorkoutsTrackerScreen()),
           GoRoute(path: '/member/profile', builder: (context, state) => const ProfileScreen()),
+          GoRoute(path: '/member/schedule', builder: (context, state) => const Scaffold(body: Center(child: Text('Schedule Coming Soon')))),
           GoRoute(path: '/member/payment', builder: (context, state) => const PaymentScreen()),
+          GoRoute(path: '/member/calories-calculator', builder: (context, state) => const CaloriesCalculatorScreen()),
+          
+          GoRoute(path: '/frontdesk', builder: (context, state) => const MemberHomeScreen()),
+          GoRoute(path: '/frontdesk/operations', builder: (context, state) => const FrontdeskDashboardScreen()),
+          GoRoute(path: '/frontdesk/scanner', builder: (context, state) => const ScannerScreen()),
+          GoRoute(path: '/frontdesk/search', builder: (context, state) => const MemberSearchScreen()),
+          GoRoute(path: '/frontdesk/add-member', builder: (context, state) => const AddMemberScreen()),
+          GoRoute(path: '/frontdesk/attendance', builder: (context, state) => const AttendanceListScreen()),
+          GoRoute(path: '/frontdesk/payments', builder: (context, state) => const PaymentsListScreen()),
+          GoRoute(path: '/frontdesk/members/:id', builder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return MemberDetailsScreen(memberId: id);
+          }),
         ],
       ),
       ShellRoute(
@@ -114,33 +129,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/manager/reports', builder: (context, state) => const ReportsScreen()),
         ],
       ),
-      ShellRoute(
-        builder: (context, state, child) => MemberShell(child: child),
-        routes: [
-          GoRoute(path: '/frontdesk', builder: (context, state) => const MemberHomeScreen()),
-          GoRoute(path: '/frontdesk/operations', builder: (context, state) => const FrontdeskDashboardScreen()),
-          GoRoute(path: '/frontdesk/scanner', builder: (context, state) => const ScannerScreen()),
-          GoRoute(path: '/frontdesk/search', builder: (context, state) => const MemberSearchScreen()),
-          GoRoute(path: '/frontdesk/add-member', builder: (context, state) => const AddMemberScreen()),
-          GoRoute(path: '/frontdesk/attendance', builder: (context, state) => const AttendanceListScreen()),
-          GoRoute(path: '/frontdesk/payments', builder: (context, state) => const PaymentsListScreen()),
-          GoRoute(path: '/frontdesk/members/:id', builder: (context, state) {
-            final id = state.pathParameters['id']!;
-            return MemberDetailsScreen(memberId: id);
-          }),
-        ],
-      ),
-      ShellRoute(
-        builder: (context, state, child) => MemberShell(child: child),
-        routes: [
-          GoRoute(path: '/member', builder: (context, state) => const MemberHomeScreen()),
-          GoRoute(path: '/member/checkin', builder: (context, state) => const CheckinScreen()),
-          GoRoute(path: '/member/workouts', builder: (context, state) => const WorkoutsTrackerScreen()),
-          GoRoute(path: '/member/profile', builder: (context, state) => const ProfileScreen()),
-          GoRoute(path: '/member/schedule', builder: (context, state) => const Scaffold(body: Center(child: Text('Schedule Coming Soon')))),
-          GoRoute(path: '/member/payment', builder: (context, state) => const PaymentScreen()),
-        ],
-      ),
+
     ],
   );
 });

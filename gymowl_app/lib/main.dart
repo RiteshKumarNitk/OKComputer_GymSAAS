@@ -21,6 +21,7 @@ class MyApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Gym Owl',
       debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.light,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
