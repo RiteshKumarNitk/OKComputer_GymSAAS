@@ -38,16 +38,18 @@ class _MemberShellState extends ConsumerState<MemberShell> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
-      extendBody: true,
       body: widget.child,
       bottomNavigationBar: Container(
-        height: 68,
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+        child: SafeArea(
+          child: Container(
+            height: 68,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: navItems.asMap().entries.map((entry) {
             final index = entry.key;
             final item = entry.value;
@@ -57,17 +59,17 @@ class _MemberShellState extends ConsumerState<MemberShell> {
               onTap: () => context.go(item['route']),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: EdgeInsets.symmetric(horizontal: isSelected ? 16 : 8, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: isSelected ? 16 : 12, vertical: 10),
                 decoration: isSelected
-                    ? BoxDecoration(color: const Color(0xFF00E676), borderRadius: BorderRadius.circular(20))
+                    ? BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(20))
                     : null,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(item['icon'], color: isSelected ? const Color(0xFF1A1F38) : Colors.grey[500], size: 22),
+                    Icon(item['icon'], color: isSelected ? const Color(0xFF006C46) : Colors.grey[400], size: 24),
                     if (isSelected) ...[
                       const SizedBox(width: 8),
-                      Text(item['label'], style: const TextStyle(color: Color(0xFF1A1F38), fontSize: 11, fontWeight: FontWeight.bold)),
+                      Text(item['label'], style: const TextStyle(color: Color(0xFF006C46), fontSize: 12, fontWeight: FontWeight.bold)),
                     ],
                   ],
                 ),
@@ -75,6 +77,8 @@ class _MemberShellState extends ConsumerState<MemberShell> {
             );
           }).toList(),
         ),
+      ),
+    ),
       ),
     );
   }
