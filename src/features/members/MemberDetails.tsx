@@ -91,11 +91,11 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
               {member.status}
             </Badge>
           </div>
-          {(member.currentPlan ?? member.membership) && (
+          {member.currentPlan && (
             <div className="mt-2">
-              <span className="text-sm font-medium">{(member.currentPlan ?? member.membership).name}</span>
+              <span className="text-sm font-medium">{member.currentPlan.name}</span>
               <span className="text-sm text-muted-foreground ml-2">
-                {formatCurrency((member.currentPlan ?? member.membership).priceCents ?? (member.currentPlan ?? member.membership).price_cents ?? 0, (member.currentPlan ?? member.membership).currency || "INR")} / {(member.currentPlan ?? member.membership).durationDays ?? (member.currentPlan ?? member.membership).duration_days ?? 0} days
+                {formatCurrency(member.currentPlan.priceCents ?? member.currentPlan.price_cents ?? 0, member.currentPlan.currency || "INR")} / {member.currentPlan.durationDays ?? member.currentPlan.duration_days ?? 0} days
               </span>
             </div>
           )}

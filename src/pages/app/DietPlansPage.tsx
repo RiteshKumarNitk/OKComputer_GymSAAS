@@ -176,7 +176,7 @@ export const DietPlansPage: React.FC = () => {
               <div className="flex justify-between items-start">
                 <CardTitle>{plan.name}</CardTitle>
                 <div className="flex gap-2">
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{plan.targetCalories ?? plan.target_calories} kCal</Badge>
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{plan.target_calories} kCal</Badge>
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditDialog(plan)}>
                     <Pencil className="h-3 w-3" />
                   </Button>
@@ -227,7 +227,7 @@ export const DietPlansPage: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <Label>Target Calories</Label>
-                <Input name="calories" type="number" placeholder="2000" required defaultValue={selectedDiet?.targetCalories ?? selectedDiet?.target_calories} />
+                <Input name="calories" type="number" placeholder="2000" required defaultValue={selectedDiet?.target_calories} />
               </div>
             </div>
             <div className="space-y-2">

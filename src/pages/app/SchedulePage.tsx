@@ -111,7 +111,7 @@ export const SchedulePage: React.FC = () => {
   }
 
   // Filter slots for current view
-  const daySlots = schedule?.filter(s => (s.dayOfWeek ?? s.day_of_week) === selectedDay).sort((a, b) => a.start_time.localeCompare(b.start_time))
+  const daySlots = schedule?.filter(s => s.day_of_week === selectedDay).sort((a, b) => a.start_time.localeCompare(b.start_time))
 
   return (
     <div className="space-y-6">
@@ -169,9 +169,9 @@ export const SchedulePage: React.FC = () => {
                     <div>
                       <h4 className="font-bold text-lg">{slot.service?.name || "Unknown Class"}</h4>
                       <div className="flex items-center text-sm text-muted-foreground space-x-3">
-                        <span className="flex items-center"><Clock className="mr-1 h-3 w-3" /> {slot.durationMinutes ?? slot.duration_minutes}m</span>
+                        <span className="flex items-center"><Clock className="mr-1 h-3 w-3" /> {slot.duration_minutes}m</span>
                         {slot.trainer && (
-                          <span className="flex items-center"><User className="mr-1 h-3 w-3" /> {slot.trainer.fullName ?? slot.trainer.full_name}</span>
+                          <span className="flex items-center"><User className="mr-1 h-3 w-3" /> {slot.trainer.full_name}</span>
                         )}
                       </div>
                     </div>
@@ -187,7 +187,7 @@ export const SchedulePage: React.FC = () => {
       ) : (
         <div className="space-y-6">
           {DAYS.map((day, index) => {
-            const slots = schedule?.filter(s => (s.dayOfWeek ?? s.day_of_week) === index).sort((a, b) => a.start_time.localeCompare(b.start_time))
+            const slots = schedule?.filter(s => s.day_of_week === index).sort((a, b) => a.start_time.localeCompare(b.start_time))
             if (!slots || slots.length === 0) return null
 
             return (
@@ -204,7 +204,7 @@ export const SchedulePage: React.FC = () => {
                           <div>
                             <p className="font-medium">{slot.service?.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {slot.durationMinutes ?? slot.duration_minutes}m • {slot.trainer ? (slot.trainer.fullName ?? slot.trainer.full_name) : 'No Trainer'}
+                              {slot.duration_minutes}m • {slot.trainer ? slot.trainer.full_name : 'No Trainer'}
                             </p>
                           </div>
                         </div>

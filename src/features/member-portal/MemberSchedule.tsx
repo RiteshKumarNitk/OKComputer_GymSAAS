@@ -2,7 +2,7 @@ import React from "react"
 import { useAuth } from "@/features/auth/AuthContext"
 import { useQuery } from "@tanstack/react-query"
 import { schedulesApi } from "@/api/apiClient"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, User } from "lucide-react"
@@ -37,7 +37,7 @@ export const MemberSchedule: React.FC = () => {
 
     // Group schedules by dayOfWeek
     const groupedSchedules = schedules?.reduce((acc: any, schedule: any) => {
-        const day = schedule.dayOfWeek ?? 1 // default to monday if undefined
+        const day = schedule.day_of_week ?? 1 // default to monday if undefined
         if (!acc[day]) acc[day] = []
         acc[day].push(schedule)
         return acc
@@ -82,19 +82,19 @@ export const MemberSchedule: React.FC = () => {
                                                 <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                                                     <Clock className="h-3.5 w-3.5" />
                                                     <span>
-                                                        {item.startTime} • {item.durationMinutes} mins
+                                                        {item.start_time} • {item.duration_minutes} mins
                                                     </span>
                                                 </div>
                                                 {item.trainer && (
                                                     <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                                                         <User className="h-3.5 w-3.5" />
-                                                        <span>{item.trainer.fullName}</span>
+                                                        <span>{item.trainer.full_name}</span>
                                                     </div>
                                                 )}
                                             </div>
-                                            {item.maxCapacity && (
+                                            {item.max_capacity && (
                                                 <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-none">
-                                                    Capacity: {item.maxCapacity}
+                                                    Capacity: {item.max_capacity}
                                                 </Badge>
                                             )}
                                         </div>

@@ -2,7 +2,6 @@ import React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { attendanceApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
-import type { Attendance } from "@/types"
 
 import {
     Table,

@@ -5,7 +5,7 @@ import { membersApi, memberDietsApi } from "@/api/apiClient"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { Apple, Utensils, Calendar, User, AlignLeft } from "lucide-react"
+import { Apple, Calendar, AlignLeft } from "lucide-react"
 
 export const MemberDiets: React.FC = () => {
     const { user } = useAuth()
@@ -83,9 +83,9 @@ export const MemberDiets: React.FC = () => {
                                         <Apple className="h-5 w-5" />
                                         <CardTitle className="text-lg">{diet?.name || "Diet Plan"}</CardTitle>
                                     </div>
-                                    {diet?.targetCalories && (
+                                    {diet?.target_calories && (
                                         <Badge className="bg-white/20 text-white border-none">
-                                            {diet.targetCalories} kcal
+                                            {diet.target_calories} kcal
                                         </Badge>
                                     )}
                                 </div>

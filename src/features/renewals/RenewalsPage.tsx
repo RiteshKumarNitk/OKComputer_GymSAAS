@@ -23,7 +23,6 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { useNavigate } from "react-router-dom"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -33,7 +32,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog"
 import {
     Select,
@@ -46,7 +44,6 @@ import { Label } from "@/components/ui/label"
 
 export const RenewalsPage: React.FC = () => {
     const { user } = useAuth()
-    const navigate = useNavigate()
     const { toast } = useToast()
     const queryClient = useQueryClient()
     const [searchQuery, setSearchQuery] = useState("")

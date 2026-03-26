@@ -1,4 +1,5 @@
 import React, { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { membersApi, membershipsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
@@ -55,6 +56,7 @@ export const MembersPage: React.FC = () => {
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const { user } = useAuth()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   // Fetch members
@@ -138,7 +140,7 @@ export const MembersPage: React.FC = () => {
         member.email || "",
         member.phone || "",
         member.status,
-        member.membership?.name || "No Plan",
+        member.currentPlan?.name || "No Plan",
         formatDate(member.joinedAt ?? member.joined_at),
       ]),
     ]
@@ -252,10 +254,10 @@ export const MembersPage: React.FC = () => {
                         <TableCell>{member.email}</TableCell>
                         <TableCell>{member.phone}</TableCell>
                         <TableCell>
-                          {member.currentPlan?.name ?? member.membership?.name ?? "No Plan"}
-                          {(member.currentPlan ?? member.membership) && (
+                          {member.currentPlan?.name ?? "No Plan"}
+                          {member.currentPlan && (
                             <div className="text-xs text-muted-foreground">
-                              {formatCurrency((member.currentPlan ?? member.membership).priceCents ?? (member.currentPlan ?? member.membership).price_cents ?? 0, (member.currentPlan ?? member.membership).currency || "INR")} / {(member.currentPlan ?? member.membership).durationDays ?? (member.currentPlan ?? member.membership).duration_days ?? 0} days
+                              {formatCurrency(member.currentPlan.priceCents ?? member.currentPlan.price_cents ?? 0, member.currentPlan.currency || "INR")} / {member.currentPlan.durationDays ?? member.currentPlan.duration_days ?? 0} days
                             </div>
                           )}
                         </TableCell>
