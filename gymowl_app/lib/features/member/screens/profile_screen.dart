@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/api/api_client.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -22,7 +23,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _fetchProfile() async {
     try {
       final apiClient = ref.read(apiClientProvider);
-      final response = await apiClient.dio.get('/members/me'); // Or generic profile endpoint
+      final response = await apiClient.dio.get('/members/me'); 
       if (mounted) {
         setState(() {
           _profile = response.data;
@@ -37,154 +38,247 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE), // Light Theme Background
+      backgroundColor: const Color(0xFFF4F6FA), // Light Gray Theme Background
       appBar: AppBar(
-        title: const Text('Athlete Profile', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-        backgroundColor: Colors.transparent, elevation: 0, foregroundColor: const Color(0xFF1A1F38),
+        title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+        backgroundColor: const Color(0xFFF4F6FA),
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.edit_rounded, color: Color(0xFF1A1F38)),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF1A1F38)),
+          ),
+        ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF006C46)))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  _buildProfileHeader(),
-                  const SizedBox(height: 32),
-                  _buildGridStats(),
-                  const SizedBox(height: 32),
-                  _buildSectionTitle('Active Membership'),
-                  const SizedBox(height: 12),
-                  _buildMembershipCard(),
-                  const SizedBox(height: 32),
-                  _buildSectionTitle('Health Metrics'),
-                  const SizedBox(height: 12),
-                  _buildHealthMetrics(),
-                ],
-              ),
+      body: Stack(
+        children: [
+          // Main Scrollable Content
+          _isLoading
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6D43)))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 100), // padding bottom for pill
+                  child: Column(
+                    children: [
+                      _buildProfileHeader(),
+                      const SizedBox(height: 16),
+                      _buildMenuSection([
+                        _MenuItem(
+                          title: 'Metric Log',
+                          icon: Icons.show_chart_rounded,
+                          route: '/member/metric-log',
+                        ),
+                      ]),
+                      const SizedBox(height: 16),
+                      _buildMenuSection([
+                        _MenuItem(
+                          title: 'Membership',
+                          icon: Icons.card_membership_rounded,
+                          route: '/member/membership',
+                        ),
+                        _MenuItem(
+                          title: 'Payments',
+                          icon: Icons.account_balance_wallet_outlined,
+                          route: '/member/payment',
+                        ),
+                        _MenuItem(
+                          title: 'Report Card',
+                          icon: Icons.assignment_ind_outlined,
+                          route: '/member/report-card',
+                        ),
+                        _MenuItem(
+                          title: 'Health Assessment',
+                          icon: Icons.favorite_border_rounded,
+                          route: '/member/health-assessment',
+                        ),
+                      ]),
+                      const SizedBox(height: 16),
+                      _buildMenuSection([
+                        _MenuItem(
+                          title: 'Help & Support',
+                          icon: Icons.help_outline_rounded,
+                          route: '/member/help-support',
+                        ),
+                        _MenuItem(
+                          title: 'Business Request',
+                          icon: Icons.business_center_outlined,
+                          route: '/member/business-request',
+                        ),
+                        _MenuItem(
+                          title: 'Settings',
+                          icon: Icons.settings_outlined,
+                          route: '/member/settings',
+                        ),
+                      ]),
+                    ],
+                  ),
+                ),
+                
+          // Floating Club Pillar
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 24.0),
+              child: _buildFloatingClubPill(),
             ),
+          ),
+        ],
+      ),
     );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Align(alignment: Alignment.centerLeft, child: Text(title, style: const TextStyle(color: Color(0xFF1A1F38), fontSize: 18, fontWeight: FontWeight.w900)));
   }
 
   Widget _buildProfileHeader() {
-    return Row(
-      children: [
-        const CircleAvatar(radius: 40, backgroundColor: Color(0xFFE8F5E9), child: Icon(Icons.person, color: Color(0xFF006C46), size: 40)),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(_profile['fullName'] ?? 'Digital Athlete', style: const TextStyle(color: Color(0xFF1A1F38), fontSize: 24, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 4),
-              const Text('Rank: Elite Member', style: TextStyle(color: Color(0xFF006C46), fontSize: 13, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGridStats() {
-    return GridView.count(
-      crossAxisCount: 2,
-      childAspectRatio: 1.4,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        _buildStatCard('Total Workouts', '42', Icons.fitness_center, Colors.blue),
-        _buildStatCard('Active Days', '18', Icons.calendar_today_outlined, Colors.purple),
-        _buildStatCard('Avg BPM', '132', Icons.favorite_border_rounded, Colors.redAccent),
-        _buildStatCard('Hot Streak', '5 Days', Icons.local_fire_department_rounded, Colors.orangeAccent),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String label, String value, IconData icon, Color accentColor) {
+    final String name = _profile['fullName'] ?? 'Athlete Name';
+    final String phone = _profile['phone'] ?? '0000000000';
+    
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: accentColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                child: Icon(icon, color: accentColor, size: 18),
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(value, style: const TextStyle(color: Color(0xFF1A1F38), fontSize: 24, fontWeight: FontWeight.w900)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMembershipCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF006C46), Color(0xFF00E676)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFF7B54), Color(0xFFFF5236)], 
+          begin: Alignment.centerLeft, 
+          end: Alignment.centerRight
+        ),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: const Color(0xFF00E676).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF5236).withOpacity(0.3), 
+            blurRadius: 15, 
+            offset: const Offset(0, 8)
+          )
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
+          // Faint overlay icon for pattern if needed
+          Positioned(
+            right: -20,
+            bottom: -20,
+            child: Icon(Icons.fitness_center_rounded, size: 100, color: Colors.white.withOpacity(0.1)),
+          ),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Elite Membership', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-              Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)), child: const Text('ACTIVE', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold))),
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    child: const CircleAvatar(
+                      radius: 32,
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.person, color: Colors.grey, size: 36),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_circle_rounded, color: Color(0xFFFF5236), size: 18),
+                    ),
+                  )
+                ],
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('Member - $phone', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
-          Text('Expires: Dec 20, 2026', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13)),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF006C46), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(vertical: 14)),
-            child: const Text('Upgrade / Renew Plan', style: TextStyle(fontWeight: FontWeight.w900)),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildHealthMetrics() {
+  Widget _buildMenuSection(List<_MenuItem> items) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
-      child: Column(
-        children: [
-          _buildDetailRow(Icons.height, 'Height', '180 cm'),
-          Divider(color: Colors.grey.shade100, height: 24),
-          _buildDetailRow(Icons.monitor_weight_outlined, 'Weight', '75 kg'),
-          Divider(color: Colors.grey.shade100, height: 24),
-          _buildDetailRow(Icons.opacity, 'Body Fat', '14.5%'),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.01), blurRadius: 10, offset: const Offset(0, 4))
         ],
+      ),
+      child: Column(
+        children: items.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          return Column(
+            children: [
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                leading: Icon(item.icon, color: Colors.grey.shade600, size: 22),
+                title: Text(item.title, style: const TextStyle(color: Color(0xFF1A1F38), fontSize: 15, fontWeight: FontWeight.bold)),
+                trailing: Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 22),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                onTap: () => context.go(item.route),
+              ),
+              if (index < items.length - 1)
+                Divider(height: 1, thickness: 1, color: Colors.grey.shade100, indent: 56, endIndent: 20),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(children: [Icon(icon, color: const Color(0xFF006C46), size: 18), const SizedBox(width: 12), Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold))]),
-        Text(value, style: const TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w900, fontSize: 14)),
-      ],
+  Widget _buildFloatingClubPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFF7B54), Color(0xFFFF5236)], 
+          begin: Alignment.centerLeft, 
+          end: Alignment.centerRight
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(color: const Color(0xFFFF5236).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.fitness_center_rounded, color: Color(0xFFFF5236), size: 14),
+          ),
+          const SizedBox(width: 12),
+          const Text('Fit Vision Fitness Club', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+          const SizedBox(width: 8),
+          const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 18),
+        ],
+      ),
     );
   }
+}
+
+class _MenuItem {
+  final String title;
+  final IconData icon;
+  final String route;
+
+  _MenuItem({
+    required this.title,
+    required this.icon,
+    required this.route,
+  });
 }

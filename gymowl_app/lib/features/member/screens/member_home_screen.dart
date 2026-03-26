@@ -235,45 +235,62 @@ class MemberHomeScreen extends ConsumerWidget {
       children: [
         const Text('Fitness Tools', style: TextStyle(color: Color(0xFF1A1F38), fontSize: 18, fontWeight: FontWeight.w900)),
         const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white, 
-            borderRadius: BorderRadius.circular(24), 
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: () => context.go('/member/calories-calculator'),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(16)),
-                      child: const Icon(Icons.calculate_rounded, color: Colors.orangeAccent, size: 28),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text('Calories Calculator', style: TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w800, fontSize: 16)),
-                          SizedBox(height: 4),
-                          Text('Calculate your BMR & daily calorie needs', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right_rounded, color: Colors.grey),
-                  ],
+        SizedBox(
+          height: 120,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildToolCard(context, 'Calories Calculator', 'Calculate your BMR', Icons.calculate_rounded, Colors.orangeAccent, '/member/calories-calculator'),
+              const SizedBox(width: 16),
+              _buildToolCard(context, 'BMI Calculator', 'Check your BMI', Icons.monitor_weight_rounded, const Color(0xFF006C46), '/member/bmi-calculator'),
+              const SizedBox(width: 16),
+              _buildToolCard(context, 'Water Reminder', 'Track daily hydration', Icons.water_drop_rounded, Colors.blueAccent, '/member/water-reminder'),
+            ]
+          )
+        ),
+      ],
+    );
+  }
+
+  Widget _buildToolCard(BuildContext context, String title, String subtitle, IconData icon, Color color, String route) {
+    return Container(
+      width: 250,
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(24), 
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: () => context.go(route),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                  child: Icon(icon, color: color, size: 28),
                 ),
-              ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(title, style: const TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w800, fontSize: 15)),
+                      const SizedBox(height: 4),
+                      Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

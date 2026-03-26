@@ -15,6 +15,9 @@ import '../../features/member/screens/checkin_screen.dart';
 import '../../features/member/screens/profile_screen.dart';
 import '../../features/member/screens/workouts_tracker_screen.dart';
 import '../../features/member/screens/calories_calculator_screen.dart';
+import '../../features/member/screens/dummy_profile_pages.dart';
+import '../../features/member/screens/bmi_calculator_screen.dart';
+import '../../features/member/screens/water_reminder_screen.dart';
 
 import '../../features/frontdesk/screens/scanner_screen.dart';
 import '../../features/frontdesk/screens/frontdesk_dashboard_screen.dart';
@@ -96,6 +99,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/member/schedule', builder: (context, state) => const Scaffold(body: Center(child: Text('Schedule Coming Soon')))),
           GoRoute(path: '/member/payment', builder: (context, state) => const PaymentScreen()),
           GoRoute(path: '/member/calories-calculator', builder: (context, state) => const CaloriesCalculatorScreen()),
+          GoRoute(path: '/member/bmi-calculator', builder: (context, state) => const BmiCalculatorScreen()),
+          GoRoute(path: '/member/water-reminder', builder: (context, state) => const WaterReminderScreen()),
+          GoRoute(path: '/member/metric-log', builder: (context, state) => const MetricLogScreen()),
+          GoRoute(path: '/member/membership', builder: (context, state) => const MembershipScreen()),
+          GoRoute(path: '/member/report-card', builder: (context, state) => const ReportCardScreen()),
+          GoRoute(path: '/member/health-assessment', builder: (context, state) => const HealthAssessmentScreen()),
+          GoRoute(path: '/member/help-support', builder: (context, state) => const HelpSupportScreen()),
+          GoRoute(path: '/member/business-request', builder: (context, state) => const BusinessRequestScreen()),
+          GoRoute(path: '/member/settings', builder: (context, state) => const SettingsScreen()),
           
           GoRoute(path: '/frontdesk', builder: (context, state) => const MemberHomeScreen()),
           GoRoute(path: '/frontdesk/operations', builder: (context, state) => const FrontdeskDashboardScreen()),
