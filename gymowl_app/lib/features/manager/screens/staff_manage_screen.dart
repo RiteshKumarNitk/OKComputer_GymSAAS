@@ -1,7 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/manager_api_service.dart';
 
-class StaffManageScreen extends StatelessWidget {
+class StaffManageScreen extends ConsumerStatefulWidget {
   const StaffManageScreen({super.key});
+
+  @override
+  ConsumerState<StaffManageScreen> createState() => _StaffManageScreenState();
+}
+
+class _StaffManageScreenState extends ConsumerState<StaffManageScreen> {
+  bool _isLoading = true;
+  List<dynamic> _staff = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStaff();
+  }
+
+  Future<void> _fetchStaff() async {
+    try {
+      final api = ref.read(managerApiServiceProvider);
+      final response = await api.getStaffList();
+      if (mounted) {
+        setState(() {
+          _staff = response;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,47 +47,31 @@ class StaffManageScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFFFF5236)),
             onPressed: () {
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invite Staff tool opening...')));
+               // Future: Add onboarding form
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Staff onboarding tool active')));
             },
           )
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _buildStaffCard(
-              context,
-              name: 'Dr. Emily Carter',
-              role: 'Head Trainer',
-              email: 'emily@gymowl.com',
-              status: 'Active',
-              color: const Color(0xFF006C46), // Green
-              permissions: ['Workout Auth', 'Schedule Mgt'],
-            ),
-            const SizedBox(height: 16),
-            _buildStaffCard(
-              context,
-              name: 'Johnathan Hayes',
-              role: 'Frontdesk Op',
-              email: 'j.hayes@gymowl.com',
-              status: 'Active',
-              color: Colors.blueAccent,
-              permissions: ['QR Access', 'POS Billing'],
-            ),
-            const SizedBox(height: 16),
-            _buildStaffCard(
-              context,
-              name: 'Marcus Thorne',
-              role: 'Exec Admin',
-              email: 'marcus@gymowl.com',
-              status: 'Owner',
-              color: const Color(0xFFFF5236), // Orange
-              permissions: ['SuperAdmin', 'Finance'],
-            ),
-          ],
-        ),
-      ),
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : ListView.separated(
+            padding: const EdgeInsets.all(20),
+            itemCount: _staff.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 16),
+            itemBuilder: (context, index) {
+              final s = _staff[index];
+              return _buildStaffCard(
+                context,
+                name: s['fullName'] ?? 'Loading...',
+                role: s['role'] ?? 'staff',
+                email: s['email'] ?? '',
+                status: s['isActive'] == true ? 'Active' : 'Inactive',
+                color: (s['role'] == 'trainer') ? const Color(0xFF006C46) : Colors.blueAccent,
+                permissions: [s['role']?.toUpperCase() ?? 'ACCESS'],
+              );
+            },
+          ),
     );
   }
 

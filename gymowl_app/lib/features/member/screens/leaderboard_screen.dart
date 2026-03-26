@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/member_provider.dart';
 
 class LeaderboardScreen extends ConsumerWidget {
@@ -45,8 +46,12 @@ class LeaderboardScreen extends ConsumerWidget {
                     itemCount: records.length,
                     separatorBuilder: (context, index) => Divider(color: Colors.grey.shade100, height: 1),
                     itemBuilder: (context, index) {
-                      final user = records[index];
-                      return _buildRankRow(user['rank'], user['name'], user['points'], index == 1); // Mock index 1 as current user
+                      final leader = records[index];
+                      final name = (leader['name'] ?? '').toString();
+                      final isCurrentUser = name == (ref.watch(authProvider).user?.fullName ?? '');
+                      final rank = (leader['rank'] ?? 0) as int;
+                      final points = (leader['points'] ?? 0) as int;
+                      return _buildRankRow(rank, name, points, isCurrentUser);
                     },
                   ),
                 ),
@@ -75,11 +80,13 @@ class LeaderboardScreen extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: podium.map((user) {
-          final rank = user['rank'] as int;
+          final rank = int.tryParse(user['rank']?.toString() ?? '0') ?? 0;
+          final name = (user['name'] ?? '').toString();
+          final points = int.tryParse(user['points']?.toString() ?? '0') ?? 0;
           return _buildPodiumAvatar(
             rank: rank,
-            name: user['name'],
-            points: user['points'],
+            name: name,
+            points: points,
             height: rank == 1 ? 140 : 100,
             isFirst: rank == 1,
           );

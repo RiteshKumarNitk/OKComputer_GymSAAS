@@ -750,58 +750,78 @@ app.get("/api/reports/dashboard", authenticate, async (req: any, res) => {
 
 app.post("/api/attendance", authenticate, async (req: any, res) => {
     try {
-        const { memberId, deviceInfo } = snakeToCamel(req.body);
+        const { memberId, staffId, userId, deviceInfo } = snakeToCamel(req.body);
         const tenantId = req.tenantId;
 
-        if (!memberId) return res.status(400).json({ error: "Member ID is required" });
+        // 1. Try to find a Member
+        const idToSearch = memberId || userId;
+        if (!idToSearch) return res.status(400).json({ error: "ID (Member or Staff) is required" });
 
-        const member = await prisma.member.findUnique({
-            where: { id: memberId },
+        const member = await prisma.member.findFirst({
+            where: { OR: [{ id: idToSearch }, { userId: idToSearch }], tenantId },
             include: { currentPlan: true }
         });
 
-        if (!member) return res.status(404).json({ error: "Member not found" });
+        if (member) {
+            // Member logic
+            const expiryDate = member.planExpiresAt;
+            if (expiryDate && new Date(expiryDate) < new Date()) {
+                await prisma.member.update({ where: { id: member.id }, data: { status: "expired" } });
+                return res.status(400).json({ error: "Membership has expired. Please renew." });
+            }
+            if (member.status !== "active") return res.status(400).json({ error: `Member status is ${member.status}` });
 
-        // Real-time Expiry Check
-        const expiryDate = member.planExpiresAt;
-        if (expiryDate && new Date(expiryDate) < new Date()) {
-            await prisma.member.update({
-                where: { id: memberId },
-                data: { status: "expired" }
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const existing = await prisma.attendance.findFirst({
+                where: { memberId: member.id, tenantId, checkinAt: { gte: todayStart } }
             });
-            return res.status(400).json({ error: "Membership has expired. Please renew." });
+            if (existing) return res.status(400).json({ error: "Member already checked in today" });
+
+            const attendance = await prisma.attendance.create({
+                data: {
+                    tenantId,
+                    memberId: member.id,
+                    checkinAt: new Date(),
+                    deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null
+                }
+            });
+            
+            // Update fitness stats
+            await prisma.memberFitnessStats.upsert({
+                where: { memberId: member.id },
+                update: { totalCheckIns: { increment: 1 } },
+                create: { memberId: member.id, tenantId, totalCheckIns: 1 }
+            });
+
+            return res.json(snakeToCamel(attendance));
         }
 
-        if (member.status !== "active") {
-            return res.status(400).json({ error: `Member status is ${member.status}. Cannot check in.` });
-        }
-
-        // Check if already checked in today
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        
-        const existing = await prisma.attendance.findFirst({
-            where: {
-                memberId,
-                tenantId,
-                checkinAt: { gte: todayStart }
-            }
+        // 2. Try to find a Staff Profile
+        const staff = await prisma.staffProfile.findFirst({
+            where: { OR: [{ id: idToSearch }, { userId: idToSearch }], tenantId }
         });
 
-        if (existing) {
-            return res.status(400).json({ error: "Member already checked in today" });
+        if (staff) {
+            const date = new Date();
+            date.setHours(0, 0, 0, 0);
+            
+            const staffAttendance = await prisma.staffAttendance.upsert({
+                where: { staffId_date: { staffId: staff.id, date } },
+                update: { checkOutAt: new Date() }, // If already checked in, treat second scan as checkout
+                create: {
+                    tenantId,
+                    staffId: staff.id,
+                    date,
+                    checkInAt: new Date(),
+                    isPresent: true
+                }
+            });
+
+            return res.json(snakeToCamel(staffAttendance));
         }
 
-        const attendance = await prisma.attendance.create({
-            data: {
-                tenantId,
-                memberId,
-                checkinAt: new Date(),
-                deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null
-            }
-        });
-
-        res.json(snakeToCamel(attendance));
+        return res.status(404).json({ error: "No member or staff profile found for this code" });
     } catch (err: any) {
         res.status(500).json({ error: err.message });
     }
@@ -934,6 +954,345 @@ createCrudRoutes("saas_invoices", "saasInvoice", {
         delete: ["super_admin"]
     }
 })
+
+// ==================== MEMBER SPECIALIZED ROUTES ====================
+
+app.get("/api/members/me/stats", authenticate, async (req: any, res) => {
+    try {
+        const member = await prisma.member.findUnique({
+            where: { userId: req.userId }
+        });
+        if (!member) return res.status(404).json({ error: "Member profile not found" });
+
+        const stats = await prisma.memberFitnessStats.findUnique({
+            where: { memberId: member.id }
+        });
+
+        // Calculate intensity trend (last 7 check-ins)
+        const attendance = await prisma.attendance.findMany({
+            where: { memberId: member.id },
+            take: 7,
+            orderBy: { checkinAt: "desc" }
+        });
+
+        const intensityTrend = attendance.reverse().map((a, i) => ({
+            day: i + 1,
+            value: 65 + Math.floor(Math.random() * 20) // Simulated intensity until heart rate sync is implemented
+        }));
+
+        res.json({
+            totalWorkouts: stats?.totalWorkoutsCompleted || 0,
+            activeDays: stats?.totalCheckIns || 0,
+            loyaltyPoints: (stats?.totalCheckIns || 0) * 10, // 10 points per visit
+            currentStreak: stats?.currentStreak || 0,
+            intensityTrend
+        });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get("/api/members/leaderboard", authenticate, async (req: any, res) => {
+    try {
+        const leaderboard = await prisma.memberFitnessStats.findMany({
+            where: { tenantId: req.tenantId },
+            include: {
+                member: {
+                    select: { id: true, fullName: true, avatarUrl: true }
+                }
+            },
+            orderBy: [
+                { totalCheckIns: "desc" },
+                { currentStreak: "desc" }
+            ],
+            take: 20
+        });
+
+        const formatted = leaderboard.map((s, index) => ({
+            id: s.member.id,
+            name: s.member.fullName,
+            avatarUrl: s.member.avatarUrl,
+            points: s.totalCheckIns * 10,
+            rank: index + 1
+        }));
+
+        res.json(formatted);
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get("/api/members/me/bookings", authenticate, async (req: any, res) => {
+    try {
+        const member = await prisma.member.findUnique({
+            where: { userId: req.userId }
+        });
+        if (!member) return res.status(404).json({ error: "Member profile not found" });
+
+        const bookings = await prisma.trainerSlot.findMany({
+            where: {
+                bookedByMemberId: member.id,
+                tenantId: req.tenantId
+            },
+            include: {
+                trainer: { select: { fullName: true } }
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
+        res.json(snakeToCamel(bookings));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.patch("/api/members/me/workouts/:id", authenticate, async (req: any, res) => {
+    try {
+        const member = await prisma.member.findUnique({
+            where: { userId: req.userId }
+        });
+        if (!member) return res.status(404).json({ error: "Member not found" });
+
+        const { completed, notes, progress } = req.body;
+        
+        const result = await prisma.memberWorkout.updateMany({
+            where: {
+                id: req.params.id,
+                memberId: member.id,
+                tenantId: req.tenantId
+            },
+            data: {
+                completedAt: completed ? new Date() : undefined,
+                notes: notes,
+                progress: progress || undefined
+            }
+        });
+
+        if (result.count === 0) return res.status(404).json({ error: "Workout assignment not found" });
+
+        if (completed) {
+            await prisma.memberFitnessStats.upsert({
+                where: { memberId: member.id },
+                update: { totalWorkoutsCompleted: { increment: 1 } },
+                create: {
+                    memberId: member.id,
+                    tenantId: req.tenantId,
+                    totalWorkoutsCompleted: 1
+                }
+            });
+        }
+
+        const updated = await prisma.memberWorkout.findUnique({ where: { id: req.params.id } });
+        res.json(snakeToCamel(updated));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post("/api/members/me/measurements", authenticate, async (req: any, res) => {
+    try {
+        const member = await prisma.member.findUnique({
+            where: { userId: req.userId },
+            include: { healthProfile: true }
+        });
+        if (!member) return res.status(404).json({ error: "Member not found" });
+
+        let healthProfileId = member.healthProfile?.id;
+        if (!healthProfileId) {
+            const hp = await prisma.memberHealthProfile.create({
+                data: { memberId: member.id, tenantId: req.tenantId }
+            });
+            healthProfileId = hp.id;
+        }
+
+        const { type, value, unit, notes } = req.body;
+        const measurement = await prisma.bodyMeasurement.create({
+            data: {
+                tenantId: req.tenantId,
+                memberId: member.id,
+                healthProfileId,
+                type,
+                value: parseFloat(value),
+                unit,
+                notes,
+                recordedBy: req.userId
+            }
+        });
+
+        res.json(snakeToCamel(measurement));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.patch("/api/members/me/health-profile", authenticate, async (req: any, res) => {
+    try {
+        const member = await prisma.member.findUnique({
+            where: { userId: req.userId }
+        });
+        if (!member) return res.status(404).json({ error: "Member not found" });
+
+        const data = snakeToCamel(req.body);
+        const profile = await prisma.memberHealthProfile.upsert({
+            where: { memberId: member.id },
+            update: data,
+            create: { ...data, memberId: member.id, tenantId: req.tenantId }
+        });
+
+        res.json(snakeToCamel(profile));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==================== FINANCIAL SETTLEMENT ====================
+
+app.post("/api/payments/settle", authenticate, async (req: any, res) => {
+    try {
+        const { invoiceId, amount, method, notes, memberId } = snakeToCamel(req.body);
+        const tenantId = req.tenantId;
+
+        const result = await prisma.$transaction(async (tx: any) => {
+            // 1. Create Payment
+            const payment = await tx.payment.create({
+                data: {
+                    tenantId,
+                    memberId,
+                    invoiceId,
+                    amountCents: Math.round(parseFloat(amount) * 100),
+                    paymentMethod: method || "cash",
+                    status: "paid",
+                    paidAt: new Date(),
+                    notes
+                }
+            });
+
+            // 2. Update Invoice
+            if (invoiceId) {
+                await tx.invoice.update({
+                    where: { id: invoiceId },
+                    data: { status: "paid" }
+                });
+            }
+
+            // 3. Update Member Subscription
+            const member = await tx.member.findUnique({
+                where: { id: memberId },
+                include: { currentPlan: true }
+            });
+
+            if (member && member.currentPlan) {
+                const months = member.currentPlan.durationMonths || 1;
+                const currentExpiry = member.planExpiresAt && new Date(member.planExpiresAt) > new Date() 
+                    ? new Date(member.planExpiresAt) 
+                    : new Date();
+                
+                const newExpiry = new Date(currentExpiry);
+                newExpiry.setMonth(newExpiry.getMonth() + months);
+
+                await tx.member.update({
+                    where: { id: memberId },
+                    data: {
+                        status: "active",
+                        planExpiresAt: newExpiry,
+                        lastPaymentDate: new Date()
+                    }
+                });
+            }
+
+            return payment;
+        });
+
+        res.json(snakeToCamel(result));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==================== STAFF & HR ====================
+
+app.get("/api/staff/me/stats", authenticate, async (req: any, res) => {
+    try {
+        const staff = await prisma.staffProfile.findUnique({
+            where: { userId: req.userId }
+        });
+        if (!staff) return res.status(404).json({ error: "Staff profile not found" });
+
+        const attendance = await prisma.staffAttendance.findMany({
+            where: { staffId: staff.id },
+            orderBy: { date: "desc" },
+            take: 30
+        });
+
+        res.json({
+            staffInfo: snakeToCamel(staff),
+            attendanceTrend: snakeToCamel(attendance)
+        });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post("/api/staff/profiles", authenticate, async (req: any, res) => {
+    try {
+        const data = snakeToCamel(req.body);
+        const staff = await prisma.staffProfile.create({
+            data: {
+                ...data,
+                tenantId: req.tenantId,
+                joiningDate: data.joiningDate ? new Date(data.joiningDate) : new Date()
+            }
+        });
+        res.json(snakeToCamel(staff));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==================== OPERATIONS & LOGISTICS ====================
+
+app.get("/api/reports/capacity", authenticate, async (req: any, res) => {
+    try {
+        const tenant = await prisma.tenant.findUnique({
+            where: { id: req.tenantId }
+        });
+        
+        const currentCount = await prisma.attendance.count({
+            where: {
+                tenantId: req.tenantId,
+                checkoutAt: null
+            }
+        });
+
+        const maxCapacity = 100; // Default if not in tenant settings
+        res.json({
+            currentCount,
+            maxCapacity,
+            percentFull: (currentCount / maxCapacity) * 100
+        });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get("/api/reports/activity", authenticate, async (req: any, res) => {
+    try {
+        const activity = await prisma.attendance.findMany({
+            where: { tenantId: req.tenantId },
+            include: {
+                member: {
+                    select: { fullName: true, memberCode: true, avatarUrl: true }
+                }
+            },
+            orderBy: { checkinAt: "desc" },
+            take: 20
+        });
+
+        res.json(snakeToCamel(activity));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ==================== REPORTS & DASHBOARD ====================
 

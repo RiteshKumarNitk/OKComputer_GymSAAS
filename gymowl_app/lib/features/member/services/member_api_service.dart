@@ -12,33 +12,47 @@ class MemberApiService {
   MemberApiService(this._apiClient);
 
   Future<Map<String, dynamic>> getMemberStats() async {
-    try {
-      // Execute generic stats fetching
-      final response = await _apiClient.dio.get('/members/me/stats');
-      return response.data;
-    } catch (e) {
-      // Fallback dummy data if backend endpoint is not yet fully implemented
-      return {
-        'totalWorkouts': 12,
-        'activeDays': 5,
-        'loyaltyPoints': 250,
-        'currentStreak': 3,
-      };
-    }
+    final response = await _apiClient.dio.get('/members/me/stats');
+    return response.data;
   }
 
   Future<Map<String, dynamic>> getLeaderboard() async {
-    try {
-      final response = await _apiClient.dio.get('/members/leaderboard');
-      return response.data;
-    } catch (e) {
-      return {
-        'leaderboard': [
-          {'name': 'Marcus Aurelius', 'points': 450, 'rank': 1},
-          {'name': 'Athlete Name', 'points': 250, 'rank': 2}, // The logged in user
-          {'name': 'Sarah Connor', 'points': 180, 'rank': 3},
-        ]
-      };
-    }
+    final response = await _apiClient.dio.get('/members/leaderboard');
+    return response.data;
+  }
+
+  Future<List<Map<String, dynamic>>> getMyWorkouts() async {
+    final response = await _apiClient.dio.get('/members/me/workouts');
+    return List<Map<String, dynamic>>.from(response.data);
+  }
+
+  Future<List<Map<String, dynamic>>> getUpcomingSessions() async {
+    final response = await _apiClient.dio.get('/members/me/bookings?status=active');
+    return List<Map<String, dynamic>>.from(response.data);
+  }
+
+  Future<void> logWorkoutActivity(Map<String, dynamic> data) async {
+    await _apiClient.dio.post('/members/me/workout-logs', data: data);
+  }
+
+  Future<void> updateWorkoutProgress(dynamic workoutId, {required bool completed, String? notes, Map<String, dynamic>? progress}) async {
+    await _apiClient.dio.patch('/members/me/workouts/$workoutId', data: {
+      'completed': completed,
+      'notes': notes,
+      'progress': progress,
+    });
+  }
+
+  Future<void> logMeasurement({required String type, required double value, required String unit, String? notes}) async {
+    await _apiClient.dio.post('/members/me/measurements', data: {
+      'type': type,
+      'value': value,
+      'unit': unit,
+      'notes': notes,
+    });
+  }
+
+  Future<void> updateHealthProfile(Map<String, dynamic> data) async {
+    await _apiClient.dio.patch('/members/me/health-profile', data: data);
   }
 }

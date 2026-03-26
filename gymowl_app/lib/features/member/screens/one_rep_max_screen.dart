@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/member_provider.dart';
 
-class OneRepMaxScreen extends StatefulWidget {
+class OneRepMaxScreen extends ConsumerStatefulWidget {
   const OneRepMaxScreen({super.key});
 
   @override
-  State<OneRepMaxScreen> createState() => _OneRepMaxScreenState();
+  ConsumerState<OneRepMaxScreen> createState() => _OneRepMaxScreenState();
 }
 
-class _OneRepMaxScreenState extends State<OneRepMaxScreen> {
+class _OneRepMaxScreenState extends ConsumerState<OneRepMaxScreen> {
   final TextEditingController _weightCtrl = TextEditingController();
   final TextEditingController _repsCtrl = TextEditingController();
   
@@ -112,7 +114,30 @@ class _OneRepMaxScreenState extends State<OneRepMaxScreen> {
               _buildPercentage(80, _oneRepMax! * 0.8),
               _buildPercentage(70, _oneRepMax! * 0.7),
             ],
-          )
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: () async {
+              await ref.read(measurementProvider.notifier).logMeasurement(
+                type: 'one_rep_max',
+                value: _oneRepMax!,
+                unit: 'kg',
+                notes: 'Calculated 1RM for ${_weightCtrl.text}kg x ${_repsCtrl.text} reps',
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('1RM saved to profile! 💪')),
+                );
+              }
+            },
+            icon: const Icon(Icons.save_rounded),
+            label: const Text('Save to Profile'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF1A1F38),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
         ],
       ),
     );

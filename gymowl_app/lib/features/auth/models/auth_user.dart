@@ -15,11 +15,11 @@ class AuthUser {
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     return AuthUser(
-      id: json['id'] as String,
+      id: (json['id'] ?? '').toString(),
       fullName: (json['fullName'] ?? json['full_name'] ?? '') as String,
       phone: (json['phone'] ?? '') as String,
       role: (json['role'] ?? 'member') as String,
-      tenantId: json['tenantId'] ?? json['tenant_id'],
+      tenantId: (json['tenantId'] ?? json['tenant_id'])?.toString(),
     );
   }
 

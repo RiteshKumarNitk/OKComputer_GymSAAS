@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../providers/member_provider.dart';
 
 class MemberHomeScreen extends ConsumerWidget {
   const MemberHomeScreen({super.key});
@@ -11,46 +13,68 @@ class MemberHomeScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final user = authState.user;
     final isStaff = user?.role == 'frontdesk' || user?.role == 'manager';
+    
+    final statsAsync = ref.watch(memberStatsProvider);
+    final sessionsAsync = ref.watch(upcomingSessionsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA), // Match profile screen light gray
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildPremiumHeader(context, user?.fullName ?? 'Athlete'),
-            Padding( // Content below header
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildQuickCheckIn(context, isStaff),
-                  const SizedBox(height: 24),
-                  _buildUpcomingSession(),
-                  const SizedBox(height: 32),
-                  _buildSectionTitle('Weekly Activity'),
-                  const SizedBox(height: 16),
-                  _buildActivityCard(),
-                  const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Classes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-                      TextButton(
-                        onPressed: () => context.push('/member/classes'), 
-                        child: const Text('See all', style: TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.bold))
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildClassItem('Advanced Hatha Yoga', '18:30 • Studio A', 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?fit=crop&w=100&q=80'),
-                  const SizedBox(height: 12),
-                  _buildClassItem('Metabolic Burn', '20:00 • Performance Lab', 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?fit=crop&w=100&q=80'),
-                  const SizedBox(height: 40), // Bottom padding
-                ],
+      backgroundColor: const Color(0xFFF4F6FA),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(memberStatsProvider);
+          ref.invalidate(upcomingSessionsProvider);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildPremiumHeader(context, user?.fullName ?? 'Athlete'),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildQuickCheckIn(context, isStaff),
+                    const SizedBox(height: 24),
+                    sessionsAsync.when(
+                      loading: () => const SizedBox(height: 100, child: Center(child: CircularProgressIndicator())),
+                      error: (err, _) => const SizedBox.shrink(),
+                      data: (sessions) => sessions.isNotEmpty 
+                          ? _buildUpcomingSession(sessions.first) 
+                          : _buildNoSessionsCard(context),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildQuickLogActions(context, ref),
+                    const SizedBox(height: 32),
+                    _buildSectionTitle('Weekly Activity'),
+                    const SizedBox(height: 16),
+                    statsAsync.when(
+                      loading: () => _buildLoadingActivity(),
+                      error: (err, _) => Center(child: Text('Error: $err')),
+                      data: (stats) => _buildActivityCard(stats),
+                    ),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Classes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                        TextButton(
+                          onPressed: () => context.push('/member/classes'), 
+                          child: const Text('See all', style: TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.bold))
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildClassItem('Advanced Hatha Yoga', '18:30 • Studio A', 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?fit=crop&w=100&q=80'),
+                    const SizedBox(height: 12),
+                    _buildClassItem('Metabolic Burn', '20:00 • Performance Lab', 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?fit=crop&w=100&q=80'),
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -58,13 +82,11 @@ class MemberHomeScreen extends ConsumerWidget {
 
   Widget _buildPremiumHeader(BuildContext context, String name) {
     return Container(
-      padding: const EdgeInsets.only(top: 60, left: 24, right: 24, bottom: 32),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
       decoration: const BoxDecoration(
-        color: Color(0xFF1A1F38), // Deep navy background for the header
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
+        color: Color(0xFF1A1F38),
+        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(32), bottomRight: Radius.circular(32)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,61 +94,97 @@ class MemberHomeScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
-                ),
-                child: const CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Color(0xFFFF5236), // Vibrant Orange
-                  child: Icon(Icons.person, color: Colors.white, size: 24),
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('GOOD MORNING,', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
+                  const SizedBox(height: 4),
+                  Text(name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                ],
               ),
-              IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none_rounded, color: Colors.white)),
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.white.withOpacity(0.1),
+                child: const Icon(Icons.notifications_outlined, color: Colors.white),
+              )
             ],
           ),
-          const SizedBox(height: 24),
-          const Text('Welcome back,', style: TextStyle(color: Colors.white70, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text(name, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, height: 1.1)),
         ],
       ),
     );
   }
 
   Widget _buildQuickCheckIn(BuildContext context, bool isStaff) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF7B54), Color(0xFFFF5236)], 
-          begin: Alignment.centerLeft, 
-          end: Alignment.centerRight
+    return InkWell(
+      onTap: () => context.push(isStaff ? '/frontdesk/scanner' : '/member/checkin'),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFFFF5236), Color(0xFFFF8A65)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: const Color(0xFFFF5236).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
         ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: const Color(0xFFFF5236).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+              child: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Quick Access', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+                  Text(isStaff ? 'Scan Incoming Member' : 'Show Membership Pass', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38)));
+  }
+
+  Widget _buildLoadingActivity() {
+    return Container(
+      height: 160,
+      width: double.infinity,
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+      child: const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  Widget _buildNoSessionsCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.withOpacity(0.1))),
+      child: Row(
         children: [
-          Text(isStaff ? 'STAFF DESK' : 'DAILY ACCESS', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 11, letterSpacing: 1.2)),
-          const SizedBox(height: 8),
-          Text(isStaff ? 'Launch Scanner' : 'Quick Check-In', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 24)),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: () => context.go(isStaff ? '/frontdesk/scanner' : '/member/checkin'),
-            icon: Icon(isStaff ? Icons.qr_code_scanner_rounded : Icons.qr_code_2_rounded, color: const Color(0xFFFF5236)),
-            label: Text(isStaff ? 'Open QR Scanner' : 'Generate QR Code', style: const TextStyle(color: Color(0xFFFF5236), fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
-          ),
+          const Icon(Icons.calendar_today_outlined, color: Colors.grey),
+          const SizedBox(width: 16),
+          const Expanded(child: Text('No sessions today. Ready for a workout?', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))),
+          TextButton(onPressed: () => context.push('/member/classes'), child: const Text('Book Now')),
         ],
       ),
     );
   }
 
-  Widget _buildUpcomingSession() {
+  Widget _buildUpcomingSession(Map<String, dynamic> session) {
+    final className = (session['class']?['name'] ?? 'Training Session').toString();
+    final coach = (session['class']?['trainer']?['fullName'] ?? 'Staff Coach').toString();
+    final rawStartTime = session['class']?['startTime']?.toString();
+    
+    final startTime = rawStartTime != null 
+        ? DateFormat('HH:mm').format(DateTime.parse(rawStartTime))
+        : 'Starting';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
@@ -145,29 +203,27 @@ class MemberHomeScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                const Text('Personal Training', style: TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w800, fontSize: 16)),
+                Text(className, style: const TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w800, fontSize: 16)),
                 const SizedBox(height: 12),
                 Row(
-                   children: const [
-                     Icon(Icons.person, color: Colors.grey, size: 16),
-                     SizedBox(width: 8),
-                     Text('Coach Marcus', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                   children: [
+                     const Icon(Icons.person, color: Colors.grey, size: 16),
+                     const SizedBox(width: 8),
+                     Text(coach, style: const TextStyle(color: Colors.grey, fontSize: 13)),
                    ],
                 ),
               ],
             ),
           ),
-          const Text('00:58 min', style: TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.w900, fontSize: 26)),
+          Text(startTime, style: const TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.w900, fontSize: 26)),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(title, style: const TextStyle(color: Color(0xFF1A1F38), fontSize: 18, fontWeight: FontWeight.w900));
-  }
-
-  Widget _buildActivityCard() {
+  Widget _buildActivityCard(Map<String, dynamic> stats) {
+    final trend = stats['intensityTrend'] as List? ?? [];
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
@@ -176,12 +232,7 @@ class MemberHomeScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-               Column(
-                 crossAxisAlignment: CrossAxisAlignment.start,
-                 children: const [
-                   Text('Intensity minutes vs. Goal', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                 ],
-               ),
+               const Text('Intensity minutes vs. Goal', style: TextStyle(color: Colors.grey, fontSize: 12)),
                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)), child: const Text('THIS WEEK', style: TextStyle(color: Colors.blueAccent, fontSize: 11, fontWeight: FontWeight.bold))),
             ],
           ),
@@ -191,15 +242,13 @@ class MemberHomeScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _buildBar(0.4, 'MON'),
-                _buildBar(0.6, 'TUE'),
-                _buildBar(0.9, 'WED', isActive: true),
-                _buildBar(0.5, 'THU'),
-                _buildBar(0.3, 'FRI'),
-                _buildBar(0.8, 'SAT'),
-                _buildBar(0.2, 'SUN'),
-              ],
+              children: trend.map((t) {
+                final mins = (t['minutes'] ?? 0).toDouble();
+                final heightFactor = (mins / 60.0).clamp(0.1, 1.0); 
+                final dayLabel = (t['day'] ?? '').toString();
+                final currentDay = DateFormat('E').format(DateTime.now()).toUpperCase();
+                return _buildBar(heightFactor, dayLabel, isActive: dayLabel == currentDay);
+              }).toList(),
             ),
           ),
         ],
@@ -224,6 +273,123 @@ class MemberHomeScreen extends ConsumerWidget {
         ),
         Text(label, style: TextStyle(color: isActive ? const Color(0xFF006C46) : Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
       ],
+    );
+  }
+
+  Widget _buildQuickLogActions(BuildContext context, WidgetRef ref) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildLogButton(
+            context,
+            'Log Water',
+            '💧',
+            Colors.blueAccent,
+            () => _showWaterLog(context, ref),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildLogButton(
+            context,
+            'Log Activity',
+            '🔥',
+            Colors.orangeAccent,
+            () => _showActivityLog(context, ref),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLogButton(BuildContext context, String label, String emoji, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 24)),
+            const SizedBox(height: 8),
+            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showWaterLog(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Daily Hydration', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [250, 500, 750].map((ml) => ElevatedButton(
+                onPressed: () async {
+                  await ref.read(measurementProvider.notifier).logMeasurement(
+                    type: 'water',
+                    value: ml.toDouble(),
+                    unit: 'ml',
+                  );
+                  if (context.mounted) Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, shape: const StadiumBorder()),
+                child: Text('+$ml ml', style: const TextStyle(color: Colors.white)),
+              )).toList(),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showActivityLog(BuildContext context, WidgetRef ref) {
+    final noteController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Log Quick Activity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: noteController,
+              decoration: const InputDecoration(hintText: 'e.g. 30min morning run', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                await ref.read(workoutLogProvider.notifier).logWorkout({'notes': noteController.text});
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ref.invalidate(memberStatsProvider);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent, minimumSize: const Size(double.infinity, 50)),
+              child: const Text('Add to Activity', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
     );
   }
 

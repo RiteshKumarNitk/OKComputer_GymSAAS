@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/member_provider.dart';
 import 'dart:math';
 
-class BmiCalculatorScreen extends StatefulWidget {
+class BmiCalculatorScreen extends ConsumerStatefulWidget {
   const BmiCalculatorScreen({super.key});
 
   @override
-  State<BmiCalculatorScreen> createState() => _BmiCalculatorScreenState();
+  ConsumerState<BmiCalculatorScreen> createState() => _BmiCalculatorScreenState();
 }
 
-class _BmiCalculatorScreenState extends State<BmiCalculatorScreen> {
+class _BmiCalculatorScreenState extends ConsumerState<BmiCalculatorScreen> {
   double _height = 170;
   double _weight = 70;
   
@@ -43,6 +45,30 @@ class _BmiCalculatorScreenState extends State<BmiCalculatorScreen> {
         child: Column(
           children: [
             _buildResultCard(),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await ref.read(measurementProvider.notifier).logMeasurement(
+                  type: 'weight',
+                  value: _weight,
+                  unit: 'kg',
+                  notes: 'Recorded via BMI Calculator. BMI: ${_bmi.toStringAsFixed(1)}',
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Weight & BMI saved to profile! 📈')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.cloud_upload_rounded),
+              label: const Text('Save to Profile'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A1F38),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
             const SizedBox(height: 32),
             _buildSliderCard('Height', 'cm', _height, 100, 250, (val) => setState(() => _height = val)),
             const SizedBox(height: 20),

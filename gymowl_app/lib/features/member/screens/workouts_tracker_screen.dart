@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../providers/member_provider.dart';
 
-class WorkoutsTrackerScreen extends StatelessWidget {
+class WorkoutsTrackerScreen extends ConsumerWidget {
   const WorkoutsTrackerScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(memberStatsProvider);
+    final workoutsAsync = ref.watch(myWorkoutsProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
@@ -14,32 +20,159 @@ class WorkoutsTrackerScreen extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1A1F38)),
         actions: [
-          IconButton(icon: const Icon(Icons.download_rounded), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded), 
+            onPressed: () {
+              ref.invalidate(memberStatsProvider);
+              ref.invalidate(myWorkoutsProvider);
+            }
+          ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Intensity Minutes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-            const SizedBox(height: 16),
-            _buildChartCard(),
-            const SizedBox(height: 32),
-            const Text('Recent Sessions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-            const SizedBox(height: 16),
-            _buildLogCard('Metabolic Burn', 'Thursday, 18:00', '45m', Icons.local_fire_department_rounded, const Color(0xFFFF5236)),
-            const SizedBox(height: 12),
-            _buildLogCard('Heavy Lifting (Pull)', 'Wednesday, 07:00', '60m', Icons.fitness_center_rounded, const Color(0xFF006C46)),
-            const SizedBox(height: 12),
-            _buildLogCard('Active Recovery', 'Monday, 08:00', '30m', Icons.directions_run_rounded, Colors.blueAccent),
-          ],
+      body: statsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF5236))),
+        error: (err, _) => Center(child: Text('Error loading stats: $err')),
+        data: (stats) => RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(memberStatsProvider);
+            ref.invalidate(myWorkoutsProvider);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Intensity Minutes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                const SizedBox(height: 16),
+                _buildChartCard(stats),
+                const SizedBox(height: 32),
+                const Text('My Routines', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                const SizedBox(height: 16),
+                workoutsAsync.when(
+                  data: (workouts) => _buildAssignedWorkouts(context, ref, workouts),
+                  loading: () => const Center(child: LinearProgressIndicator(color: Color(0xFFFF5236))),
+                  error: (err, _) => Text('Error: $err'),
+                ),
+                const SizedBox(height: 32),
+                const Text('Recent Sessions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                const SizedBox(height: 16),
+                _buildRecentSessions(stats['recentActivity'] ?? []),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildChartCard() {
+  Widget _buildAssignedWorkouts(BuildContext context, WidgetRef ref, List<dynamic> workouts) {
+    if (workouts.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        child: const Center(child: Text('No active routines assigned', style: TextStyle(color: Colors.grey))),
+      );
+    }
+
+    return Column(
+      children: workouts.map((w) {
+        final workout = w['workout'] ?? {};
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: const Color(0xFFFF5236).withOpacity(0.1), shape: BoxShape.circle),
+                child: const Icon(Icons.play_circle_fill_rounded, color: Color(0xFFFF5236)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(workout['name'] ?? 'Workout', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('${workout['difficulty'] ?? 'General'} • ${workout['estimatedDurationMinutes'] ?? 30}m', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  ],
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => _showCompletionDialog(context, ref, w['id'], workout['name']),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF006C46),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: const Text('Complete'),
+              )
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  void _showCompletionDialog(BuildContext context, WidgetRef ref, String assignmentId, String name) {
+    final notesController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Log $name'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Great job! Any notes for your trainer?'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                hintText: 'e.g. Felt strong today, increased weight.',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              await ref.read(workoutCompletionProvider.notifier).completeWorkout(
+                assignmentId,
+                notes: notesController.text,
+              );
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Workout logged successfully! 🎉')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006C46)),
+            child: const Text('Save Progress', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartCard(Map<String, dynamic> stats) {
+    final trend = stats['intensityTrend'] as List? ?? [];
+    final spots = trend.asMap().entries.map((e) {
+      final minutes = (e.value['minutes'] ?? 0).toDouble();
+      return FlSpot(e.key.toDouble(), minutes);
+    }).toList();
+
+    final totalMin = trend.fold<int>(0, (prev, element) => prev + (element['minutes'] as int? ?? 0));
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -59,9 +192,9 @@ class WorkoutsTrackerScreen extends StatelessWidget {
                   const Text('Weekly Volume', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Row(
-                    children: const [
-                      Text('135', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
-                      Text(' min', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+                    children: [
+                      Text('$totalMin', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+                      const Text(' min', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ],
@@ -69,7 +202,7 @@ class WorkoutsTrackerScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                child: const Text('+12%', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+                child: const Text('LIVE', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 12)),
               )
             ],
           ),
@@ -84,11 +217,10 @@ class WorkoutsTrackerScreen extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                        if (value.toInt() >= 0 && value.toInt() < days.length) {
+                        if (value.toInt() >= 0 && value.toInt() < trend.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 10),
-                            child: Text(days[value.toInt()], style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+                            child: Text(trend[value.toInt()]['day'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
                           );
                         }
                         return const Text('');
@@ -103,17 +235,9 @@ class WorkoutsTrackerScreen extends StatelessWidget {
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
                   LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 30),
-                      FlSpot(1, 45),
-                      FlSpot(2, 60),
-                      FlSpot(3, 20),
-                      FlSpot(4, 50),
-                      FlSpot(5, 75),
-                      FlSpot(6, 40),
-                    ],
+                    spots: spots.isEmpty ? [const FlSpot(0, 0)] : spots,
                     isCurved: true,
-                    color: const Color(0xFFFF5236), // Vibrant Orange
+                    color: const Color(0xFFFF5236),
                     barWidth: 4,
                     dotData: FlDotData(show: false),
                     belowBarData: BarAreaData(
@@ -129,15 +253,35 @@ class WorkoutsTrackerScreen extends StatelessWidget {
                     ),
                   ),
                 ],
-                minX: 0,
-                maxX: 6,
-                minY: 0,
-                maxY: 80,
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRecentSessions(List<dynamic> logs) {
+    if (logs.isEmpty) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Text('No sessions recorded yet', style: TextStyle(color: Colors.grey)),
+      ));
+    }
+
+    return Column(
+      children: logs.map((log) {
+        final title = log['workoutName'] ?? 'General Session';
+        final dateStr = log['date'] != null 
+            ? DateFormat('EEEE, HH:mm').format(DateTime.parse(log['date'])) 
+            : 'Unscheduled';
+        final duration = '${log['duration'] ?? 0}m';
+        
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: _buildLogCard(title, dateStr, duration, Icons.fitness_center_rounded, const Color(0xFF006C46)),
+        );
+      }).toList(),
     );
   }
 

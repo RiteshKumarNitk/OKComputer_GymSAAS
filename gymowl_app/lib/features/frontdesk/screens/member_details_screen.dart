@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
+import '../services/frontdesk_api_service.dart';
 
 class MemberDetailsScreen extends ConsumerStatefulWidget {
   final String memberId;
@@ -17,12 +18,14 @@ class _MemberDetailsScreenState extends ConsumerState<MemberDetailsScreen> {
   List<dynamic> _plans = [];
   String? _selectedPlanId;
   bool _isRenewing = false;
+  List<dynamic> _invoices = [];
 
   @override
   void initState() {
     super.initState();
     _fetchDetails();
     _fetchPlans();
+    _fetchInvoices();
   }
 
   Future<void> _fetchDetails() async {
@@ -51,6 +54,32 @@ class _MemberDetailsScreenState extends ConsumerState<MemberDetailsScreen> {
       final response = await apiClient.dio.get('/memberships');
       if (mounted) setState(() => _plans = response.data);
     } catch (e) {}
+  }
+
+  Future<void> _fetchInvoices() async {
+    try {
+      final api = ref.read(frontdeskApiServiceProvider);
+      final response = await api.getInvoices(memberId: widget.memberId);
+      if (mounted) setState(() => _invoices = response);
+    } catch (e) {}
+  }
+
+  Future<void> _settleInvoice(Map<String, dynamic> invoice) async {
+    try {
+      final api = ref.read(frontdeskApiServiceProvider);
+      await api.settlePayment(
+        memberId: widget.memberId,
+        invoiceId: invoice['id'],
+        amount: (invoice['totalAmountCents'] ?? 0) / 100.0,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment Settled! 💵'), backgroundColor: Colors.green));
+        _fetchDetails();
+        _fetchInvoices();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Settlement failed: $e'), backgroundColor: Colors.red));
+    }
   }
 
   Future<void> _renewMembership() async {
@@ -102,6 +131,10 @@ class _MemberDetailsScreenState extends ConsumerState<MemberDetailsScreen> {
             const SizedBox(height: 12),
             _buildPlanCard(currentPlan),
             const SizedBox(height: 24),
+            _buildSectionTitle('Invoices & Dues'),
+            const SizedBox(height: 12),
+            _buildInvoicesSection(),
+            const SizedBox(height: 24),
             _buildSectionTitle('Contact Information'),
             const SizedBox(height: 12),
             _buildContactCard(),
@@ -114,6 +147,47 @@ class _MemberDetailsScreenState extends ConsumerState<MemberDetailsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildInvoicesSection() {
+    if (_invoices.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+        child: const Center(child: Text('No outstanding invoices', style: TextStyle(color: Colors.grey))),
+      );
+    }
+    return Column(
+      children: _invoices.map<Widget>((inv) {
+        final isPaid = inv['status']?.toString().toLowerCase() == 'paid';
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('ID: ${inv['invoiceNumber'] ?? 'INV-??'}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('\$${(inv['totalAmountCents'] ?? 0) / 100.0}', style: const TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              if (!isPaid)
+                ElevatedButton(
+                  onPressed: () => _settleInvoice(inv),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, shape: const StadiumBorder()),
+                  child: const Text('Settle Cash'),
+                )
+              else
+                const Icon(Icons.check_circle, color: Colors.green),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 

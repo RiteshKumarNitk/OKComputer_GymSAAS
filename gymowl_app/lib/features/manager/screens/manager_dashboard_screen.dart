@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/manager_provider.dart';
+import '../providers/manager_providers.dart';
 
 class ManagerDashboardScreen extends ConsumerWidget {
   const ManagerDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final managerState = ref.watch(managerProvider);
+    final statsAsync = ref.watch(executiveStatsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
@@ -18,7 +18,10 @@ class ManagerDashboardScreen extends ConsumerWidget {
         backgroundColor: const Color(0xFFF4F6FA),
         elevation: 0,
         actions: [
-          IconButton(icon: const Icon(Icons.settings_outlined, color: Color(0xFF1A1F38)), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF1A1F38)), 
+            onPressed: () => ref.invalidate(executiveStatsProvider)
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: CircleAvatar(
@@ -29,40 +32,49 @@ class ManagerDashboardScreen extends ConsumerWidget {
           )
         ],
       ),
-      body: managerState.isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF5236)))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildRevenueHero(managerState.stats?.revenueToday ?? 4250.00),
-                  const SizedBox(height: 24),
-                  const Text('Core Metrics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-                  const SizedBox(height: 16),
-                  _buildStatsGrid(managerState.stats),
-                  const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('30-Day Cash Flow', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-                      TextButton(onPressed: () {}, child: const Text('Export', style: TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.bold))),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildChartCard(managerState.stats?.monthlyRevenue ?? [10, 20, 15, 30, 45, 40, 60]),
-                  const SizedBox(height: 32),
-                  const Text('System Management', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-                  const SizedBox(height: 16),
-                  _buildAdminMenu(context),
-                  const SizedBox(height: 40),
-                ],
-              ),
+      body: statsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF5236))),
+        error: (err, _) => Center(child: Text('Error loading HQ: $err')),
+        data: (stats) => RefreshIndicator(
+          onRefresh: () async => ref.invalidate(executiveStatsProvider),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildRevenueHero(stats),
+                const SizedBox(height: 24),
+                const Text('Core Metrics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                const SizedBox(height: 16),
+                _buildStatsGrid(stats),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Cash Flow Trend', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                    TextButton(onPressed: () {}, child: const Text('Export', style: TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.bold))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildChartCard(stats['revenueTrend'] ?? []),
+                const SizedBox(height: 32),
+                const Text('System Management', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                const SizedBox(height: 16),
+                _buildAdminMenu(context),
+                const SizedBox(height: 40),
+              ],
             ),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildRevenueHero(double todayRevenue) {
+  Widget _buildRevenueHero(Map<String, dynamic> stats) {
+    final mrr = (stats['monthlyRevenue'] ?? 0) / 100; // Assuming cents
+    final totalRevenue = (stats['totalRevenue'] ?? 0) / 100;
+    
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -80,18 +92,18 @@ class ManagerDashboardScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                child: const Text('+8.4%', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.w900)),
+                child: const Text('LIVE', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.w900)),
               )
             ],
           ),
           const SizedBox(height: 12),
-          Text('\$${(todayRevenue * 30).toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: -1)),
+          Text('\$${mrr.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: -1)),
           const SizedBox(height: 24),
           Row(
             children: [
-              Expanded(child: _buildMiniStat('Today\'s Net', '+\$${todayRevenue.toStringAsFixed(0)}', Colors.greenAccent)),
+              Expanded(child: _buildMiniStat('Total Revenue', '\$${totalRevenue.toStringAsFixed(0)}', Colors.greenAccent)),
               Container(width: 1, height: 40, color: Colors.white24),
-              Expanded(child: _buildMiniStat('Active Subscriptions', '1,245', Colors.white)),
+              Expanded(child: _buildMiniStat('Active Members', '${stats['activeMembers'] ?? 0}', Colors.white)),
             ],
           )
         ],
@@ -109,12 +121,12 @@ class ManagerDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsGrid(DashboardStats? stats) {
+  Widget _buildStatsGrid(Map<String, dynamic> stats) {
     return Row(
       children: [
-        Expanded(child: _buildStatCard('Churn Rate', '2.4%', Icons.trending_down_rounded, Colors.blueAccent)),
+        Expanded(child: _buildStatCard('Engagement', '${stats['attendanceToday'] ?? 0}', Icons.trending_up_rounded, Colors.blueAccent)),
         const SizedBox(width: 16),
-        Expanded(child: _buildStatCard('Total Staff', '24', Icons.badge_rounded, const Color(0xFFFF5236))),
+        Expanded(child: _buildStatCard('Growth', '+${stats['newMembersThisMonth'] ?? 0}', Icons.person_add_rounded, const Color(0xFFFF5236))),
       ],
     );
   }
@@ -144,9 +156,15 @@ class ManagerDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildChartCard(List<double> points) {
-    if (points.isEmpty) points = [10, 20, 15, 30, 45, 40, 60];
-    final spots = points.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList();
+  Widget _buildChartCard(List<dynamic> trend) {
+    if (trend.isEmpty) {
+      return const SizedBox(height: 200, child: Center(child: Text('No trend data available')));
+    }
+    
+    final spots = trend.asMap().entries.map((e) {
+      final revenue = (e.value['revenue'] ?? 0).toDouble() / 100;
+      return FlSpot(e.key.toDouble(), revenue);
+    }).toList();
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -161,7 +179,17 @@ class ManagerDashboardScreen extends ConsumerWidget {
           LineChartData(
             gridData: FlGridData(show: false),
             titlesData: FlTitlesData(
-              bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (val, meta) {
+                    if (val.toInt() >= 0 && val.toInt() < trend.length) {
+                      return Text(trend[val.toInt()]['month'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 10));
+                    }
+                    return const SizedBox.shrink();
+                  }
+                )
+              ),
               leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
               rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
               topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -171,7 +199,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
               LineChartBarData(
                 spots: spots,
                 isCurved: true,
-                color: const Color(0xFF006C46), // Vibrant Green
+                color: const Color(0xFF006C46),
                 barWidth: 4,
                 dotData: FlDotData(show: false),
                 belowBarData: BarAreaData(
@@ -195,7 +223,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
       children: [
         _buildMenuTile(context, 'Edit Membership Tiers', 'Configure pricing and access levels', Icons.layers_rounded, const Color(0xFFFF5236), '/manager/members'),
         const SizedBox(height: 12),
-        _buildMenuTile(context, 'Staff & RBAC', 'Manage internal permissions', Icons.admin_panel_settings_rounded, Colors.indigo, null),
+        _buildMenuTile(context, 'Staff & RBAC', 'Manage internal permissions', Icons.admin_panel_settings_rounded, Colors.indigo, '/manager/staff'),
         const SizedBox(height: 12),
         _buildMenuTile(context, 'Financial Reports', 'Export tax and revenue records', Icons.request_quote_rounded, const Color(0xFF006C46), '/manager/reports'),
       ],

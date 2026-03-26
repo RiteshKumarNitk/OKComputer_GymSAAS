@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/workout_provider.dart';
+import '../providers/trainer_providers.dart';
 
 class TrainerDashboardScreen extends ConsumerWidget {
   const TrainerDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workoutState = ref.watch(workoutProvider);
+    final clientsAsync = ref.watch(myClientsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
@@ -17,7 +17,10 @@ class TrainerDashboardScreen extends ConsumerWidget {
         backgroundColor: const Color(0xFFF4F6FA),
         elevation: 0,
         actions: [
-          IconButton(icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF1A1F38)), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF1A1F38)), 
+            onPressed: () => ref.invalidate(myClientsProvider)
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: CircleAvatar(
@@ -28,35 +31,45 @@ class TrainerDashboardScreen extends ConsumerWidget {
           )
         ],
       ),
-      body: workoutState.isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF5236)))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildWelcomeCard(),
-                  const SizedBox(height: 32),
-                  const Text('Overview', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-                  const SizedBox(height: 16),
-                  _buildStatsGrid(workoutState.members.length),
-                  const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('My Athletes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-                      TextButton(
-                        onPressed: () => context.go('/trainer/members'),
-                        child: const Text('View Directory', style: TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildMemberList(context, workoutState),
-                  const SizedBox(height: 40),
-                ],
+      body: RefreshIndicator(
+        onRefresh: () async => ref.invalidate(myClientsProvider),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildWelcomeCard(),
+              const SizedBox(height: 32),
+              const Text('Overview', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+              const SizedBox(height: 16),
+              clientsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF5236))),
+                error: (err, _) => Center(child: Text('Error loading dashboard: $err')),
+                data: (clients) => Column(
+                  children: [
+                    _buildStatsGrid(clients.length),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('My Athletes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                        TextButton(
+                          onPressed: () => context.go('/trainer/members'),
+                          child: const Text('View Directory', style: TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildMemberList(context, clients),
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -82,7 +95,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'You have 3 classes and 4 PT sessions scheduled today.',
+                  'Your mission: empower athletes and push limits today.',
                   style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13, height: 1.4),
                 ),
               ],
@@ -110,7 +123,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: _buildStatCard('Pending Plans', '2', Icons.assignment_rounded, const Color(0xFFFF5236)),
+          child: _buildStatCard('Pending Plans', '0', Icons.assignment_rounded, const Color(0xFFFF5236)),
         ),
       ],
     );
@@ -143,8 +156,8 @@ class TrainerDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMemberList(BuildContext context, WorkoutState state) {
-    final members = state.members.take(4).toList(); // Show top 4 on dashboard
+  Widget _buildMemberList(BuildContext context, List<Map<String, dynamic>> clients) {
+    final members = clients.take(4).toList(); // Show top 4 on dashboard
 
     if (members.isEmpty) {
       return Container(
@@ -163,7 +176,10 @@ class TrainerDashboardScreen extends ConsumerWidget {
 
     return Column(
       children: members.map((member) {
-        final needsPlan = member.planStatus == null || member.planStatus == "Unassigned";
+        final name = (member['fullName'] ?? 'Unknown').toString();
+        final id = (member['memberCode'] ?? member['id'] ?? 'N/A').toString();
+        final status = member['status']?.toString().toLowerCase();
+        final needsPlan = status == 'inactive' || status == 'expired';
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -178,11 +194,11 @@ class TrainerDashboardScreen extends ConsumerWidget {
               radius: 24,
               backgroundColor: needsPlan ? const Color(0xFFFF5236).withOpacity(0.1) : const Color(0xFF006C46).withOpacity(0.1),
               child: Text(
-                member.name.substring(0, 1).toUpperCase(),
+                name.substring(0, 1).toUpperCase(),
                 style: TextStyle(color: needsPlan ? const Color(0xFFFF5236) : const Color(0xFF006C46), fontWeight: FontWeight.w900, fontSize: 18),
               ),
             ),
-            title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A1F38))),
+            title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A1F38))),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 4.0),
               child: Row(
@@ -190,7 +206,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
                   Icon(needsPlan ? Icons.warning_rounded : Icons.check_circle_rounded, size: 14, color: needsPlan ? const Color(0xFFFF5236) : const Color(0xFF006C46)),
                   const SizedBox(width: 4),
                   Text(
-                    needsPlan ? "Needs Plan" : "Active Plan",
+                    needsPlan ? "Sync Required" : "Active Athlete",
                     style: TextStyle(color: needsPlan ? const Color(0xFFFF5236) : const Color(0xFF006C46), fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -203,7 +219,7 @@ class TrainerDashboardScreen extends ConsumerWidget {
               ),
               child: IconButton(
                 icon: const Icon(Icons.add_chart_rounded, color: Colors.white, size: 20),
-                onPressed: () => context.go('/trainer/members/${member.id}/assign'),
+                onPressed: () => context.go('/trainer/members/${member['id']}/assign'),
                 tooltip: 'Assign Workout',
               ),
             ),

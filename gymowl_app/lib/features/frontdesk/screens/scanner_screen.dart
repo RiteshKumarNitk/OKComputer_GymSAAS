@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/frontdesk_api_service.dart';
 
-class ScannerScreen extends StatefulWidget {
+class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
 
   @override
-  State<ScannerScreen> createState() => _ScannerScreenState();
+  ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends State<ScannerScreen> {
+class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   final MobileScannerController controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     formats: [BarcodeFormat.qrCode],
@@ -91,40 +93,33 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   void _processScan(String memberId) async {
-    if (_isProcessing) return;
-
     setState(() {
       _isProcessing = true;
       _lastScanned = memberId;
     });
 
-    // Simulate API Call to backend to verify subscription status and log attendance
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    // For demo purposes, we consider any string starting with MEMBER or GUEST successful.
-    bool valid = memberId.startsWith('MEMBER') || memberId.startsWith('GUEST') || memberId.isNotEmpty;
-
-    setState(() {
-      _isProcessing = false;
-    });
-
-    if (valid) {
+    try {
+      final api = ref.read(frontdeskApiServiceProvider);
+      final result = await api.checkInEntity(memberId);
+      
       setState(() {
+        _isProcessing = false;
         _showSuccess = true;
+        _lastScanned = result['member']?['fullName'] ?? result['staff']?['fullName'] ?? 'Access Verified';
       });
-      // Flash success screen then pop back to dashboard
+
       await Future.delayed(const Duration(seconds: 2));
-      if (mounted) {
-        context.pop();
-      }
-    } else {
-      // Show error snackbar
+      if (mounted) context.pop();
+    } catch (e) {
+      setState(() {
+        _isProcessing = false;
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ACCESS DENIED: Invalid or Unpaid Plan', style: TextStyle(fontWeight: FontWeight.bold)),
+          SnackBar(
+            content: Text('ACCESS DENIED: ${e.toString().replaceAll('Exception: ', '')}', style: const TextStyle(fontWeight: FontWeight.bold)),
             backgroundColor: Colors.redAccent,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           )
         );
       }
