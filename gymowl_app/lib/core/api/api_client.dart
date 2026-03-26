@@ -6,10 +6,12 @@ import '../storage/storage_service.dart';
 final apiClientProvider = Provider<ApiClient>((ref) {
   final storage = ref.watch(storageServiceProvider);
   
-  // Port 3001 matches server/index.ts
-  final baseUrl = kIsWeb 
-      ? 'http://localhost:3001/api' 
-      : 'http://10.0.2.2:3001/api';
+  // LIVE_URL for production deployment
+  const String liveUrl = 'https://ok-computer-gym-saas.vercel.app/api';
+  
+  // Mobile app always uses live API by default
+  // For local testing, change this to 'http://10.0.2.2:3001/api'
+  const String baseUrl = liveUrl;
 
   return ApiClient(
     baseUrl: baseUrl,
