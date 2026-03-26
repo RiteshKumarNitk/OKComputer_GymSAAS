@@ -13,68 +13,86 @@ class MemberHomeScreen extends ConsumerWidget {
     final isStaff = user?.role == 'frontdesk' || user?.role == 'manager';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE), // Vitality Mint Background
+      backgroundColor: const Color(0xFFF4F6FA), // Match profile screen light gray
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 50),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildTopAppBar(),
-            const SizedBox(height: 32),
-            _buildGreeting(user?.fullName ?? 'Athlete'),
-            const SizedBox(height: 24),
-            _buildQuickCheckIn(context, isStaff),
-            const SizedBox(height: 24),
-            _buildUpcomingSession(),
-            const SizedBox(height: 24),
-            _buildFitnessTools(context),
-            const SizedBox(height: 32),
-            _buildSectionTitle('Weekly Activity'),
-            const SizedBox(height: 12),
-            _buildActivityCard(),
-            const SizedBox(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Classes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-                TextButton(onPressed: () {}, child: const Text('See all', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
-              ],
+            _buildPremiumHeader(context, user?.fullName ?? 'Athlete'),
+            Padding( // Content below header
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildQuickCheckIn(context, isStaff),
+                  const SizedBox(height: 24),
+                  _buildUpcomingSession(),
+                  const SizedBox(height: 32),
+                  _buildSectionTitle('Weekly Activity'),
+                  const SizedBox(height: 16),
+                  _buildActivityCard(),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Classes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                      TextButton(
+                        onPressed: () => context.push('/member/classes'), 
+                        child: const Text('See all', style: TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.bold))
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildClassItem('Advanced Hatha Yoga', '18:30 • Studio A', 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?fit=crop&w=100&q=80'),
+                  const SizedBox(height: 12),
+                  _buildClassItem('Metabolic Burn', '20:00 • Performance Lab', 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?fit=crop&w=100&q=80'),
+                  const SizedBox(height: 40), // Bottom padding
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            _buildClassItem('Advanced Hatha Yoga', '18:30 • Studio A', 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?fit=crop&w=100&q=80'),
-            const SizedBox(height: 12),
-            _buildClassItem('Metabolic Burn', '20:00 • Performance Lab', 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?fit=crop&w=100&q=80'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTopAppBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: const [
-             CircleAvatar(radius: 18, backgroundColor: Colors.orangeAccent, child: Icon(Icons.person, color: Colors.white, size: 20)),
-             SizedBox(width: 12),
-             Text('Digital Athlete', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF1A1F38))),
-          ],
+  Widget _buildPremiumHeader(BuildContext context, String name) {
+    return Container(
+      padding: const EdgeInsets.only(top: 60, left: 24, right: 24, bottom: 32),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A1F38), // Deep navy background for the header
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
         ),
-        IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none_rounded, color: Colors.grey)),
-      ],
-    );
-  }
-
-  Widget _buildGreeting(String name) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Welcome back,', style: TextStyle(color: const Color(0xFF1A1F38), fontSize: 28, fontWeight: FontWeight.w900)),
-        Text('$name!', style: TextStyle(color: const Color(0xFF1A1F38), fontSize: 28, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 4),
-        const Text('Your elite performance journey continues today.', style: TextStyle(color: Colors.grey, fontSize: 13)),
-      ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
+                ),
+                child: const CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Color(0xFFFF5236), // Vibrant Orange
+                  child: Icon(Icons.person, color: Colors.white, size: 24),
+                ),
+              ),
+              IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none_rounded, color: Colors.white)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Text('Welcome back,', style: TextStyle(color: Colors.white70, fontSize: 16)),
+          const SizedBox(height: 4),
+          Text(name, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, height: 1.1)),
+        ],
+      ),
     );
   }
 
@@ -82,22 +100,26 @@ class MemberHomeScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF67FFB9), // Mint Green
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFF7B54), Color(0xFFFF5236)], 
+          begin: Alignment.centerLeft, 
+          end: Alignment.centerRight
+        ),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.greenAccent.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 8))],
+        boxShadow: [BoxShadow(color: const Color(0xFFFF5236).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(isStaff ? 'STAFF DESK' : 'DAILY ACCESS', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11, letterSpacing: 1.2)),
+          Text(isStaff ? 'STAFF DESK' : 'DAILY ACCESS', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 11, letterSpacing: 1.2)),
           const SizedBox(height: 8),
-          Text(isStaff ? 'Launch Scanner' : 'Quick Check-In', style: const TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w900, fontSize: 24)),
+          Text(isStaff ? 'Launch Scanner' : 'Quick Check-In', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 24)),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: () => context.go(isStaff ? '/frontdesk/scanner' : '/member/checkin'),
-            icon: Icon(isStaff ? Icons.qr_code_scanner_rounded : Icons.qr_code_2_rounded, color: Colors.white),
-            label: Text(isStaff ? 'Open QR Scanner' : 'Generate QR Code', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006C46), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
+            icon: Icon(isStaff ? Icons.qr_code_scanner_rounded : Icons.qr_code_2_rounded, color: const Color(0xFFFF5236)),
+            label: Text(isStaff ? 'Open QR Scanner' : 'Generate QR Code', style: const TextStyle(color: Color(0xFFFF5236), fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
           ),
         ],
       ),
@@ -200,7 +222,7 @@ class MemberHomeScreen extends ConsumerWidget {
             child: FractionallySizedBox(heightFactor: heightFactor, alignment: Alignment.bottomCenter, child: Container()),
           ),
         ),
-        Text(label, style: TextStyle(color: Colors.grey, fontSize: 9, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+        Text(label, style: TextStyle(color: isActive ? const Color(0xFF006C46) : Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -208,88 +230,26 @@ class MemberHomeScreen extends ConsumerWidget {
   Widget _buildClassItem(String title, String time, String imageUrl) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.01), blurRadius: 8)]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
       child: Row(
         children: [
-          ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.network(imageUrl, width: 50, height: 50, fit: BoxFit.cover)),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.network(imageUrl, width: 60, height: 60, fit: BoxFit.cover),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1A1F38))),
-                const SizedBox(height: 6),
-                Text(time, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A1F38))),
+                const SizedBox(height: 4),
+                Text(time, style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.chevron_right_rounded, color: Colors.grey)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFitnessTools(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Fitness Tools', style: TextStyle(color: Color(0xFF1A1F38), fontSize: 18, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 120,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _buildToolCard(context, 'Calories Calculator', 'Calculate your BMR', Icons.calculate_rounded, Colors.orangeAccent, '/member/calories-calculator'),
-              const SizedBox(width: 16),
-              _buildToolCard(context, 'BMI Calculator', 'Check your BMI', Icons.monitor_weight_rounded, const Color(0xFF006C46), '/member/bmi-calculator'),
-              const SizedBox(width: 16),
-              _buildToolCard(context, 'Water Reminder', 'Track daily hydration', Icons.water_drop_rounded, Colors.blueAccent, '/member/water-reminder'),
-            ]
-          )
-        ),
-      ],
-    );
-  }
-
-  Widget _buildToolCard(BuildContext context, String title, String subtitle, IconData icon, Color color, String route) {
-    return Container(
-      width: 250,
-      decoration: BoxDecoration(
-        color: Colors.white, 
-        borderRadius: BorderRadius.circular(24), 
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: () => context.go(route),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
-                  child: Icon(icon, color: color, size: 28),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(title, style: const TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w800, fontSize: 15)),
-                      const SizedBox(height: 4),
-                      Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

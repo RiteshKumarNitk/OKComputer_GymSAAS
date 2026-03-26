@@ -1,172 +1,175 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 
-class WorkoutsTrackerScreen extends StatefulWidget {
+class WorkoutsTrackerScreen extends StatelessWidget {
   const WorkoutsTrackerScreen({super.key});
-
-  @override
-  State<WorkoutsTrackerScreen> createState() => _WorkoutsTrackerScreenState();
-}
-
-class _WorkoutsTrackerScreenState extends State<WorkoutsTrackerScreen> {
-  int _seconds = 0;
-  Timer? _timer;
-  bool _isRunning = false;
-
-  final List<Map<String, dynamic>> _setsList = [
-    {'set': 1, 'weight': 60, 'reps': 10, 'isDone': true},
-    {'set': 2, 'weight': 65, 'reps': 8, 'isDone': false},
-    {'set': 3, 'weight': 70, 'reps': 6, 'isDone': false},
-  ];
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _toggleTimer() {
-    if (_isRunning) {
-      _timer?.cancel();
-    } else {
-      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        setState(() => _seconds++);
-      });
-    }
-    setState(() => _isRunning = !_isRunning);
-  }
-
-  String _formatTime(int totalSeconds) {
-    final minutes = (totalSeconds / 60).floor().toString().padLeft(2, '0');
-    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE), // Light Theme Background
+      backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
-        title: const Text('Workout Tracker', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
-        backgroundColor: Colors.transparent, elevation: 0, foregroundColor: const Color(0xFF1A1F38),
-      ),
-      body: Column(
-        children: [
-          _buildTimerHeader(),
-          const SizedBox(height: 12),
-          Expanded(child: _buildWorkoutLog()),
+        title: const Text('Analytics', style: TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w900)),
+        backgroundColor: const Color(0xFFF4F6FA),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF1A1F38)),
+        actions: [
+          IconButton(icon: const Icon(Icons.download_rounded), onPressed: () {}),
         ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Intensity Minutes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+            const SizedBox(height: 16),
+            _buildChartCard(),
+            const SizedBox(height: 32),
+            const Text('Recent Sessions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+            const SizedBox(height: 16),
+            _buildLogCard('Metabolic Burn', 'Thursday, 18:00', '45m', Icons.local_fire_department_rounded, const Color(0xFFFF5236)),
+            const SizedBox(height: 12),
+            _buildLogCard('Heavy Lifting (Pull)', 'Wednesday, 07:00', '60m', Icons.fitness_center_rounded, const Color(0xFF006C46)),
+            const SizedBox(height: 12),
+            _buildLogCard('Active Recovery', 'Monday, 08:00', '30m', Icons.directions_run_rounded, Colors.blueAccent),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildTimerHeader() {
+  Widget _buildChartCard() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF1A1F38),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: const Color(0xFF1A1F38).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Barbell Bench Press', style: TextStyle(color: Color(0xFF1A1F38), fontSize: 18, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 24),
-          Text(_formatTime(_seconds), style: const TextStyle(color: Color(0xFF006C46), fontSize: 44, fontWeight: FontWeight.w900, letterSpacing: 2)),
-          const SizedBox(height: 20),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildTimerButton(_isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded, _isRunning ? 'Pause' : 'Start', _toggleTimer),
-              const SizedBox(width: 16),
-              _buildTimerButton(Icons.refresh_rounded, 'Reset', () {
-                _timer?.cancel();
-                setState(() {
-                  _seconds = 0;
-                  _isRunning = false;
-                });
-              }, color: Colors.blueGrey.shade50, textColor: Colors.grey.shade700),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimerButton(IconData icon, String label, VoidCallback onTap, {Color color = const Color(0xFF006C46), Color textColor = Colors.white}) {
-    return ElevatedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, color: textColor, size: 20),
-      label: Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-      style: ElevatedButton.styleFrom(backgroundColor: color, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), elevation: 0),
-    );
-  }
-
-  Widget _buildWorkoutLog() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.only(top: 16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: const BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, -4))]),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('Track Sets & Reps', style: TextStyle(color: Color(0xFF1A1F38), fontSize: 18, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 16),
-          Expanded(
-            child: ListView.separated(
-              itemCount: _setsList.length,
-              separatorBuilder: (_, __) => Divider(color: Colors.grey.shade200),
-              itemBuilder: (context, index) {
-                final set = _setsList[index];
-                final isDone = set['isDone'] as bool;
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('SET ${set['set']}', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
-                      Row(
-                        children: [
-                          _buildLogInput('${set['weight']} kg', 'Weight'),
-                          const SizedBox(width: 12),
-                          _buildLogInput('${set['reps']}', 'Reps'),
-                        ],
-                      ),
-                      GestureDetector(
-                        onTap: () => setState(() => _setsList[index]['isDone'] = !isDone),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: isDone ? const Color(0xFF00E676) : Colors.grey.shade100, shape: BoxShape.circle),
-                          child: Icon(isDone ? Icons.check : Icons.circle_outlined, color: isDone ? Colors.white : Colors.grey.shade400, size: 18),
-                        ),
-                      ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Weekly Volume', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: const [
+                      Text('135', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+                      Text(' min', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
                     ],
                   ),
-                );
-              },
-            ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                child: const Text('+12%', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+              )
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _setsList.add({'set': _setsList.length + 1, 'weight': 60, 'reps': 10, 'isDone': false});
-              });
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE8F5E9), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(vertical: 16)),
-            child: const Text('Add New Set', style: TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.bold)),
+          const SizedBox(height: 40),
+          SizedBox(
+            height: 180,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(show: false),
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                        if (value.toInt() >= 0 && value.toInt() < days.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Text(days[value.toInt()], style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+                          );
+                        }
+                        return const Text('');
+                      },
+                      reservedSize: 30,
+                    ),
+                  ),
+                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: const [
+                      FlSpot(0, 30),
+                      FlSpot(1, 45),
+                      FlSpot(2, 60),
+                      FlSpot(3, 20),
+                      FlSpot(4, 50),
+                      FlSpot(5, 75),
+                      FlSpot(6, 40),
+                    ],
+                    isCurved: true,
+                    color: const Color(0xFFFF5236), // Vibrant Orange
+                    barWidth: 4,
+                    dotData: FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFFFF5236).withOpacity(0.3),
+                          const Color(0xFFFF5236).withOpacity(0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ],
+                minX: 0,
+                maxX: 6,
+                minY: 0,
+                maxY: 80,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLogInput(String value, String label) {
+  Widget _buildLogCard(String title, String date, String duration, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(color: const Color(0xFFF4F6FA), borderRadius: BorderRadius.circular(12)),
-      child: Text('$value $label', style: const TextStyle(color: Color(0xFF1A1F38), fontSize: 14, fontWeight: FontWeight.w800)),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1F38))),
+                const SizedBox(height: 4),
+                Text(date, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              ],
+            ),
+          ),
+          Text(duration, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF1A1F38))),
+        ],
+      ),
     );
   }
 }

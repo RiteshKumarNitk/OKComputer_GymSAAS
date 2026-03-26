@@ -2,73 +2,85 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../providers/checkin_provider.dart';
 
 class CheckinScreen extends ConsumerWidget {
   const CheckinScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final checkinState = ref.watch(checkinProvider);
+    final user = ref.watch(authProvider).user;
+    final qrData = user?.id ?? 'GUEST-12345';
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
-        title: const Text('Member Check-in'),
+        title: const Text('Access Pass', style: TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w900)),
+        backgroundColor: const Color(0xFFF4F6FA),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF1A1F38)),
       ),
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'Show this QR to the scanner',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 32),
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2),
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))],
+                ),
+                child: Column(
+                  children: [
+                    const CircleAvatar(
+                      radius: 36,
+                      backgroundColor: Color(0xFFFF5236),
+                      child: Icon(Icons.person, color: Colors.white, size: 40),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      user?.fullName ?? 'Athlete',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ELITE MEMBER',
+                      style: TextStyle(color: Colors.greenAccent.shade700, fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 12),
+                    ),
+                    const SizedBox(height: 40),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.shade200, width: 2),
+                      ),
+                      child: QrImageView(
+                        data: qrData,
+                        version: QrVersions.auto,
+                        size: 200.0,
+                        eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF1A1F38)),
+                        dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF1A1F38)),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text('Scan at the front desk turnstiles', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
                   ],
                 ),
-                child: QrImageView(
-                  data: ref.watch(authProvider).user?.id ?? 'UNKNOWN',
-                  version: QrVersions.auto,
-                  size: 200.0,
-                ),
               ),
-              const SizedBox(height: 48),
-              if (checkinState.error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(checkinState.error!, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 40),
+              ElevatedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.apple, color: Colors.white),
+                label: const Text('Add to Apple Wallet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
-              if (checkinState.isSuccess)
-                const Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text('Check-in Successful!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: checkinState.isLoading
-                      ? null
-                      : () => ref.read(checkinProvider.notifier).manualCheckin(),
-                  icon: checkinState.isLoading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.touch_app),
-                  label: const Text('Manual Check-in'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
+              )
             ],
           ),
         ),

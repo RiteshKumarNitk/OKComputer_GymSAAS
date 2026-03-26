@@ -13,7 +13,7 @@ class _ManagerShellState extends State<ManagerShell> {
   int _getCurrentIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith('/manager/members')) return 1;
-    if (location.startsWith('/manager/reports')) return 2;
+    if (location.startsWith('/manager/staff')) return 2;
     return 0; // Default Dashboard
   }
 
@@ -37,9 +37,9 @@ class _ManagerShellState extends State<ManagerShell> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(0, Icons.insert_chart_rounded, 'Dashboard', currentIndex == 0),
-            _buildNavItem(1, Icons.people_rounded, 'Members', currentIndex == 1),
-            _buildNavItem(2, Icons.analytics_rounded, 'Analytics', currentIndex == 2),
+            _buildNavItem(0, Icons.insert_chart_rounded, 'HQ', currentIndex == 0),
+            _buildNavItem(1, Icons.layers_rounded, 'Tiers', currentIndex == 1),
+            _buildNavItem(2, Icons.admin_panel_settings_rounded, 'Staff', currentIndex == 2),
           ],
         ),
       ),
@@ -52,7 +52,7 @@ class _ManagerShellState extends State<ManagerShell> {
         switch (index) {
           case 0: context.go('/manager'); break;
           case 1: context.go('/manager/members'); break;
-          case 2: context.go('/manager/reports'); break;
+          case 2: context.go('/manager/staff'); break;
         }
       },
       child: Column(

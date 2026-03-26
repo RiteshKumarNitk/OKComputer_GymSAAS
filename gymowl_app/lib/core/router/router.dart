@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/member/screens/fitness_tools_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
@@ -18,6 +19,15 @@ import '../../features/member/screens/calories_calculator_screen.dart';
 import '../../features/member/screens/dummy_profile_pages.dart';
 import '../../features/member/screens/bmi_calculator_screen.dart';
 import '../../features/member/screens/water_reminder_screen.dart';
+import '../../features/member/screens/leaderboard_screen.dart';
+import '../../features/member/screens/badges_screen.dart';
+import '../../features/member/screens/macro_tracker_screen.dart';
+import '../../features/member/screens/one_rep_max_screen.dart';
+import '../../features/member/screens/equipment_tutorials_screen.dart';
+import '../../features/member/screens/trainer_chat_screen.dart';
+import '../../features/member/screens/class_schedule_screen.dart';
+import '../../features/member/screens/class_details_screen.dart';
+
 
 import '../../features/frontdesk/screens/scanner_screen.dart';
 import '../../features/frontdesk/screens/frontdesk_dashboard_screen.dart';
@@ -30,7 +40,8 @@ import '../../features/trainer/screens/member_list_screen.dart';
 import '../../features/trainer/screens/trainer_dashboard_screen.dart';
 import '../../features/trainer/screens/workout_assignment_screen.dart';
 import '../../features/manager/screens/manager_dashboard_screen.dart';
-import '../../features/manager/screens/members_manage_screen.dart';
+import '../../features/manager/screens/memberships_manage_screen.dart';
+import '../../features/manager/screens/staff_manage_screen.dart';
 import '../../features/manager/screens/reports_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -98,9 +109,27 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/member/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/member/schedule', builder: (context, state) => const Scaffold(body: Center(child: Text('Schedule Coming Soon')))),
           GoRoute(path: '/member/payment', builder: (context, state) => const PaymentScreen()),
+          GoRoute(path: '/member/tools', builder: (context, state) => const FitnessToolsScreen()),
           GoRoute(path: '/member/calories-calculator', builder: (context, state) => const CaloriesCalculatorScreen()),
           GoRoute(path: '/member/bmi-calculator', builder: (context, state) => const BmiCalculatorScreen()),
           GoRoute(path: '/member/water-reminder', builder: (context, state) => const WaterReminderScreen()),
+          GoRoute(path: '/member/leaderboard', builder: (context, state) => const LeaderboardScreen()),
+          GoRoute(path: '/member/badges', builder: (context, state) => const BadgesScreen()),
+          GoRoute(path: '/member/macro-tracker', builder: (context, state) => const MacroTrackerScreen()),
+          GoRoute(path: '/member/one-rep-max', builder: (context, state) => const OneRepMaxScreen()),
+          GoRoute(path: '/member/equipment-tutorials', builder: (context, state) => const EquipmentTutorialsScreen()),
+          GoRoute(path: '/member/trainer-chat', builder: (context, state) => const TrainerChatScreen()),
+          GoRoute(path: '/member/classes', builder: (context, state) => const ClassScheduleScreen()),
+          GoRoute(
+            path: '/member/class-details',
+            builder: (context, state) {
+              final classData = state.extra as Map<String, dynamic>?;
+              if (classData == null) {
+                return const Scaffold(body: Center(child: Text('Class data missing')));
+              }
+              return ClassDetailsScreen(classData: classData);
+            },
+          ),
           GoRoute(path: '/member/metric-log', builder: (context, state) => const MetricLogScreen()),
           GoRoute(path: '/member/membership', builder: (context, state) => const MembershipScreen()),
           GoRoute(path: '/member/report-card', builder: (context, state) => const ReportCardScreen()),
@@ -137,7 +166,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => ManagerShell(child: child),
         routes: [
           GoRoute(path: '/manager', builder: (context, state) => const ManagerDashboardScreen()),
-          GoRoute(path: '/manager/members', builder: (context, state) => const MembersManageScreen()),
+          GoRoute(path: '/manager/members', builder: (context, state) => const MembershipsManageScreen()),
+          GoRoute(path: '/manager/staff', builder: (context, state) => const StaffManageScreen()),
           GoRoute(path: '/manager/reports', builder: (context, state) => const ReportsScreen()),
         ],
       ),

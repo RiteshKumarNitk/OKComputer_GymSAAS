@@ -1,42 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/api/api_client.dart';
+import '../../auth/providers/auth_provider.dart';
 
-class ProfileScreen extends ConsumerStatefulWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final user = authState.user;
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  bool _isLoading = true;
-  Map<String, dynamic> _profile = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchProfile();
-  }
-
-  Future<void> _fetchProfile() async {
-    try {
-      final apiClient = ref.read(apiClientProvider);
-      final response = await apiClient.dio.get('/members/me'); 
-      if (mounted) {
-        setState(() {
-          _profile = response.data;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA), // Light Gray Theme Background
       appBar: AppBar(
@@ -57,66 +31,84 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       body: Stack(
         children: [
           // Main Scrollable Content
-          _isLoading
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6D43)))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 100), // padding bottom for pill
-                  child: Column(
-                    children: [
-                      _buildProfileHeader(),
-                      const SizedBox(height: 16),
-                      _buildMenuSection([
-                        _MenuItem(
-                          title: 'Metric Log',
-                          icon: Icons.show_chart_rounded,
-                          route: '/member/metric-log',
-                        ),
-                      ]),
-                      const SizedBox(height: 16),
-                      _buildMenuSection([
-                        _MenuItem(
-                          title: 'Membership',
-                          icon: Icons.card_membership_rounded,
-                          route: '/member/membership',
-                        ),
-                        _MenuItem(
-                          title: 'Payments',
-                          icon: Icons.account_balance_wallet_outlined,
-                          route: '/member/payment',
-                        ),
-                        _MenuItem(
-                          title: 'Report Card',
-                          icon: Icons.assignment_ind_outlined,
-                          route: '/member/report-card',
-                        ),
-                        _MenuItem(
-                          title: 'Health Assessment',
-                          icon: Icons.favorite_border_rounded,
-                          route: '/member/health-assessment',
-                        ),
-                      ]),
-                      const SizedBox(height: 16),
-                      _buildMenuSection([
-                        _MenuItem(
-                          title: 'Help & Support',
-                          icon: Icons.help_outline_rounded,
-                          route: '/member/help-support',
-                        ),
-                        _MenuItem(
-                          title: 'Business Request',
-                          icon: Icons.business_center_outlined,
-                          route: '/member/business-request',
-                        ),
-                        _MenuItem(
-                          title: 'Settings',
-                          icon: Icons.settings_outlined,
-                          route: '/member/settings',
-                        ),
-                      ]),
-                    ],
+          SingleChildScrollView(
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 100), // padding bottom for pill
+            child: Column(
+              children: [
+                _buildProfileHeader(user?.fullName ?? 'Athlete Name', user?.phone ?? '0000000000'),
+                const SizedBox(height: 16),
+                _buildMenuSection(context, [
+                  _MenuItem(
+                    title: 'Leaderboard',
+                    icon: Icons.emoji_events_rounded,
+                    route: '/member/leaderboard',
                   ),
-                ),
-                
+                  _MenuItem(
+                    title: 'Badges & Achievements',
+                    icon: Icons.military_tech_rounded,
+                    route: '/member/badges',
+                  ),
+                  _MenuItem(
+                    title: 'Metric Log',
+                    icon: Icons.show_chart_rounded,
+                    route: '/member/metric-log',
+                  ),
+                ]),
+                const SizedBox(height: 16),
+                _buildMenuSection(context, [
+                  _MenuItem(
+                    title: 'Membership',
+                    icon: Icons.card_membership_rounded,
+                    route: '/member/membership',
+                  ),
+                  _MenuItem(
+                    title: 'Payments',
+                    icon: Icons.account_balance_wallet_outlined,
+                    route: '/member/payment',
+                  ),
+                  _MenuItem(
+                    title: 'Report Card',
+                    icon: Icons.assignment_ind_outlined,
+                    route: '/member/report-card',
+                  ),
+                  _MenuItem(
+                    title: 'Health Assessment',
+                    icon: Icons.favorite_border_rounded,
+                    route: '/member/health-assessment',
+                  ),
+                ]),
+                const SizedBox(height: 16),
+                _buildMenuSection(context, [
+                  _MenuItem(
+                    title: 'Equipment Tutorials',
+                    icon: Icons.ondemand_video_rounded,
+                    route: '/member/equipment-tutorials',
+                  ),
+                  _MenuItem(
+                    title: 'Trainer Chat',
+                    icon: Icons.chat_bubble_outline_rounded,
+                    route: '/member/trainer-chat',
+                  ),
+                  _MenuItem(
+                    title: 'Help & Support',
+                    icon: Icons.help_outline_rounded,
+                    route: '/member/help-support',
+                  ),
+                  _MenuItem(
+                    title: 'Business Request',
+                    icon: Icons.business_center_outlined,
+                    route: '/member/business-request',
+                  ),
+                  _MenuItem(
+                    title: 'Settings',
+                    icon: Icons.settings_outlined,
+                    route: '/member/settings',
+                  ),
+                ]),
+              ],
+            ),
+          ),
+          
           // Floating Club Pillar
           Align(
             alignment: Alignment.bottomCenter,
@@ -130,10 +122,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader() {
-    final String name = _profile['fullName'] ?? 'Athlete Name';
-    final String phone = _profile['phone'] ?? '0000000000';
-    
+  Widget _buildProfileHeader(String name, String phone) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -204,7 +193,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildMenuSection(List<_MenuItem> items) {
+  Widget _buildMenuSection(BuildContext context, List<_MenuItem> items) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
