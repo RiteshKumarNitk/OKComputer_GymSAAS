@@ -15,10 +15,10 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
-        title: const Text('Analytics', style: TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w900)),
+        title: const Text('Analytics', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900)),
         backgroundColor: const Color(0xFFF4F6FA),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF1A1F38)),
+        iconTheme: const IconThemeData(color: Colors.black),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded), 
@@ -30,7 +30,7 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
         ],
       ),
       body: statsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF5236))),
+        loading: () => const Center(child: CircularProgressIndicator(color: Colors.black)),
         error: (err, _) => Center(child: Text('Error loading stats: $err')),
         data: (stats) => RefreshIndicator(
           onRefresh: () async {
@@ -43,19 +43,19 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Intensity Minutes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                const Text('Intensity Minutes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black)),
                 const SizedBox(height: 16),
                 _buildChartCard(stats),
                 const SizedBox(height: 32),
-                const Text('My Routines', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                const Text('My Routines', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black)),
                 const SizedBox(height: 16),
                 workoutsAsync.when(
                   data: (workouts) => _buildAssignedWorkouts(context, ref, workouts),
-                  loading: () => const Center(child: LinearProgressIndicator(color: Color(0xFFFF5236))),
+                  loading: () => const Center(child: LinearProgressIndicator(color: Colors.black)),
                   error: (err, _) => Text('Error: $err'),
                 ),
                 const SizedBox(height: 32),
-                const Text('Recent Sessions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                const Text('Recent Sessions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black)),
                 const SizedBox(height: 16),
                 _buildRecentSessions(stats['recentActivity'] ?? []),
               ],
@@ -90,8 +90,8 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFFFF5236).withOpacity(0.1), shape: BoxShape.circle),
-                child: const Icon(Icons.play_circle_fill_rounded, color: Color(0xFFFF5236)),
+                decoration: BoxDecoration(color: Colors.black.withOpacity(0.05), shape: BoxShape.circle),
+                child: const Icon(Icons.play_circle_fill_rounded, color: Colors.black),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -106,7 +106,7 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
               ElevatedButton(
                 onPressed: () => _showCompletionDialog(context, ref, w['id'], workout['name']),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF006C46),
+                  backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
@@ -156,7 +156,7 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006C46)),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
             child: const Text('Save Progress', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -167,7 +167,7 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
   Widget _buildChartCard(Map<String, dynamic> stats) {
     final trend = stats['intensityTrend'] as List? ?? [];
     final spots = trend.asMap().entries.map((e) {
-      final minutes = (e.value['minutes'] ?? 0).toDouble();
+      final minutes = (e.value['minutes'] ?? e.value['value'] ?? 0).toDouble();
       return FlSpot(e.key.toDouble(), minutes);
     }).toList();
 
@@ -176,9 +176,9 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1F38),
+        color: Colors.black,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: const Color(0xFF1A1F38).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,7 +220,7 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
                         if (value.toInt() >= 0 && value.toInt() < trend.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 10),
-                            child: Text(trend[value.toInt()]['day'] ?? '', style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+                            child: Text((trend[value.toInt()]['day'] ?? '').toString(), style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
                           );
                         }
                         return const Text('');
@@ -237,15 +237,15 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
                   LineChartBarData(
                     spots: spots.isEmpty ? [const FlSpot(0, 0)] : spots,
                     isCurved: true,
-                    color: const Color(0xFFFF5236),
+                    color: Colors.white,
                     barWidth: 4,
                     dotData: FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          const Color(0xFFFF5236).withOpacity(0.3),
-                          const Color(0xFFFF5236).withOpacity(0.0),
+                          Colors.white.withOpacity(0.3),
+                          Colors.white.withOpacity(0.0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -279,7 +279,7 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
         
         return Padding(
           padding: const EdgeInsets.only(bottom: 12.0),
-          child: _buildLogCard(title, dateStr, duration, Icons.fitness_center_rounded, const Color(0xFF006C46)),
+          child: _buildLogCard(title, dateStr, duration, Icons.fitness_center_rounded, Colors.black),
         );
       }).toList(),
     );
@@ -305,13 +305,13 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1F38))),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black)),
                 const SizedBox(height: 4),
                 Text(date, style: const TextStyle(color: Colors.grey, fontSize: 13)),
               ],
             ),
           ),
-          Text(duration, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF1A1F38))),
+          Text(duration, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.black)),
         ],
       ),
     );

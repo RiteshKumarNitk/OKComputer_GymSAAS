@@ -9,13 +9,13 @@ class FitnessToolsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA), // Light Gray Theme Background
       appBar: AppBar(
-        title: const Text('Fitness Tools', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+        title: const Text('Fitness Tools', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
         backgroundColor: const Color(0xFFF4F6FA),
         elevation: 0,
         actions: [
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.info_outline_rounded, color: Color(0xFF1A1F38)),
+            icon: const Icon(Icons.info_outline_rounded, color: Colors.black),
           ),
         ],
       ),
@@ -73,7 +73,7 @@ class FitnessToolsScreen extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: Color(0xFF1A1F38),
+                      color: Colors.black,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       height: 1.2,

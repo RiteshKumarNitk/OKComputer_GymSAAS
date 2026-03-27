@@ -3,15 +3,24 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storage/storage_service.dart';
 
+import 'dart:io' show Platform;
+
 final apiClientProvider = Provider<ApiClient>((ref) {
   final storage = ref.watch(storageServiceProvider);
   
   // LIVE_URL for production deployment
   const String liveUrl = 'https://ok-computer-gym-saas.vercel.app/api';
   
-  // Mobile app always uses live API by default
-  // For local testing, change this to 'http://10.0.2.2:3001/api'
-  const String baseUrl = liveUrl;
+  // Auto-detect localhost environment
+  String localUrl = 'http://localhost:3001/api';
+  try {
+    if (!kIsWeb && Platform.isAndroid) {
+      localUrl = 'http://10.0.2.2:3001/api';
+    }
+  } catch(e) { /* ignore */ }
+  
+  // Set to localUrl for dev, liveUrl for production
+  final String baseUrl = localUrl;
 
   return ApiClient(
     baseUrl: baseUrl,

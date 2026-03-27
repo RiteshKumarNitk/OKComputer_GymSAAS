@@ -975,9 +975,10 @@ app.get("/api/members/me/stats", authenticate, async (req: any, res) => {
             orderBy: { checkinAt: "desc" }
         });
 
+        const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         const intensityTrend = attendance.reverse().map((a, i) => ({
-            day: i + 1,
-            value: 65 + Math.floor(Math.random() * 20) // Simulated intensity until heart rate sync is implemented
+            day: days[new Date(a.checkinAt).getDay()],
+            minutes: 65 + Math.floor(Math.random() * 20) // Simulated intensity until heart rate sync is implemented
         }));
 
         res.json({
@@ -1041,6 +1042,31 @@ app.get("/api/members/me/bookings", authenticate, async (req: any, res) => {
         });
 
         res.json(snakeToCamel(bookings));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get("/api/members/me/workouts", authenticate, async (req: any, res) => {
+    try {
+        const member = await prisma.member.findUnique({
+            where: { userId: req.userId }
+        });
+        if (!member) return res.status(404).json({ error: "Member not found" });
+
+        const workouts = await prisma.memberWorkout.findMany({
+            where: {
+                memberId: member.id,
+                tenantId: req.tenantId,
+                completedAt: null
+            },
+            include: {
+                workout: true
+            },
+            orderBy: { assignedAt: "desc" }
+        });
+
+        res.json(snakeToCamel(workouts));
     } catch (err: any) {
         res.status(500).json({ error: err.message });
     }
