@@ -14,17 +14,17 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA), // Light Gray Theme Background
       appBar: AppBar(
-        title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+        title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
         backgroundColor: const Color(0xFFF4F6FA),
         elevation: 0,
         actions: [
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.edit_rounded, color: Color(0xFF1A1F38)),
+            icon: const Icon(Icons.edit_rounded, color: Colors.black),
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF1A1F38)),
+            icon: const Icon(Icons.notifications_none_rounded, color: Colors.black),
           ),
         ],
       ),
@@ -105,6 +105,26 @@ class ProfileScreen extends ConsumerWidget {
                     route: '/member/settings',
                   ),
                 ]),
+                const SizedBox(height: 24),
+                // Logout Button
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.01), blurRadius: 10, offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    leading: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+                    title: const Text('Logout', style: TextStyle(color: Colors.redAccent, fontSize: 15, fontWeight: FontWeight.bold)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    onTap: () {
+                      ref.read(authProvider.notifier).logout();
+                    },
+                  ),
+                ),
               ],
             ),
           ),
@@ -127,14 +147,14 @@ class ProfileScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFF7B54), Color(0xFFFF5236)], 
+          colors: [Color(0xFF2C2C2C), Colors.black], 
           begin: Alignment.centerLeft, 
           end: Alignment.centerRight
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF5236).withOpacity(0.3), 
+            color: Colors.black.withOpacity(0.3), 
             blurRadius: 15, 
             offset: const Offset(0, 8)
           )
@@ -170,7 +190,7 @@ class ProfileScreen extends ConsumerWidget {
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check_circle_rounded, color: Color(0xFFFF5236), size: 18),
+                      child: const Icon(Icons.check_circle_rounded, color: Colors.black, size: 18),
                     ),
                   )
                 ],
@@ -211,7 +231,7 @@ class ProfileScreen extends ConsumerWidget {
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 leading: Icon(item.icon, color: Colors.grey.shade600, size: 22),
-                title: Text(item.title, style: const TextStyle(color: Color(0xFF1A1F38), fontSize: 15, fontWeight: FontWeight.bold)),
+                title: Text(item.title, style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.bold)),
                 trailing: Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 22),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 onTap: () => context.go(item.route),
@@ -230,13 +250,13 @@ class ProfileScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFF7B54), Color(0xFFFF5236)], 
+          colors: [Color(0xFF2C2C2C), Colors.black], 
           begin: Alignment.centerLeft, 
           end: Alignment.centerRight
         ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
-          BoxShadow(color: const Color(0xFFFF5236).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
+          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
         ],
       ),
       child: Row(
@@ -248,7 +268,7 @@ class ProfileScreen extends ConsumerWidget {
               color: Colors.white,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.fitness_center_rounded, color: Color(0xFFFF5236), size: 14),
+            child: const Icon(Icons.fitness_center_rounded, color: Colors.black, size: 14),
           ),
           const SizedBox(width: 12),
           const Text('Fit Vision Fitness Club', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),

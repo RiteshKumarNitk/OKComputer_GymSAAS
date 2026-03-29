@@ -21,7 +21,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (mounted) {
       final location = GoRouterState.of(context).matchedLocation;
       if (location == '/splash') {
-        context.go('/login');
+        context.go('/intro');
       }
     }
   }

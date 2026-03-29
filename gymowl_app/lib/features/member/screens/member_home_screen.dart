@@ -58,10 +58,10 @@ class MemberHomeScreen extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Classes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38))),
+                        const Text('Classes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black)),
                         TextButton(
                           onPressed: () => context.push('/member/classes'), 
-                          child: const Text('See all', style: TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.bold))
+                          child: const Text('See all', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold))
                         ),
                       ],
                     ),
@@ -85,7 +85,7 @@ class MemberHomeScreen extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
       decoration: const BoxDecoration(
-        color: Color(0xFF1A1F38),
+        color: Colors.black,
         borderRadius: BorderRadius.only(bottomLeft: Radius.circular(32), bottomRight: Radius.circular(32)),
       ),
       child: Column(
@@ -120,9 +120,9 @@ class MemberHomeScreen extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFFFF5236), Color(0xFFFF8A65)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          gradient: const LinearGradient(colors: [Color(0xFF2C2C2C), Colors.black], begin: Alignment.topLeft, end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [BoxShadow(color: const Color(0xFFFF5236).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
         ),
         child: Row(
           children: [
@@ -149,7 +149,7 @@ class MemberHomeScreen extends ConsumerWidget {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1F38)));
+    return Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black));
   }
 
   Widget _buildLoadingActivity() {
@@ -203,7 +203,7 @@ class MemberHomeScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Text(className, style: const TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w800, fontSize: 16)),
+                Text(className, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 16)),
                 const SizedBox(height: 12),
                 Row(
                    children: [
@@ -215,7 +215,7 @@ class MemberHomeScreen extends ConsumerWidget {
               ],
             ),
           ),
-          Text(startTime, style: const TextStyle(color: Color(0xFF006C46), fontWeight: FontWeight.w900, fontSize: 26)),
+          Text(startTime, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 26)),
         ],
       ),
     );
@@ -243,7 +243,7 @@ class MemberHomeScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: trend.map((t) {
-                final mins = (t['minutes'] ?? 0).toDouble();
+                final mins = (t['minutes'] ?? t['value'] ?? 0).toDouble();
                 final heightFactor = (mins / 60.0).clamp(0.1, 1.0); 
                 final dayLabel = (t['day'] ?? '').toString();
                 final currentDay = DateFormat('E').format(DateTime.now()).toUpperCase();
@@ -265,13 +265,13 @@ class MemberHomeScreen extends ConsumerWidget {
             width: 16,
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
-              color: isActive ? const Color(0xFF006C46) : Colors.grey.shade100,
+              color: isActive ? Colors.black : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(8),
             ),
             child: FractionallySizedBox(heightFactor: heightFactor, alignment: Alignment.bottomCenter, child: Container()),
           ),
         ),
-        Text(label, style: TextStyle(color: isActive ? const Color(0xFF006C46) : Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+        Text(label, style: TextStyle(color: isActive ? Colors.black : Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -284,7 +284,7 @@ class MemberHomeScreen extends ConsumerWidget {
             context,
             'Log Water',
             '💧',
-            Colors.blueAccent,
+            Colors.black,
             () => _showWaterLog(context, ref),
           ),
         ),
@@ -294,7 +294,7 @@ class MemberHomeScreen extends ConsumerWidget {
             context,
             'Log Activity',
             '🔥',
-            Colors.orangeAccent,
+            Colors.black,
             () => _showActivityLog(context, ref),
           ),
         ),
@@ -408,7 +408,7 @@ class MemberHomeScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A1F38))),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
                 const SizedBox(height: 4),
                 Text(time, style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
               ],

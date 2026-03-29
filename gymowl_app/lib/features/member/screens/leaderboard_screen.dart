@@ -13,20 +13,19 @@ class LeaderboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
-        title: const Text('Community Rank', style: TextStyle(color: Color(0xFF1A1F38), fontWeight: FontWeight.w900)),
+        title: const Text('Community Rank', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900)),
         backgroundColor: const Color(0xFFF4F6FA),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF1A1F38)),
+        iconTheme: const IconThemeData(color: Colors.black),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share_rounded, color: Color(0xFF006C46)),
+            icon: const Icon(Icons.share_rounded, color: Colors.black),
             onPressed: () {},
           )
         ],
       ),
       body: leaderboardAsync.when(
-        data: (data) {
-          final List<dynamic> records = data['leaderboard'] ?? [];
+        data: (records) {
           if (records.isEmpty) {
             return const Center(child: Text('No leaderboard data found'));
           }
@@ -59,7 +58,7 @@ class LeaderboardScreen extends ConsumerWidget {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF5236))),
+        loading: () => const Center(child: CircularProgressIndicator(color: Colors.black)),
         error: (error, stack) => Center(child: Text('Error loading leaderboard: $error')),
       ),
     );
@@ -129,7 +128,7 @@ class LeaderboardScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Text(name.split(' ').first, style: TextStyle(fontWeight: FontWeight.bold, fontSize: isFirst ? 16 : 14, color: const Color(0xFF1A1F38))),
+        Text(name.split(' ').first, style: TextStyle(fontWeight: FontWeight.bold, fontSize: isFirst ? 16 : 14, color: Colors.black)),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -154,7 +153,7 @@ class LeaderboardScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: isCurrentUser 
           ? BoxDecoration(
-              color: const Color(0xFFE8F5E9), 
+              color: Colors.grey.shade100, 
               borderRadius: BorderRadius.circular(16)
             ) 
           : null,
@@ -180,14 +179,14 @@ class LeaderboardScreen extends ConsumerWidget {
               name, 
               style: TextStyle(
                 fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.w600,
-                color: isCurrentUser ? const Color(0xFF006C46) : const Color(0xFF1A1F38),
+                color: Colors.black,
                 fontSize: 15
               )
             ),
           ),
           Text(
             '$points', 
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFFFF5236))
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.black)
           ),
           const Text(' pts', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12)),
           const SizedBox(width: 8),

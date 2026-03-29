@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/member/screens/fitness_tools_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/auth/screens/intro_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/otp_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
@@ -59,15 +60,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = ref.read(authProvider);
       final loggingIn = state.matchedLocation == '/login';
+      final inIntro = state.matchedLocation == '/intro';
       final inOtp = state.matchedLocation == '/otp';
       final inSplash = state.matchedLocation == '/splash';
       final loggedIn = authState.user != null;
 
-      debugPrint('DEBUG: Redirect matchedLocation=${state.matchedLocation} loggingIn=$loggingIn inOtp=$inOtp inSplash=$inSplash loggedIn=$loggedIn');
+      debugPrint('DEBUG: Redirect matchedLocation=${state.matchedLocation} loggingIn=$loggingIn inIntro=$inIntro inOtp=$inOtp inSplash=$inSplash loggedIn=$loggedIn');
 
       if (inSplash && !loggedIn) return null; // Wait on Splash timer
-      if (!loggedIn && !loggingIn && !inOtp && !inSplash) return '/login';
-      if (loggedIn && (loggingIn || inOtp || inSplash)) {
+      if (!loggedIn && !loggingIn && !inOtp && !inSplash && !inIntro) return '/intro';
+      if (loggedIn && (loggingIn || inIntro || inOtp || inSplash)) {
         switch (authState.user?.role) {
           case 'member':
             return '/member';
@@ -82,7 +84,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           case 'super_admin':
             return '/manager'; // Map to manager dashboard or similar testing shell
           default:
-            return '/login';
+            return '/intro';
         }
       }
       return null;
@@ -91,6 +93,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/intro',
+        builder: (context, state) => const IntroScreen(),
       ),
       GoRoute(
         path: '/login',

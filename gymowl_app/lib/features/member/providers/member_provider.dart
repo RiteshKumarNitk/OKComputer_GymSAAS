@@ -5,7 +5,7 @@ final memberStatsProvider = FutureProvider<Map<String, dynamic>>((ref) {
   return ref.watch(memberApiServiceProvider).getMemberStats();
 });
 
-final leaderboardProvider = FutureProvider<Map<String, dynamic>>((ref) {
+final leaderboardProvider = FutureProvider<List<dynamic>>((ref) {
   return ref.watch(memberApiServiceProvider).getLeaderboard();
 });
 

@@ -16,9 +16,9 @@ class MemberApiService {
     return response.data;
   }
 
-  Future<Map<String, dynamic>> getLeaderboard() async {
+  Future<List<dynamic>> getLeaderboard() async {
     final response = await _apiClient.dio.get('/members/leaderboard');
-    return response.data;
+    return response.data as List<dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> getMyWorkouts() async {
