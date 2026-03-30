@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/features/auth/ProtectedRoute"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 
 // Pages
+import { LandingPage } from "@/pages/LandingPage"
 import { SignInPage } from "@/pages/auth/SignInPage"
 import { SignUpPage } from "@/pages/auth/SignUpPage"
 import { DashboardPage } from "@/pages/app/DashboardPage"
@@ -66,7 +67,8 @@ function App() {
         <Router>
           <div className="min-h-screen bg-background">
             <Routes>
-              {/* Auth routes */}
+              {/* Public routes */}
+              <Route path="/" element={<LandingPage />} />
               <Route path="/signin" element={<SignInPage />} />
               <Route path="/signup" element={<SignUpPage />} />
               <Route path="/setup-admin" element={<SetupAdminPage />} />
