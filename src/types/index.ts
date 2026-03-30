@@ -254,6 +254,9 @@ export interface Notification {
 export interface DashboardStats {
   totalMembers: number
   activeMembers: number
+  totalTrainers: number
+  totalFrontdesk: number
+  totalManagers: number
   totalRevenue: number
   monthlyRevenue: number
   attendanceToday: number
@@ -332,3 +335,55 @@ export interface Service {
   created_at: string
   updated_at: string
 }
+
+export type StaffShift = "morning" | "evening" | "both"
+export type StaffStatus = "active" | "on_leave" | "terminated" | "resigned" | "probation"
+export type LeaveType = "casual" | "sick" | "earned" | "unpaid"
+export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled"
+
+export interface StaffProfile {
+  id: string
+  tenantId: string
+  userId: string
+  employeeCode: string
+  department?: string
+  designation?: string
+  joiningDate: string
+  resignationDate?: string
+  shift: StaffShift
+  status: StaffStatus
+  salaryPerMonth?: number
+  notes?: string
+}
+
+export interface StaffLeave {
+  id: string
+  tenantId: string
+  staffId: string
+  leaveType: LeaveType
+  startDate: string
+  endDate: string
+  totalDays: number
+  reason?: string
+  status: LeaveStatus
+  approvedBy?: string
+  approvedAt?: string
+}
+
+export interface Invoice {
+  id: string
+  tenantId: string
+  memberId: string
+  paymentId?: string
+  invoiceNumber: string
+  invoiceDate: string
+  dueDate?: string
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled" | "void"
+  subtotalPaise: number
+  discountPaise: number
+  taxPaise: number
+  totalPaise: number
+  currency: string
+  notes?: string
+  lineItems: any[]
+}

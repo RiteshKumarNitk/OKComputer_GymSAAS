@@ -1,6 +1,7 @@
 import React, { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { reportsApi } from "@/api/apiClient"
+import { reportsApi, dashboardApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -13,7 +14,19 @@ import { Download, Users, AlertTriangle, TrendingUp, UserMinus } from "lucide-re
 
 export const ReportsPage: React.FC = () => {
     const { user } = useAuth()
+    const navigate = useNavigate()
     const [activeTab, setActiveTab] = useState("overview")
+
+    // Fetch total members separately from dashboard stats to populate the Total Members card
+    const { data: statsData } = useQuery({
+        queryKey: ["dashboard-stats", user?.tenant_id],
+        queryFn: async () => {
+             const response = await dashboardApi.getStats()
+             if (response.error) throw response.error
+             return response.data
+        },
+        enabled: !!user?.tenant_id
+    })
 
     // Consolidated reports query
     const { data: reportData, isLoading } = useQuery({
@@ -121,8 +134,7 @@ export const ReportsPage: React.FC = () => {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        {/* We could fetch total count separately, but for now just showing a placeholder or we can calc it if we had all members */}
-                        <div className="text-2xl font-bold">--</div>
+                        <div className="text-2xl font-bold">{statsData?.activeMembers ?? "--"}</div>
                         <p className="text-xs text-muted-foreground">Active members</p>
                     </CardContent>
                 </Card>
@@ -156,7 +168,8 @@ export const ReportsPage: React.FC = () => {
                                         </TableHeader>
                                         <TableBody>
                                             {expiringMembers?.map((m: any) => {
-                                                const daysLeft = Math.ceil((new Date(m.plan_expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                                                const expiryDate = m.planExpiresAt ?? m.plan_expires_at
+                                                const daysLeft = expiryDate ? Math.ceil((new Date(expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0
                                                 return (
                                                     <TableRow key={m.id}>
                                                         <TableCell className="font-medium">
@@ -164,9 +177,11 @@ export const ReportsPage: React.FC = () => {
                                                             <div className="text-xs text-muted-foreground">{m.phone}</div>
                                                         </TableCell>
                                                         <TableCell>{m.currentPlan?.name ?? m.memberships?.name}</TableCell>
-                                                        <TableCell>{formatDate(m.planExpiresAt ?? m.plan_expires_at)}</TableCell>
+                                                        <TableCell>{formatDate(expiryDate)}</TableCell>
                                                         <TableCell><Badge variant={daysLeft < 7 ? "destructive" : "secondary"}>{daysLeft} days</Badge></TableCell>
-                                                        <TableCell className="text-right"><Button size="sm" variant="outline">Renew</Button></TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Button size="sm" variant="outline" onClick={() => navigate(`/billing?member=${m.id}&action=renew`)}>Renew</Button>
+                                                        </TableCell>
                                                     </TableRow>
                                                 )
                                             })}

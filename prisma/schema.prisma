@@ -130,7 +130,14 @@ enum StaffStatus {
   active
   on_leave
   terminated
+  resigned
   probation
+}
+
+enum StaffShift {
+  morning
+  evening
+  both
 }
 
 enum LeaveType {
@@ -863,7 +870,9 @@ model StaffProfile {
   employeeCode      String
   department        String?
   designation       String?
-  joiningDate       DateTime
+  joiningDate       DateTime    @default(now())
+  resignationDate   DateTime?
+  shift             StaffShift  @default(morning)
   status            StaffStatus @default(active)
   salaryPerMonth    Int?        // paise
   bankAccountName   String?
@@ -880,6 +889,7 @@ model StaffProfile {
 
   // Relations
   tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user              UserProfile @relation(fields: [userId], references: [id])
   attendance        StaffAttendance[]
   leaves            StaffLeave[]
   salarySlips       SalarySlip[]
@@ -1092,6 +1102,7 @@ model Invoice {
 
   // Relations
   tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member          Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
   payment         Payment?      @relation(fields: [paymentId], references: [id])
 }
 

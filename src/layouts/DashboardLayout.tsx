@@ -111,10 +111,10 @@ const navigation: NavItem[] = [
     permission: "view_attendance",
   },
   {
-    title: "Billing & Invoices",
-    href: "/billing",
+    title: "Invoices & Billing",
+    href: "/invoices",
     icon: <CreditCard className="h-4 w-4" />,
-    roles: ["gym_owner", "manager"],
+    roles: ["gym_owner", "manager", "frontdesk"],
     permission: "view_billing",
   },
   {
@@ -170,7 +170,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
       return item.href.startsWith('/super-admin') || item.href === '/dashboard'
     }
 
-    if (['dashboard', 'settings', 'super-admin', 'staff'].includes(featureKey)) return hasRequiredRole && hasRequiredPermission
+    if (['dashboard', 'settings', 'super-admin', 'staff', 'invoices'].includes(featureKey)) return hasRequiredRole && hasRequiredPermission
 
     if (tenantFeatures === null) return hasRequiredRole && hasRequiredPermission
 

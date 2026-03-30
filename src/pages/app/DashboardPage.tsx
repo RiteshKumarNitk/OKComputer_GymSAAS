@@ -21,6 +21,8 @@ import {
   Building,
   Users as UsersIcon,
   Settings,
+  IndianRupee,
+  UserCog
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -242,62 +244,54 @@ export const DashboardPage: React.FC = () => {
           <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 p-8 text-white shadow-lg">
             <div className="relative z-10">
               <h1 className="text-3xl font-bold tracking-tight mb-2">
-                Welcome back, {user?.full_name?.split(" ")[0] || "Gym Owner"}!
+                Welcome back, {user?.full_name?.split(" ")[0] || "Team Member"}!
               </h1>
               <p className="text-indigo-100 max-w-xl">
-                Here's what's happening at your gym today. You have {stats?.attendanceToday || 0} active check-ins and {stats?.newMembersThisMonth || 0} new members this month.
+                Here's your summary for today. You currently have {stats?.attendanceToday || 0} active check-ins.
               </p>
             </div>
             <div className="absolute right-0 top-0 h-full w-1/3 bg-white/5 -skew-x-12 transform translate-x-12" />
             <div className="absolute right-20 bottom-0 h-full w-1/3 bg-white/5 -skew-x-12 transform translate-x-12" />
           </div>
 
-          {/* Stats Grid */}
+          {/* Stats Grid: Conditionally Rendered by Role */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Total Members"
-              value={stats?.totalMembers || 0}
-              icon={<Users className="h-4 w-4" />}
-              description="Active members"
-              loading={statsLoading}
-              className="border-l-blue-500"
-            />
-            <StatCard
-              title="Revenue (Monthly)"
-              value={formatCurrency(stats?.monthlyRevenue || 0)}
-              icon={<DollarSign className="h-4 w-4" />}
-              description="This month"
-              trend={12.5}
-              loading={statsLoading}
-              className="border-l-emerald-500"
-            />
-            <StatCard
-              title="Attendance Today"
-              value={stats?.attendanceToday || 0}
-              icon={<Activity className="h-4 w-4" />}
-              description="Checked in today"
-              loading={statsLoading}
-              className="border-l-amber-500"
-            />
-            <StatCard
-              title="New Members"
-              value={stats?.newMembersThisMonth || 0}
-              icon={<UserPlus className="h-4 w-4" />}
-              description="This month"
-              trend={8.2}
-              loading={statsLoading}
-              className="border-l-violet-500"
-            />
+            {hasRole(["gym_owner", "manager"]) && (
+              <>
+                <StatCard title="Total Members" value={stats?.totalMembers || 0} icon={<Users className="h-4 w-4" />} description="Active members" loading={statsLoading} className="border-l-blue-500 bg-gradient-to-br from-white to-blue-50/30" />
+                <StatCard title="Revenue (Monthly)" value={formatCurrency(stats?.monthlyRevenue || 0)} icon={<DollarSign className="h-4 w-4" />} description="This month" trend={12.5} loading={statsLoading} className="border-l-emerald-500 bg-gradient-to-br from-white to-emerald-50/30" />
+                <StatCard title="Total Trainers" value={stats?.totalTrainers || 0} icon={<Dumbbell className="h-4 w-4" />} description="Active trainers" loading={statsLoading} className="border-l-amber-500 bg-gradient-to-br from-white to-amber-50/30" />
+                <StatCard title="Total Management" value={(stats?.totalManagers || 0) + (stats?.totalFrontdesk || 0)} icon={<Shield className="h-4 w-4" />} description="Frontdesk & Managers" loading={statsLoading} className="border-l-violet-500 bg-gradient-to-br from-white to-violet-50/30" />
+              </>
+            )}
+            {hasRole(["frontdesk"]) && (
+              <>
+                <StatCard title="Attendance Today" value={stats?.attendanceToday || 0} icon={<Activity className="h-4 w-4" />} description="Checked in today" loading={statsLoading} className="border-l-amber-500 bg-gradient-to-br from-white to-amber-50/30" />
+                <StatCard title="New Members" value={stats?.newMembersThisMonth || 0} icon={<UserPlus className="h-4 w-4" />} description="This month" loading={statsLoading} className="border-l-violet-500 bg-gradient-to-br from-white to-violet-50/30" />
+                <StatCard title="Total Members" value={stats?.totalMembers || 0} icon={<Users className="h-4 w-4" />} description="Active members" loading={statsLoading} className="border-l-blue-500 bg-gradient-to-br from-white to-blue-50/30" />
+                <StatCard title="Total Frontdesk" value={stats?.totalFrontdesk || 0} icon={<UsersIcon className="h-4 w-4" />} description="Colleagues" loading={statsLoading} className="border-l-emerald-500 bg-gradient-to-br from-white to-emerald-50/30" />
+              </>
+            )}
+            {hasRole(["trainer"]) && (
+              <>
+                <StatCard title="Check-ins Today" value={stats?.attendanceToday || 0} icon={<Activity className="h-4 w-4" />} description="Potential trainees" loading={statsLoading} className="border-l-emerald-500 bg-gradient-to-br from-white to-emerald-50/30" />
+                <StatCard title="New Members" value={stats?.newMembersThisMonth || 0} icon={<UserPlus className="h-4 w-4" />} description="This month" loading={statsLoading} className="border-l-blue-500 bg-gradient-to-br from-white to-blue-50/30" />
+                <StatCard title="Total Trainers" value={stats?.totalTrainers || 0} icon={<Dumbbell className="h-4 w-4" />} description="Colleagues" loading={statsLoading} className="border-l-amber-500 bg-gradient-to-br from-white to-amber-50/30" />
+                <StatCard title="Total Members" value={stats?.totalMembers || 0} icon={<Users className="h-4 w-4" />} description="Active members" loading={statsLoading} className="border-l-violet-500 bg-gradient-to-br from-white to-violet-50/30" />
+              </>
+            )}
           </div>
 
           {/* Charts & Analytics */}
           <Tabs defaultValue="overview" className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mt-4">
               <TabsList className="bg-slate-100 p-1">
                 <TabsTrigger value="overview" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Overview</TabsTrigger>
-                <TabsTrigger value="analytics" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Analytics</TabsTrigger>
                 {hasRole(["gym_owner", "manager", "super_admin"]) && (
-                  <TabsTrigger value="reports" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Reports</TabsTrigger>
+                  <TabsTrigger value="analytics" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Analytics</TabsTrigger>
+                )}
+                {hasRole(["gym_owner", "manager", "super_admin"]) && (
+                  <TabsTrigger value="reports" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Financials</TabsTrigger>
                 )}
               </TabsList>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground bg-white px-3 py-1 rounded-md border shadow-sm">
@@ -307,113 +301,123 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4 shadow-sm border-slate-200">
-                  <CardHeader>
-                    <CardTitle>Revenue Overview</CardTitle>
-                    <CardDescription>Monthly revenue performance</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pl-2">
-                    <RevenueChart data={stats?.revenueTrend || []} />
-                  </CardContent>
-                </Card>
+              {hasRole(["gym_owner", "manager"]) ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+                  <Card className="col-span-4 shadow-sm border-slate-200">
+                    <CardHeader>
+                      <CardTitle>Revenue Overview</CardTitle>
+                      <CardDescription>Monthly revenue performance</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pl-2">
+                       <RevenueChart data={stats?.revenueTrend || []} />
+                    </CardContent>
+                  </Card>
+                  <Card className="col-span-3 shadow-sm border-slate-200">
+                    <CardHeader>
+                      <CardTitle>Membership Distribution</CardTitle>
+                      <CardDescription>Active members by plan</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <MembershipChart data={stats?.membershipDistribution || {}} />
+                    </CardContent>
+                  </Card>
+                 </div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+                  <Card className="col-span-7 shadow-sm border-slate-200">
+                    <CardHeader>
+                      <CardTitle>Attendance Trend</CardTitle>
+                      <CardDescription>Members arriving over the last 7 days</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pl-2">
+                       <AttendanceChart data={stats?.attendanceTrend || []} />
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
-                <Card className="col-span-3 shadow-sm border-slate-200">
-                  <CardHeader>
-                    <CardTitle>Membership Distribution</CardTitle>
-                    <CardDescription>Active members by plan</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <MembershipChart data={stats?.membershipDistribution || {}} />
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Quick Actions Row */}
+              {/* Quick Actions Row based on role */}
               <div className="grid gap-4 md:grid-cols-3">
-                <Card
-                  className="hover:shadow-md transition-shadow cursor-pointer group"
-                  onClick={() => navigate("/members")}
-                >
+                <Card className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => navigate("/members")}>
                   <CardContent className="p-6 flex items-center space-x-4">
                     <div className="p-3 bg-blue-100 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
                       <UserPlus className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="font-semibold">Add Member</h3>
-                      <p className="text-sm text-muted-foreground">Register a new gym member</p>
+                      <h3 className="font-semibold">Add / View Members</h3>
+                      <p className="text-sm text-muted-foreground">Manage gym members</p>
                     </div>
                     <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground group-hover:translate-x-1 transition-transform" />
                   </CardContent>
                 </Card>
 
-                <Card
-                  className="hover:shadow-md transition-shadow cursor-pointer group"
-                  onClick={() => navigate("/billing")}
-                >
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                      <CreditCard className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Record Payment</h3>
-                      <p className="text-sm text-muted-foreground">Process a new transaction</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                  </CardContent>
-                </Card>
+                {hasRole(["gym_owner", "manager", "frontdesk"]) && (
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => navigate("/billing")}>
+                    <CardContent className="p-6 flex items-center space-x-4">
+                      <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                        <CreditCard className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Record Payment</h3>
+                        <p className="text-sm text-muted-foreground">Process transactions</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                    </CardContent>
+                  </Card>
+                )}
 
-                <Card
-                  className="hover:shadow-md transition-shadow cursor-pointer group"
-                  onClick={() => navigate("/workouts")}
-                >
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="p-3 bg-amber-100 text-amber-600 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                      <Dumbbell className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Create Workout</h3>
-                      <p className="text-sm text-muted-foreground">Design a new workout plan</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                  </CardContent>
-                </Card>
+                {hasRole(["gym_owner", "trainer"]) && (
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => navigate("/workouts")}>
+                    <CardContent className="p-6 flex items-center space-x-4">
+                      <div className="p-3 bg-amber-100 text-amber-600 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                        <Dumbbell className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Create Workout</h3>
+                        <p className="text-sm text-muted-foreground">Design workout plans</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </TabsContent>
 
-            <TabsContent value="analytics" className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card className="shadow-sm border-slate-200">
-                  <CardHeader>
-                    <CardTitle>Attendance Trend</CardTitle>
-                    <CardDescription>Last 7 days check-in activity</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <AttendanceChart data={stats?.attendanceTrend || []} />
-                  </CardContent>
-                </Card>
+            {hasRole(["gym_owner", "manager", "super_admin"]) && (
+              <TabsContent value="analytics" className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Card className="shadow-sm border-slate-200">
+                    <CardHeader>
+                      <CardTitle>Attendance Trend</CardTitle>
+                      <CardDescription>Last 7 days check-in activity</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <AttendanceChart data={stats?.attendanceTrend || []} />
+                    </CardContent>
+                  </Card>
 
-                <Card className="shadow-sm border-slate-200">
-                  <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
-                    <CardDescription>Latest actions and updates</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {[1, 2, 3].map((_, i) => (
-                        <div key={i} className="flex items-start space-x-4 pb-4 border-b last:border-0 last:pb-0">
-                          <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
-                          <div>
-                            <p className="text-sm font-medium">New member registration</p>
-                            <p className="text-xs text-muted-foreground">2 hours ago</p>
+                  <Card className="shadow-sm border-slate-200">
+                    <CardHeader>
+                      <CardTitle>Recent Activity</CardTitle>
+                      <CardDescription>Latest actions and updates</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {[1, 2, 3].map((_, i) => (
+                          <div key={i} className="flex items-start space-x-4 pb-4 border-b last:border-0 last:pb-0">
+                            <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
+                            <div>
+                              <p className="text-sm font-medium">System Update Logged</p>
+                              <p className="text-xs text-muted-foreground">Activity recorded</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            )}
 
             {hasRole(["gym_owner", "manager", "super_admin"]) && (
               <TabsContent value="reports" className="space-y-6">
@@ -428,9 +432,76 @@ export const DashboardPage: React.FC = () => {
                         <span className="font-medium text-slate-700">Total Revenue</span>
                         <span className="font-bold text-lg text-emerald-600">{formatCurrency(stats?.totalRevenue || 0)}</span>
                       </div>
-                      <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-100">
-                        <span className="font-medium text-slate-700">Monthly Revenue</span>
-                        <span className="font-bold text-lg text-blue-600">{formatCurrency(stats?.monthlyRevenue || 0)}</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <Card className="border-none shadow-xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white overflow-hidden relative group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <Users className="h-24 w-24" />
+                            </div>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium uppercase tracking-wider opacity-80">Total Members</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-4xl font-bold">{stats?.totalMembers ?? "--"}</div>
+                                <div className="mt-4 flex items-center text-xs">
+                                    <div className="bg-white/20 px-2 py-1 rounded-full mr-2">
+                                        {stats?.activeMembers ?? 0} Active
+                                    </div>
+                                    <span className="opacity-60">Across all plans</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-none shadow-xl bg-gradient-to-br from-emerald-600 to-emerald-800 text-white overflow-hidden relative group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <IndianRupee className="h-24 w-24" />
+                            </div>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium uppercase tracking-wider opacity-80">Monthly Revenue</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-4xl font-bold">{formatCurrency(stats?.monthlyRevenue ?? 0)}</div>
+                                <div className="mt-4 flex items-center text-xs">
+                                    <div className="bg-white/20 px-2 py-1 rounded-full mr-2">
+                                        +12.5%
+                                    </div>
+                                    <span className="opacity-60">vs last month</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-none shadow-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white overflow-hidden relative group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <Activity className="h-24 w-24" />
+                            </div>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium uppercase tracking-wider opacity-80">Today's Attendance</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-4xl font-bold">{stats?.attendanceToday ?? "--"}</div>
+                                <div className="mt-4 flex items-center text-xs">
+                                    <div className="bg-white/20 px-2 py-1 rounded-full mr-2">
+                                        {stats?.newMembersThisMonth ?? 0} New
+                                    </div>
+                                    <span className="opacity-60">joiners this month</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-none shadow-xl bg-gradient-to-br from-rose-500 to-rose-700 text-white overflow-hidden relative group">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <UserCog className="h-24 w-24" />
+                            </div>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium uppercase tracking-wider opacity-80">Staff Overview</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-4xl font-bold">{(stats?.totalTrainers || 0) + (stats?.totalFrontdesk || 0) + (stats?.totalManagers || 0)}</div>
+                                <div className="mt-4 flex flex-wrap gap-1">
+                                    <Badge className="bg-white/20 text-[10px] py-0">{stats?.totalTrainers ?? 0} Trainers</Badge>
+                                    <Badge className="bg-white/20 text-[10px] py-0">{stats?.totalFrontdesk ?? 0} Frontdesk</Badge>
+                                </div>
+                            </CardContent>
+                        </Card>
                       </div>
                       <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-100">
                         <span className="font-medium text-slate-700">Active Members</span>

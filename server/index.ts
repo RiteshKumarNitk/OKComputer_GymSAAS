@@ -721,10 +721,17 @@ app.get("/api/reports/dashboard", authenticate, async (req: any, res) => {
             where: { tenantId, createdAt: { gte: firstDayOfMonth } }
         });
 
+        const totalTrainers = await prisma.userProfile.count({ where: { tenantId, role: "trainer" } });
+        const totalFrontdesk = await prisma.userProfile.count({ where: { tenantId, role: "frontdesk" } });
+        const totalManagers = await prisma.userProfile.count({ where: { tenantId, role: "manager" } });
+
         // Structure matches DashboardStats interface accurately
         const responseData = {
             totalMembers,
             activeMembers,
+            totalTrainers,
+            totalFrontdesk,
+            totalManagers,
             totalRevenue,
             monthlyRevenue,
             attendanceToday,
@@ -1197,7 +1204,23 @@ app.post("/api/payments/settle", authenticate, async (req: any, res) => {
             if (invoiceId) {
                 await tx.invoice.update({
                     where: { id: invoiceId },
-                    data: { status: "paid" }
+                    data: { status: "paid", paidAt: new Date(), paymentId: payment.id }
+                });
+            } else {
+                // Generate automated invoice if missing
+                const invoiceNumber = `INV-${Date.now()}`;
+                await tx.invoice.create({
+                    data: {
+                        tenantId,
+                        memberId,
+                        paymentId: payment.id,
+                        invoiceNumber,
+                        subtotalPaise: payment.amountCents,
+                        totalPaise: payment.amountCents,
+                        status: "paid",
+                        paidAt: new Date(),
+                        lineItems: [{ description: "Membership Fee", amountPaise: payment.amountCents }]
+                    }
                 });
             }
 
@@ -1259,6 +1282,18 @@ app.get("/api/staff/me/stats", authenticate, async (req: any, res) => {
     }
 });
 
+app.get("/api/staff/profiles", authenticate, async (req: any, res) => {
+    try {
+        const staff = await prisma.staffProfile.findMany({
+            where: { tenantId: req.tenantId },
+            include: { user: { select: { fullName: true, role: true, email: true, phone: true } } }
+        });
+        res.json(snakeToCamel(staff));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post("/api/staff/profiles", authenticate, async (req: any, res) => {
     try {
         const data = snakeToCamel(req.body);
@@ -1270,6 +1305,99 @@ app.post("/api/staff/profiles", authenticate, async (req: any, res) => {
             }
         });
         res.json(snakeToCamel(staff));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.patch("/api/staff/profiles/:id", authenticate, async (req: any, res) => {
+    try {
+        const data = snakeToCamel(req.body);
+        if (data.joiningDate) data.joiningDate = new Date(data.joiningDate);
+        if (data.resignationDate) data.resignationDate = new Date(data.resignationDate);
+
+        const staff = await prisma.staffProfile.update({
+            where: { id: req.params.id, tenantId: req.tenantId },
+            data
+        });
+        res.json(snakeToCamel(staff));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Leave Management
+app.get("/api/staff/leaves", authenticate, async (req: any, res) => {
+    try {
+        const leaves = await prisma.staffLeave.findMany({
+            where: { tenantId: req.tenantId },
+            include: { staff: { include: { user: { select: { fullName: true } } } } },
+            orderBy: { createdAt: "desc" }
+        });
+        res.json(snakeToCamel(leaves));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post("/api/staff/leaves", authenticate, async (req: any, res) => {
+    try {
+        const data = snakeToCamel(req.body);
+        const leave = await prisma.staffLeave.create({
+            data: {
+                ...data,
+                tenantId: req.tenantId,
+                startDate: new Date(data.startDate),
+                endDate: new Date(data.endDate),
+                status: "pending"
+            }
+        });
+        res.json(snakeToCamel(leave));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.patch("/api/staff/leaves/:id", authenticate, async (req: any, res) => {
+    try {
+        const { status, notes } = req.body;
+        const leave = await prisma.staffLeave.update({
+            where: { id: req.params.id, tenantId: req.tenantId },
+            data: {
+                status,
+                notes,
+                approvedBy: req.userId,
+                approvedAt: status === "approved" ? new Date() : null
+            }
+        });
+        res.json(snakeToCamel(leave));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Invoices Management
+app.get("/api/invoices", authenticate, async (req: any, res) => {
+    try {
+        const invoices = await prisma.invoice.findMany({
+            where: { tenantId: req.tenantId },
+            include: { member: { select: { fullName: true, memberCode: true } } },
+            orderBy: { invoiceDate: "desc" }
+        });
+        res.json(snakeToCamel(invoices));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get("/api/invoices/:id", authenticate, async (req: any, res) => {
+    try {
+        const invoice = await prisma.invoice.findUnique({
+            where: { id: req.params.id, tenantId: req.tenantId },
+            include: { member: true, tenant: true }
+        });
+        if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+        res.json(snakeToCamel(invoice));
     } catch (err: any) {
         res.status(500).json({ error: err.message });
     }
@@ -1328,9 +1456,20 @@ app.get("/api/reports/dashboard", authenticate, async (req: any, res) => {
         if (!tenantId) return res.status(400).json({ error: "Tenant ID required" })
 
         // 1. Total & Active Members
-        const [totalMembers, activeMembers] = await Promise.all([
+        const [totalMembers, activeMembers, totalTrainers, totalFrontdesk, totalManagers, activeLeaves] = await Promise.all([
             prisma.member.count({ where: { tenantId } }),
-            prisma.member.count({ where: { tenantId, status: "active" } })
+            prisma.member.count({ where: { tenantId, status: "active" } }),
+            prisma.userProfile.count({ where: { tenantId, role: "trainer" } }),
+            prisma.userProfile.count({ where: { tenantId, role: "frontdesk" } }),
+            prisma.userProfile.count({ where: { tenantId, role: "manager" } }),
+            prisma.staffLeave.count({ 
+                where: { 
+                    tenantId, 
+                    status: "approved", 
+                    startDate: { lte: new Date() },
+                    endDate: { gte: new Date() }
+                } 
+            })
         ])
 
         // 2. Revenue (from Payments)
@@ -1425,6 +1564,10 @@ app.get("/api/reports/dashboard", authenticate, async (req: any, res) => {
         res.json({
             totalMembers,
             activeMembers,
+            totalTrainers,
+            totalFrontdesk,
+            totalManagers,
+            activeLeaves,
             totalRevenue,
             monthlyRevenue,
             attendanceToday,
