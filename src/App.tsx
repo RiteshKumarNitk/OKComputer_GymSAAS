@@ -25,6 +25,7 @@ import { SettingsPage } from "@/pages/app/SettingsPage"
 import { ProfilePage } from "@/pages/app/ProfilePage"
 import { PlansPage } from "@/pages/app/PlansPage"
 import { InvoicesPage } from "@/pages/app/InvoicesPage"
+import { SaasBillingPage } from "@/pages/app/SaasBillingPage"
 import { UnauthorizedPage } from "@/pages/auth/UnauthorizedPage"
 import { NotFoundPage } from "@/pages/auth/NotFoundPage"
 import { SuperAdminDashboard } from "@/pages/admin/superadmin/Dashboard"
@@ -123,6 +124,7 @@ function App() {
                         <Route path="/reports" element={<ReportsPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
                         <Route path="/invoices" element={<InvoicesPage />} />
+              <Route path="/billing/saas" element={<SaasBillingPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="*" element={<NotFoundPage />} />
                       </Routes>

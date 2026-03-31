@@ -12,7 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { FileText, Download, Eye, Receipt } from "lucide-react"
+import { Download, Eye, Receipt } from "lucide-react"
 import { formatDate, formatCurrency } from "@/lib/utils"
 
 export const InvoicesPage: React.FC = () => {

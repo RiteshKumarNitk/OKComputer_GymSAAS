@@ -342,6 +342,40 @@ const authenticate = (req: any, res: any, next: any) => {
     }
 }
 
+app.post("/api/auth/impersonate", authenticate, async (req: any, res) => {
+    try {
+        if (req.role !== "super_admin") return res.status(403).json({ error: "Only superadmins can impersonate." })
+        
+        const { tenantId } = req.body
+        if (!tenantId) return res.status(400).json({ error: "Tenant ID required." })
+
+        const owner = await prisma.user.findFirst({
+            where: { tenantId, role: "gym_owner" }
+        })
+
+        if (!owner) return res.status(404).json({ error: "Tenant owner not found." })
+
+        const token = jwt.sign(
+            { userId: owner.id, email: owner.email, role: owner.role, tenantId: owner.tenantId },
+            JWT_SECRET,
+            { expiresIn: "7d" }
+        )
+
+        res.json({
+            token,
+            user: {
+                id: owner.id,
+                email: owner.email,
+                role: owner.role,
+                tenantId: owner.tenantId,
+                fullName: owner.fullName
+            }
+        })
+    } catch (err: any) {
+        res.status(500).json({ error: err.message })
+    }
+})
+
 // ==================== GENERIC CRUD HELPER ====================
 
 function createCrudRoutes(
@@ -368,16 +402,31 @@ function createCrudRoutes(
             const allowed = opts?.roles?.list || ["gym_owner", "manager", "frontdesk", "trainer"]
             if (!allowed.includes(req.role)) return res.status(403).json({ error: "Access denied." })
 
-            const where: any = { tenantId: req.tenantId } // Enforce tenant filter
+            const isTenantModel = modelName === "tenant";
+            const isSuperAdmin = req.role === "super_admin";
+            
+            const where: any = {}
+            if (!isSuperAdmin) {
+                if (isTenantModel) {
+                    where.id = req.tenantId
+                } else {
+                    where.tenantId = req.tenantId
+                }
+            }
 
             if (req.query.id) {
+                const queryId = req.query.id as string;
                 const item = await model.findFirst({
-                    where: { id: req.query.id as string, tenantId: req.tenantId },
+                    where: { 
+                        id: queryId, 
+                        ...(isSuperAdmin ? {} : (isTenantModel ? { id: req.tenantId } : { tenantId: req.tenantId }))
+                    },
                     ...(opts?.include ? { include: opts.include } : {})
                 })
                 if (!item) return res.status(404).json({ error: "Item not found" })
                 return res.json(snakeToCamel(item))
             }
+
             if (req.query.search && opts?.searchFields?.length) {
                 where.OR = opts.searchFields.map((f: string) => ({ [f]: { contains: req.query.search as string, mode: "insensitive" } }))
             }
@@ -420,7 +469,12 @@ function createCrudRoutes(
             if (!allowed.includes(req.role)) return res.status(403).json({ error: "Access denied." })
 
             const body = Array.isArray(req.body) ? req.body[0] : req.body
-            const data = { ...snakeToCamel(body), tenantId: req.tenantId } // Enforce tenantId
+            const isTenantModel = modelName === "tenant";
+            
+            const data = { 
+                ...snakeToCamel(body), 
+                ...(isTenantModel ? {} : { tenantId: req.tenantId }) 
+            }
 
             const item = await model.create({ data })
             res.json(snakeToCamel(item))
@@ -439,9 +493,15 @@ function createCrudRoutes(
             const id = req.query.id as string
             if (!id) return res.status(400).json({ error: "ID required" })
 
-            // Use updateMany to safely enforce tenant isolation on UUID queries
+            const isTenantModel = modelName === "tenant";
+            const isSuperAdmin = req.role === "super_admin";
+
+            // Use updateMany to safely enforce tenant isolation
             const result = await model.updateMany({
-                where: { id, tenantId: req.tenantId },
+                where: { 
+                    id, 
+                    ...(isSuperAdmin ? {} : (isTenantModel ? { id: req.tenantId } : { tenantId: req.tenantId }))
+                },
                 data: snakeToCamel(req.body)
             })
 
@@ -465,8 +525,14 @@ function createCrudRoutes(
             const id = req.query.id as string
             if (!id) return res.status(400).json({ error: "ID required" })
 
+            const isTenantModel = modelName === "tenant";
+            const isSuperAdmin = req.role === "super_admin";
+
             const result = await model.deleteMany({
-                where: { id, tenantId: req.tenantId }
+                where: { 
+                    id, 
+                    ...(isSuperAdmin ? {} : (isTenantModel ? { id: req.tenantId } : { tenantId: req.tenantId }))
+                }
             })
 
             if (result.count === 0) {

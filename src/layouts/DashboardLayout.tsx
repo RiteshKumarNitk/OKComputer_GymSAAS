@@ -141,6 +141,12 @@ const navigation: NavItem[] = [
     icon: <Settings className="h-4 w-4" />,
     roles: ["gym_owner"],
   },
+  {
+    title: "Platform Subscription",
+    href: "/billing/saas",
+    icon: <Banknote className="h-4 w-4" />,
+    roles: ["gym_owner"],
+  },
 ]
 
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {

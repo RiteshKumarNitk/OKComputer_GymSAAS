@@ -209,11 +209,12 @@ export const dashboardApi = {
 
 // ========== TENANTS ==========
 export const tenantsApi = {
-    get: (id: string) => request<any>(`/tenants/${id}`),
+    get: (id: string) => request<any>(`/tenants?id=${id}`),
     list: () => request<any[]>("/tenants"),
     create: (data: any) => request<any>("/tenants", { method: "POST", body: JSON.stringify(data) }),
-    update: (id: string, data: any) => request<any>(`/tenants/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-    delete: (id: string) => request<void>(`/tenants/${id}`, { method: "DELETE" }),
+    update: (id: string, data: any) => request<any>(`/tenants?id=${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/tenants?id=${id}`, { method: "DELETE" }),
+    impersonate: (tenantId: string) => request<{ token: string, user: any }>("/auth/impersonate", { method: "POST", body: JSON.stringify({ tenantId }) }),
 }
 
 // ========== USER PROFILES ==========

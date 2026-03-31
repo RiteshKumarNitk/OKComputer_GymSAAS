@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils"
 interface TenantOnboardingWizardProps {
     onComplete: () => void
     onCancel: () => void
+    initialData?: any // Added for Edit Mode
 }
 
 const STEPS = [
@@ -40,36 +41,38 @@ const STEPS = [
     { title: "Review & Pay", icon: CreditCard, desc: "Confirmation" }
 ]
 
-export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ onComplete, onCancel }) => {
+export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ onComplete, onCancel, initialData }) => {
     const { toast } = useToast()
     const queryClient = useQueryClient()
     const [step, setStep] = useState(1)
     const [isLoading, setIsLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [logoFile, setLogoFile] = useState<File | null>(null)
-    const [logoPreview, setLogoPreview] = useState<string | null>(null)
+    const [logoPreview, setLogoPreview] = useState<string | null>(initialData?.logoUrl || null)
     const [ownerPhotoFile, setOwnerPhotoFile] = useState<File | null>(null)
+
+    const isEditMode = !!initialData
 
     // Form State
     const [formData, setFormData] = useState({
         // Identity (CamelCase to match Prisma exactly)
-        name: "",
-        slug: "",
-        businessType: "gym",
-        registeredAddress: "",
+        name: initialData?.name || "",
+        slug: initialData?.slug || "",
+        businessType: initialData?.businessType || "gym",
+        registeredAddress: initialData?.registeredAddress || "",
         
         // Owner
-        ownerName: "",
-        ownerEmail: "",
-        ownerPhone: "",
-        ownerPassword: "",
+        ownerName: initialData?.ownerName || "",
+        ownerEmail: initialData?.ownerEmail || "",
+        ownerPhone: initialData?.ownerPhone || "",
+        ownerPassword: "", // Don't pre-fill password for security
         
         // Billing Config
-        currency: "INR",
-        invoicePrefix: "GYM",
-        paymentGatewayPreference: "cash",
+        currency: initialData?.currency || "INR",
+        invoicePrefix: initialData?.invoicePrefix || "GYM",
+        paymentGatewayPreference: initialData?.paymentGatewayPreference || "cash",
 
-        // Services
+        // Services (Default for new, or empty for edit)
         services: {
             strength: true,
             cardio: true,
@@ -78,11 +81,11 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
             yoga: false,
             mma: false,
         },
-        create_default_plans: true,
+        create_default_plans: !isEditMode,
 
         // Taxation (Mandatory for Indian Gyms)
-        gstNumber: "",
-        panNumber: "",
+        gstNumber: initialData?.gstNumber || "",
+        panNumber: initialData?.panNumber || "",
 
         // Payment
         payment_amount: "9999",
@@ -92,7 +95,7 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
 
     const handleInputChange = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }))
-        if (field === "name") {
+        if (field === "name" && !isEditMode) { // Only auto-gen slug on creation
             const slug = value.toLowerCase().replace(/[^a-z0-9]/g, "-")
             setFormData(prev => ({ ...prev, slug, name: value }))
         }
@@ -121,8 +124,8 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
         setIsLoading(true)
         try {
             // 1. Upload Files
-            let logoUrl = null
-            let ownerPhotoUrl = null
+            let logoUrl = initialData?.logoUrl || null
+            let ownerPhotoUrl = initialData?.ownerPhotoUrl || null
             if (logoFile) {
                 const res = await uploadApi.uploadImage(logoFile)
                 if (res) logoUrl = res.url
@@ -132,98 +135,126 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
                 if (res) ownerPhotoUrl = res.url
             }
 
-            // 2. Create Tenant (Send CLEAN camelCase data)
-            const { data: tenant, error: tenantError } = await tenantsApi.create({
-                name: formData.name,
-                slug: formData.slug,
-                businessType: formData.businessType,
-                registeredAddress: formData.registeredAddress,
-                ownerName: formData.ownerName,
-                ownerEmail: formData.ownerEmail,
-                ownerPhone: formData.ownerPhone,
-                ownerPassword: formData.ownerPassword,
-                currency: formData.currency,
-                invoicePrefix: formData.invoicePrefix,
-                paymentGatewayPreference: formData.paymentGatewayPreference,
-                gstNumber: formData.gstNumber,
-                panNumber: formData.panNumber,
-                logoUrl: logoUrl,
-                ownerPhotoUrl: ownerPhotoUrl,
-                subscriptionStatus: 'active',
-                subscriptionExpiresAt: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-            })
-
-            if (tenantError) throw tenantError
-            if (!tenant) throw new Error("Failed to create tenant")
-
-            // 3. Create Default Branch
-            await branchesApi.create({
-                tenantId: tenant.id,
-                name: "Main Branch",
-                address: formData.registeredAddress,
-                phone: formData.ownerPhone,
-            })
-
-            // 4. Create Services
-            const servicesToCreate = Object.entries(formData.services)
-                .filter(([_, enabled]) => enabled)
-                .map(([name]) => ({
-                    tenantId: tenant.id,
-                    name: name.charAt(0).toUpperCase() + name.slice(1),
-                    type: name === "strength" || name === "cardio" ? "facility" : "class",
-                    description: `Standard ${name} access`,
-                }))
-
-            for (const service of servicesToCreate) {
-                await servicesApi.create(service)
-            }
-
-            // 5. Create Default Subscription Plan
-            if (formData.create_default_plans) {
-                await membershipsApi.create({
-                    name: "SaaS Subscription (Standard)", 
-                    durationDays: 365, 
-                    priceCents: parseInt(formData.payment_amount) * 100,
-                    tenantId: tenant.id,
-                    currency: formData.currency,
-                    isActive: true,
-                })
-            }
-
-            // 6. Generate Invoice
-            const amountCents = Math.round(parseFloat(formData.payment_amount) * 100)
-            const invoiceNumber = `${formData.invoicePrefix}-${Date.now().toString().slice(-6)}`
-
-            if (amountCents > 0) {
-                await billingApi.createInvoice({
-                    tenantId: tenant.id,
-                    invoiceNumber: invoiceNumber,
-                    amountInr: parseFloat(formData.payment_amount),
-                    status: 'paid',
-                    paymentDate: new Date(formData.payment_date).toISOString(),
-                })
-
-                generateInvoicePDF({
-                    invoiceNumber: invoiceNumber,
-                    date: new Date(formData.payment_date),
-                    items: [{ description: "Platform Onboarding & 1 Year SaaS Subscription", amount: amountCents }],
-                    totalAmount: amountCents,
-                    currency: formData.currency,
-                    paymentMethod: formData.payment_method,
-                    status: 'paid'
-                }, {
+            if (isEditMode) {
+                // UPDATE MODE
+                const updateData: any = {
                     name: formData.name,
+                    businessType: formData.businessType,
+                    registeredAddress: formData.registeredAddress,
                     ownerName: formData.ownerName,
-                    email: formData.ownerEmail,
+                    ownerEmail: formData.ownerEmail,
+                    ownerPhone: formData.ownerPhone,
+                    currency: formData.currency,
+                    invoicePrefix: formData.invoicePrefix,
+                    paymentGatewayPreference: formData.paymentGatewayPreference,
+                    gstNumber: formData.gstNumber,
+                    panNumber: formData.panNumber,
+                    logoUrl: logoUrl,
+                    ownerPhotoUrl: ownerPhotoUrl,
+                }
+                
+                if (formData.ownerPassword) {
+                    updateData.ownerPassword = formData.ownerPassword
+                }
+
+                const { error } = await tenantsApi.update(initialData.id, updateData)
+                if (error) throw error
+
+                toast({ title: "Profile Updated", description: `Changes for ${formData.name} saved successfully.` })
+            } else {
+                // CREATE MODE (Original logic)
+                const { data: tenant, error: tenantError } = await tenantsApi.create({
+                    name: formData.name,
+                    slug: formData.slug,
+                    businessType: formData.businessType,
+                    registeredAddress: formData.registeredAddress,
+                    ownerName: formData.ownerName,
+                    ownerEmail: formData.ownerEmail,
+                    ownerPhone: formData.ownerPhone,
+                    ownerPassword: formData.ownerPassword,
+                    currency: formData.currency,
+                    invoicePrefix: formData.invoicePrefix,
+                    paymentGatewayPreference: formData.paymentGatewayPreference,
+                    gstNumber: formData.gstNumber,
+                    panNumber: formData.panNumber,
+                    logoUrl: logoUrl,
+                    ownerPhotoUrl: ownerPhotoUrl,
+                    subscriptionStatus: 'active',
+                    subscriptionExpiresAt: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
+                })
+
+                if (tenantError) throw tenantError
+                if (!tenant) throw new Error("Failed to create tenant")
+
+                // 3. Create Default Branch
+                await branchesApi.create({
+                    tenantId: tenant.id,
+                    name: "Main Branch",
+                    address: formData.registeredAddress,
                     phone: formData.ownerPhone,
-                    address: formData.registeredAddress
+                })
+
+                // 4. Create Services
+                const servicesToCreate = Object.entries(formData.services)
+                    .filter(([_, enabled]) => enabled)
+                    .map(([name]) => ({
+                        tenantId: tenant.id,
+                        name: name.charAt(0).toUpperCase() + name.slice(1),
+                        type: name === "strength" || name === "cardio" ? "facility" : "class",
+                        description: `Standard ${name} access`,
+                    }))
+
+                for (const service of servicesToCreate) {
+                    await servicesApi.create(service)
+                }
+
+                // 5. Create Default Subscription Plan
+                if (formData.create_default_plans) {
+                    await membershipsApi.create({
+                        name: "SaaS Subscription (Standard)", 
+                        durationDays: 365, 
+                        priceCents: parseInt(formData.payment_amount) * 100,
+                        tenantId: tenant.id,
+                        currency: formData.currency,
+                        isActive: true,
+                    })
+                }
+
+                // 6. Generate Invoice
+                const amountCents = Math.round(parseFloat(formData.payment_amount) * 100)
+                const invoiceNumber = `${formData.invoicePrefix}-${Date.now().toString().slice(-6)}`
+
+                if (amountCents > 0) {
+                    await billingApi.createInvoice({
+                        tenantId: tenant.id,
+                        invoiceNumber: invoiceNumber,
+                        amountInr: parseFloat(formData.payment_amount),
+                        status: 'paid',
+                        paymentDate: new Date(formData.payment_date).toISOString(),
+                    })
+
+                    generateInvoicePDF({
+                        invoiceNumber: invoiceNumber,
+                        date: new Date(formData.payment_date),
+                        items: [{ description: "Platform Onboarding & 1 Year SaaS Subscription", amount: amountCents }],
+                        totalAmount: amountCents,
+                        currency: formData.currency,
+                        paymentMethod: formData.payment_method,
+                        status: 'paid'
+                    }, {
+                        name: formData.name,
+                        ownerName: formData.ownerName,
+                        email: formData.ownerEmail,
+                        phone: formData.ownerPhone,
+                        address: formData.registeredAddress
+                    })
+                }
+
+                toast({ 
+                    title: "Platform Launch Successful!", 
+                    description: `Created account for ${formData.ownerEmail}. Account is now fully functional.`,
                 })
             }
-
-            toast({ 
-                title: "Platform Launch Successful!", 
-                description: `Created account for ${formData.ownerEmail}. Account is now fully functional.`,
-            })
             queryClient.invalidateQueries({ queryKey: ["tenants"] })
             onComplete()
 
@@ -284,13 +315,13 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
                     <CardHeader className="pt-10 px-8 pb-4">
                         <div className="flex items-center gap-2 text-indigo-600 mb-1">
                             <Sparkles className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-widest">Gym SaaS Onboarding</span>
+                            <span className="text-xs font-bold uppercase tracking-widest">{isEditMode ? "Gym Profile Update" : "Gym SaaS Onboarding"}</span>
                         </div>
                         <CardTitle className="text-3xl font-extrabold text-slate-900 leading-tight">
-                            {STEPS[step-1].title}
+                            {isEditMode && step === 3 ? "Manage Features" : STEPS[step-1].title}
                         </CardTitle>
                         <CardDescription className="text-slate-500">
-                            {STEPS[step-1].desc}
+                            {isEditMode && step === 3 ? "Enable or disable platform features for this gym." : STEPS[step-1].desc}
                         </CardDescription>
                     </CardHeader>
 
@@ -555,12 +586,12 @@ export const TenantOnboardingWizard: React.FC<TenantOnboardingWizardProps> = ({ 
                                     {isLoading ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Go Live...
+                                            {isEditMode ? "Saving..." : "Go Live..."}
                                         </>
                                     ) : (
                                         <>
                                             <Sparkles className="mr-2 h-4 w-4" />
-                                            Launch Platform & Send Invoice
+                                            {isEditMode ? "Update & Save Profile" : "Launch Platform & Send Invoice"}
                                         </>
                                     )}
                                 </Button>

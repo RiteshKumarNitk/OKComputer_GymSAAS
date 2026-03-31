@@ -10,9 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
-import { UserCog, Plus, Calendar, Clock, Briefcase, FileText } from "lucide-react"
+import { UserCog, Plus, Calendar, Clock, Briefcase } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { formatDate, formatCurrency } from "@/lib/utils"
+import { formatDate } from "@/lib/utils"
 
 export const StaffPage: React.FC = () => {
     const { user, signUp } = useAuth()
@@ -33,7 +33,7 @@ export const StaffPage: React.FC = () => {
     const [editSalary, setEditSalary] = useState("0")
 
     // Fetch Staff using profiles API
-    const { data: staffProfiles, isLoading: profilesLoading } = useQuery({
+    const { data: staffProfiles } = useQuery({
         queryKey: ["staff-profiles", user?.tenant_id],
         queryFn: async () => {
              const token = localStorage.getItem("gym_token")
@@ -138,21 +138,6 @@ export const StaffPage: React.FC = () => {
         },
          onError: (err: any) => {
              toast({ title: "Error", description: err.message || "Update failed", variant: "destructive" })
-        }
-    })
-
-    const deactivateStaffMutation = useMutation({
-        mutationFn: async (id: string) => {
-            const token = localStorage.getItem("gym_token")
-            await fetch(`/api/users/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify({ isActive: false })
-            })
-        },
-        onSuccess: () => {
-             queryClient.invalidateQueries({ queryKey: ["staff"] })
-             toast({ title: "Deactivated", description: "Account disabled" })
         }
     })
 

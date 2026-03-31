@@ -31,6 +31,7 @@ import { formatDate } from "@/lib/utils"
 
 export const SuperAdminTenants: React.FC = () => {
     const [isWizardOpen, setIsWizardOpen] = useState(false)
+    const [editingTenant, setEditingTenant] = useState<any | null>(null)
     const [searchTerm, setSearchTerm] = useState("")
     const queryClient = useQueryClient()
     const { toast } = useToast()
@@ -44,18 +45,56 @@ export const SuperAdminTenants: React.FC = () => {
         },
     })
 
-    const deleteMutation = useMutation({
-        mutationFn: tenantsApi.delete,
+    const updateTenantMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => tenantsApi.update(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["tenants"] })
-            toast({ title: "Tenant Deleted", description: "Successfully removed from platform." })
+            toast({ title: "Tenant Updated", description: "Changes saved successfully." })
+        }
+    })
+
+    const impersonateMutation = useMutation({
+        mutationFn: tenantsApi.impersonate,
+        onSuccess: (res) => {
+            if (res.data) {
+                const { token, user } = res.data
+                localStorage.setItem("gym_token", token)
+                localStorage.setItem("gym_user", JSON.stringify({
+                    id: user.id,
+                    email: user.email,
+                    role: user.role,
+                    tenant_id: user.tenantId,
+                    full_name: user.fullName
+                }))
+                toast({ title: "Impersonation Active", description: `Acting as ${user.fullName}. Redirecting...` })
+                setTimeout(() => {
+                    window.location.href = "/dashboard"
+                }, 1000)
+            }
         }
     })
 
     const filteredTenants = tenants?.filter((t: any) => 
         t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        t.owner_email.toLowerCase().includes(searchTerm.toLowerCase())
+        (t.ownerEmail && t.ownerEmail.toLowerCase().includes(searchTerm.toLowerCase()))
     )
+
+    const handleImpersonate = (tenantId: string) => {
+        impersonateMutation.mutate(tenantId)
+    }
+
+    const handleToggleStatus = (tenant: any) => {
+        const newStatus = tenant.status === 'active' ? 'suspended' : 'active'
+        updateTenantMutation.mutate({ 
+            id: tenant.id, 
+            data: { status: newStatus, subscriptionStatus: newStatus } 
+        })
+    }
+
+    const handleEditProfile = (tenant: any) => {
+        setEditingTenant(tenant)
+        setIsWizardOpen(true)
+    }
 
     return (
         <div className="space-y-6">
@@ -64,7 +103,10 @@ export const SuperAdminTenants: React.FC = () => {
                     <h1 className="text-3xl font-bold tracking-tight">Tenants (Gyms)</h1>
                     <p className="text-muted-foreground">Manage all gym businesses on your platform.</p>
                 </div>
-                <Button onClick={() => setIsWizardOpen(true)}>
+                <Button onClick={() => {
+                    setEditingTenant(null)
+                    setIsWizardOpen(true)
+                }}>
                     <Building className="mr-2 h-4 w-4" />
                     Onboard New Gym
                 </Button>
@@ -73,15 +115,23 @@ export const SuperAdminTenants: React.FC = () => {
             {isWizardOpen ? (
                 <div className="bg-white rounded-xl border p-6 shadow-sm">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-semibold">Tenant Onboarding Wizard</h2>
-                        <Button variant="ghost" size="sm" onClick={() => setIsWizardOpen(false)}>Cancel</Button>
+                        <h2 className="text-xl font-semibold">{editingTenant ? "Edit Gym Profile" : "Tenant Onboarding Wizard"}</h2>
+                        <Button variant="ghost" size="sm" onClick={() => {
+                            setIsWizardOpen(false)
+                            setEditingTenant(null)
+                        }}>Cancel</Button>
                     </div>
                     <TenantOnboardingWizard 
+                        initialData={editingTenant}
                         onComplete={() => {
                             setIsWizardOpen(false)
+                            setEditingTenant(null)
                             queryClient.invalidateQueries({ queryKey: ["tenants"] })
                         }}
-                        onCancel={() => setIsWizardOpen(false)}
+                        onCancel={() => {
+                            setIsWizardOpen(false)
+                            setEditingTenant(null)
+                        }}
                     />
                 </div>
             ) : (
@@ -133,31 +183,31 @@ export const SuperAdminTenants: React.FC = () => {
                                         <TableRow key={tenant.id} className="group">
                                             <TableCell>
                                                 <div className="flex items-center space-x-3">
-                                                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
-                                                        {tenant.logo_url ? <img src={tenant.logo_url} className="w-full h-full object-cover" /> : <Building className="h-5 w-5 text-slate-400" />}
+                                                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border">
+                                                        {tenant.logoUrl ? <img src={tenant.logoUrl} className="w-full h-full object-cover" /> : <Building className="h-5 w-5 text-slate-400" />}
                                                     </div>
                                                     <div>
                                                         <p className="font-semibold text-slate-900">{tenant.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{tenant.owner_email}</p>
+                                                        <p className="text-xs text-muted-foreground">{tenant.ownerEmail || 'No email'}</p>
                                                     </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <p className="text-sm">{tenant.registered_address ? tenant.registered_address.split(',').pop() : "India"}</p>
+                                                <p className="text-sm">{tenant.registeredAddress ? tenant.registeredAddress.split(',').pop() : "India"}</p>
                                                 <p className="text-xs text-muted-foreground">Pan-India</p>
                                             </TableCell>
                                             <TableCell>
                                                 <Badge 
-                                                    variant={tenant.subscription_status === 'active' ? 'default' : 'secondary'}
-                                                    className={tenant.subscription_status === 'active' ? 'bg-emerald-500' : ''}
+                                                    variant={tenant.subscriptionStatus === 'active' || tenant.status === 'active' ? 'default' : 'secondary'}
+                                                    className={tenant.subscriptionStatus === 'active' || tenant.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200'}
                                                 >
-                                                    {tenant.subscription_status}
+                                                    {tenant.subscriptionStatus || tenant.status || 'inactive'}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center text-xs">
-                                                        <span className="w-16">Members:</span>
+                                                        <span className="w-16 text-muted-foreground">Members:</span>
                                                         <span className="font-bold">128</span>
                                                     </div>
                                                     <div className="flex items-center text-xs text-muted-foreground">
@@ -167,8 +217,8 @@ export const SuperAdminTenants: React.FC = () => {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <p className="text-sm">{tenant.subscription_expires_at ? formatDate(tenant.subscription_expires_at) : "N/A"}</p>
-                                                {tenant.subscription_expires_at && new Date(tenant.subscription_expires_at) < new Date() && (
+                                                <p className="text-sm">{tenant.subscriptionExpiresAt ? formatDate(tenant.subscriptionExpiresAt) : "N/A"}</p>
+                                                {tenant.subscriptionExpiresAt && new Date(tenant.subscriptionExpiresAt) < new Date() && (
                                                     <span className="text-[10px] text-rose-500 font-bold">EXPIRED</span>
                                                 )}
                                             </TableCell>
@@ -181,37 +231,37 @@ export const SuperAdminTenants: React.FC = () => {
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
                                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                        <DropdownMenuItem onClick={() => window.open(`/dashboard?tenant=${tenant.id}`, '_blank')}>
+                                                        <DropdownMenuItem onClick={() => handleImpersonate(tenant.id)}>
                                                             <ExternalLink className="mr-2 h-4 w-4" />
                                                             Impersonate (Live)
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEditProfile(tenant)}>
                                                             <Edit3 className="mr-2 h-4 w-4" />
                                                             Edit Profile
                                                         </DropdownMenuItem>
-                                                        {tenant.subscription_status === 'active' ? (
-                                                            <DropdownMenuItem className="text-orange-600">
+                                                        {tenant.status === 'active' ? (
+                                                            <DropdownMenuItem className="text-orange-600" onClick={() => handleToggleStatus(tenant)}>
                                                                 <PauseCircle className="mr-2 h-4 w-4" />
                                                                 Suspend Gym
                                                             </DropdownMenuItem>
                                                         ) : (
-                                                            <DropdownMenuItem className="text-emerald-600">
+                                                            <DropdownMenuItem className="text-emerald-600" onClick={() => handleToggleStatus(tenant)}>
                                                                 <PlayCircle className="mr-2 h-4 w-4" />
                                                                 Activate Gym
                                                             </DropdownMenuItem>
                                                         )}
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem 
-                                                            className="text-destructive"
+                                                            className="text-destructive font-medium"
                                                             onClick={() => {
-                                                                if(confirm("Are you sure? This delete the entire gym data branch, members, everything!")) {
-                                                                    deleteMutation.mutate(tenant.id)
+                                                                if(confirm("Are you sure you want to disable this gym? It will no longer be accessible by the owner or members.")) {
+                                                                    handleToggleStatus(tenant)
                                                                 }
                                                             }}
                                                         >
                                                             <Trash2 className="mr-2 h-4 w-4" />
-                                                            Delete Forever
+                                                            Disable Gym
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>

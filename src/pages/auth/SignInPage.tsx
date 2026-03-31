@@ -53,7 +53,7 @@ export const SignInPage: React.FC = () => {
           return
         }
         if (user.role === "super_admin") {
-          navigate("/admin", { replace: true })
+          navigate("/super-admin", { replace: true })
           return
         }
       }
