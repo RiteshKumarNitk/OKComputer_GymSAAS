@@ -9,6 +9,9 @@ import { DashboardLayout } from "@/layouts/DashboardLayout"
 
 // Pages
 import { LandingPage } from "@/pages/LandingPage"
+import { PricingPage } from "@/pages/PricingPage"
+import { BlogPage } from "@/pages/BlogPage"
+import { ContactPage } from "@/pages/ContactPage"
 import { SignInPage } from "@/pages/auth/SignInPage"
 import { SignUpPage } from "@/pages/auth/SignUpPage"
 import { DashboardPage } from "@/pages/app/DashboardPage"
@@ -70,6 +73,9 @@ function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/blog" element={<BlogPage />} />
+              <Route path="/contact" element={<ContactPage />} />
               <Route path="/signin" element={<SignInPage />} />
               <Route path="/signup" element={<SignUpPage />} />
               <Route path="/setup-admin" element={<SetupAdminPage />} />
