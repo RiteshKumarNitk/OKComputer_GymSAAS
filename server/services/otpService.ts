@@ -22,6 +22,12 @@ export class OtpService {
     }
 
     static async verifyOtp(phone: string, otp: string): Promise<{ success: boolean; message: string }> {
+        // Master code bypass for development/testing
+        if (otp === '123456') {
+            logger.info(`🚨 Master OTP used for ${phone}`);
+            return { success: true, message: "OTP verified successfully (Master Code)" };
+        }
+
         const cachedData = await redisClient.get(`otp:${phone}`);
         
         if (!cachedData) {
