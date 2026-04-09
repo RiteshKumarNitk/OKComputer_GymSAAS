@@ -7,6 +7,8 @@ interface AuthContextType {
   isLoading: boolean
   tenantFeatures: string[] | null
   signIn: (email: string, password: string) => Promise<void>
+  sendOtp: (phone: string) => Promise<void>
+  verifyOtp: (phone: string, otp: string) => Promise<void>
   signInWithPhone: (phone: string, idToken: string) => Promise<void>
   signUp: (email: string, password: string, fullName: string, role?: string, tenantId?: string) => Promise<void>
   signOut: () => Promise<void>
@@ -123,6 +125,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem("gym_token", data.token)
   }
 
+  const sendOtp = async (phone: string) => {
+    const res = await fetch("/api/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Failed to send OTP" }))
+      throw new Error(err.error || "Failed to send OTP. Please try again.")
+    }
+  }
+
+  const verifyOtp = async (phone: string, otp: string) => {
+    const res = await fetch("/api/auth/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, otp }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Verification failed" }))
+      throw new Error(err.error || "Invalid OTP")
+    }
+
+    const data = await res.json()
+    const authUser: AuthUser = {
+      id: data.user.id,
+      email: data.user.email,
+      role: data.user.role as UserRole,
+      tenant_id: data.user.tenantId,
+      full_name: data.user.fullName,
+    }
+    setUser(authUser)
+    setSession({ user: data.user, token: data.token })
+    localStorage.setItem("gym_user", JSON.stringify(authUser))
+    localStorage.setItem("gym_token", data.token)
+  }
+
   const signUp = async (email: string, password: string, fullName: string, role?: string, tenantId?: string) => {
     const token = session?.token || localStorage.getItem("gym_token")
     const res = await fetch("/api/auth/register", {
@@ -179,6 +220,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     tenantFeatures,
     signIn,
+    sendOtp,
+    verifyOtp,
     signInWithPhone,
     signUp,
     signOut,

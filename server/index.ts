@@ -8,6 +8,8 @@ import dotenv from "dotenv"
 import admin from "firebase-admin"
 import { v2 as cloudinary } from "cloudinary"
 import multer from "multer"
+import authRoutes from "./routes/authRoutes.js"
+import { errorMiddleware } from "./middleware/errorMiddleware.js"
 
 dotenv.config()
 
@@ -38,6 +40,9 @@ app.use(cors({
     allowedHeaders: ["Content-Type", "Authorization", "x-tenant-id"]
 }))
 app.use(express.json())
+
+// Authentication Routes
+app.use("/api/auth", authRoutes)
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "gym-saas-secret-key"
 
@@ -2245,6 +2250,8 @@ if (process.env.NODE_ENV !== "production") {
         console.log(`✅ API server running on http://localhost:${PORT}`)
     })
 }
+
+app.use(errorMiddleware)
 
 export default app;
 

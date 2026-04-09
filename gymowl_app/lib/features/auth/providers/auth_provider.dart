@@ -56,59 +56,66 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> verifyPhoneNumber(String phone) async {
-    debugPrint('DEBUG: verifyPhoneNumber starting for $phone');
-    state = AuthState(isLoading: true);
+    debugPrint('DEBUG: Calling WhatsApp OTP service for $phone');
+    state = AuthState(isLoading: true, phone: phone);
     try {
-      const generatedOtp = '123456'; // Static or random
-      debugPrint('DEBUG: Setting MOCK_VERIFICATION_ID');
-      state = state.copyWith(
-        isLoading: false,
-        verificationId: 'MOCK_VERIFICATION_ID',
-        mockOtp: generatedOtp,
-        phone: phone,
-      );
+      final response = await _apiClient.dio.post('/auth/send-otp', data: {
+        'phone': phone,
+      });
+
+      if (response.statusCode == 200) {
+        state = state.copyWith(
+          isLoading: false,
+          verificationId: 'LIVE_WHATSAPP_ID', // Marker for OTP screen
+          error: null,
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false, 
+          error: response.data['error'] ?? 'Failed to send OTP'
+        );
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      debugPrint('ERROR: send-otp failed: $e');
+      state = state.copyWith(isLoading: false, error: 'Connection error. Please try again.');
     }
   }
 
   Future<void> submitOtp(String smsCode) async {
-    if (state.verificationId == null) {
-      state = state.copyWith(error: 'Verification ID missing');
+    if (state.phone == null) {
+      state = state.copyWith(error: 'Phone number missing');
       return;
     }
+    
     state = state.copyWith(isLoading: true, error: null);
     try {
-      if (state.verificationId == 'MOCK_VERIFICATION_ID') {
-        if (smsCode == state.mockOtp) {
-          final response = await _apiClient.dio.post('/auth/phone', data: {
-            'idToken': 'TEST_BYPASS',
-            'phone': state.phone,
-          });
+      final response = await _apiClient.dio.post('/auth/verify-otp', data: {
+        'phone': state.phone,
+        'otp': smsCode,
+      });
 
-          if (response.statusCode == 200) {
-            final data = response.data;
-            final token = data['token'];
-            final userJson = data['user'];
-            final authUser = AuthUser.fromJson(userJson);
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final token = data['token'];
+        final userJson = data['user'];
+        final authUser = AuthUser.fromJson(userJson);
 
-            await _storage.saveAuthData(
-              token: token,
-              role: authUser.role,
-              tenantId: authUser.tenantId ?? '',
-            );
+        await _storage.saveAuthData(
+          token: token,
+          role: authUser.role,
+          tenantId: authUser.tenantId ?? '',
+        );
 
-            state = state.copyWith(isLoading: false, user: authUser);
-          } else {
-            state = state.copyWith(isLoading: false, error: 'Login failed');
-          }
-        } else {
-          state = state.copyWith(isLoading: false, error: 'Invalid OTP');
-        }
-        return;
+        state = state.copyWith(isLoading: false, user: authUser);
+      } else {
+        state = state.copyWith(
+          isLoading: false, 
+          error: response.data['error'] ?? 'Invalid OTP'
+        );
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      debugPrint('ERROR: verify-otp failed: $e');
+      state = state.copyWith(isLoading: false, error: 'Verification failed. Try again.');
     }
   }
 

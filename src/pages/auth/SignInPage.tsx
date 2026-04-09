@@ -20,7 +20,7 @@ export const SignInPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { signIn, signInWithPhone } = useAuth()
+  const { signIn, sendOtp, verifyOtp } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -34,11 +34,12 @@ export const SignInPage: React.FC = () => {
     try {
       if (isPhoneLogin) {
         if (!otpSent) {
+          await sendOtp(phone)
           setOtpSent(true)
           setIsLoading(false)
           return
         } else {
-          await signInWithPhone(phone, "TEST_BYPASS")
+          await verifyOtp(phone, otp)
         }
       } else {
         await signIn(email, password)
@@ -152,9 +153,6 @@ export const SignInPage: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <Alert className="bg-blue-950/50 border-blue-500/30 text-blue-200">
-                    <AlertDescription>Use static OTP: 123456 for testing</AlertDescription>
-                  </Alert>
                   <div className="space-y-2 mt-2">
                     <Label htmlFor="otp" className="text-slate-300">OTP Code</Label>
                     <Input

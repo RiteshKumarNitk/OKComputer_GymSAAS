@@ -127,33 +127,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                       ),
                       const SizedBox(height: 48),
 
-                      if (authState.mockOtp != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.info_outline, color: Colors.black87),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Mock OTP: ${authState.mockOtp}',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
                       TextFormField(
                         controller: _otpController,
                         decoration: const InputDecoration(
@@ -198,20 +171,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                         ),
                       
                       const SizedBox(height: 24),
-                      
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            _otpController.text = authState.mockOtp ?? '123456';
-                            _submit();
-                          },
-                          style: TextButton.styleFrom(foregroundColor: Colors.grey.shade600),
-                          child: const Text(
-                            'Auto-fill Test OTP',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
