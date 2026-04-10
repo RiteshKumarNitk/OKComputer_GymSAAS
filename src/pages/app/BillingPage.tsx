@@ -60,13 +60,13 @@ export const BillingPage: React.FC = () => {
 
   // Fetch Expenses
   const { data: expenses } = useQuery({
-    queryKey: ["expenses", user?.tenant_id],
+    queryKey: ["expenses", user?.tenantId],
     queryFn: async () => {
-      const response = await expensesApi.list(user?.tenant_id || "")
+      const response = await expensesApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as Expense[]
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Add Expense Mutation
@@ -97,13 +97,13 @@ export const BillingPage: React.FC = () => {
 
   // Fetch Recent Payments (Income)
   const { data: payments } = useQuery({
-    queryKey: ["recent-payments", user?.tenant_id],
+    queryKey: ["recent-payments", user?.tenantId],
     queryFn: async () => {
-      const response = await paymentsApi.list(user?.tenant_id || "", undefined, "paid")
+      const response = await paymentsApi.list(user?.tenantId || "", undefined, "paid")
       if (response.error) throw response.error
       return response.data || []
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   const handleAddExpense = (e: React.FormEvent<HTMLFormElement>) => {

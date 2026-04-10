@@ -63,22 +63,22 @@ export const MembersPage: React.FC = () => {
   const { data: members, isLoading } = useQuery({
     queryKey: ["members", searchQuery, statusFilter],
     queryFn: async () => {
-      const response = await membersApi.list(user?.tenant_id || "", searchQuery, statusFilter)
+      const response = await membersApi.list(user?.tenantId || "", searchQuery, statusFilter)
       if (response.error) throw response.error
       return response.data as Member[]
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Fetch memberships for form
   const { data: memberships } = useQuery({
-    queryKey: ["memberships", user?.tenant_id],
+    queryKey: ["memberships", user?.tenantId],
     queryFn: async () => {
-      const response = await membershipsApi.list(user?.tenant_id || "")
+      const response = await membershipsApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as Membership[]
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Delete member mutation
@@ -135,13 +135,13 @@ export const MembersPage: React.FC = () => {
     const csvContent = [
       ["Member Code", "Name", "Email", "Phone", "Status", "Membership", "Joined Date"],
       ...members.map((member) => [
-        member.memberCode ?? member.member_code,
-        member.fullName ?? member.full_name,
+        member.memberCode ?? member.memberCode,
+        member.fullName ?? member.fullName,
         member.email || "",
         member.phone || "",
         member.status,
         member.currentPlan?.name || "No Plan",
-        formatDate(member.joinedAt ?? member.joined_at),
+        formatDate(member.joinedAt ?? member.joinedAt),
       ]),
     ]
       .map((row) => row.join(","))
@@ -249,15 +249,15 @@ export const MembersPage: React.FC = () => {
                   <TableBody>
                     {members?.map((member) => (
                       <TableRow key={member.id}>
-                        <TableCell className="font-medium">{member.memberCode ?? member.member_code}</TableCell>
-                        <TableCell>{member.fullName ?? member.full_name}</TableCell>
+                        <TableCell className="font-medium">{member.memberCode ?? member.memberCode}</TableCell>
+                        <TableCell>{member.fullName ?? member.fullName}</TableCell>
                         <TableCell>{member.email}</TableCell>
                         <TableCell>{member.phone}</TableCell>
                         <TableCell>
-                          {member.currentPlan?.name ?? "No Plan"}
+                          {member.currentPlan?.name || "No Plan"}
                           {member.currentPlan && (
                             <div className="text-xs text-muted-foreground">
-                              {formatCurrency(member.currentPlan.priceCents ?? member.currentPlan.price_cents ?? 0, member.currentPlan.currency || "INR")} / {member.currentPlan.durationDays ?? member.currentPlan.duration_days ?? 0} days
+                              {formatCurrency(member.currentPlan?.priceCents ?? 0, member.currentPlan?.currency || "INR")} / {member.currentPlan?.durationDays ?? 0} days
                             </div>
                           )}
                         </TableCell>
@@ -266,7 +266,7 @@ export const MembersPage: React.FC = () => {
                             {member.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{formatDate(member.joinedAt ?? member.joined_at)}</TableCell>
+                        <TableCell>{formatDate(member.joinedAt ?? member.joinedAt)}</TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -386,7 +386,7 @@ export const MembersPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {memberToDelete?.full_name}? This action cannot be undone.
+              Are you sure you want to delete {memberToDelete?.fullName}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

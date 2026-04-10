@@ -156,13 +156,13 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   const navigate = useNavigate()
 
   const { data: tenant } = useQuery({
-    queryKey: ["tenant", user?.tenant_id],
+    queryKey: ["tenant", user?.tenantId],
     queryFn: async () => {
-      const response = await tenantsApi.get(user?.tenant_id || "")
+      const response = await tenantsApi.get(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data
     },
-    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+    enabled: !!user?.tenantId && user?.role !== "super_admin",
   })
 
   const filteredNavigation = navigation.filter((item) => {
@@ -273,11 +273,11 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="w-full justify-start">
                   <Avatar className="h-8 w-8 mr-2">
-                    <AvatarImage src={user?.full_name || undefined} />
-                    <AvatarFallback>{getInitials(user?.full_name || null)}</AvatarFallback>
+                    <AvatarImage src={user?.fullName || undefined} />
+                    <AvatarFallback>{getInitials(user?.fullName || null)}</AvatarFallback>
                   </Avatar>
                   <div className="text-left">
-                    <p className="text-sm font-medium">{user?.full_name || "User"}</p>
+                    <p className="text-sm font-medium">{user?.fullName || "User"}</p>
                     <p className="text-xs text-muted-foreground capitalize">
                       {user?.role.replace("_", " ")}
                     </p>
@@ -334,7 +334,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             {user?.role !== "super_admin" && (
                 <div className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 rounded-full border border-indigo-100 dark:border-indigo-900">
                     <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-400">
-                         {tenant?.gymName || tenant?.name || (user?.tenant_id ? "Loading..." : "My Gym")} 
+                         {tenant?.gymName || tenant?.name || (user?.tenantId ? "Loading..." : "My Gym")} 
                     </span>
                 </div>
             )}

@@ -25,9 +25,9 @@ export const PlanForm: React.FC<PlanFormProps> = ({
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    price_cents: 0,
-    duration_days: 30,
-    is_active: true,
+    priceCents: 0,
+    durationDays: 30,
+    isActive: true,
   })
 
   useEffect(() => {
@@ -35,22 +35,22 @@ export const PlanForm: React.FC<PlanFormProps> = ({
       setFormData({
         name: plan.name || "",
         description: plan.description || "",
-        price_cents: plan.priceCents ?? plan.price_cents ?? 0,
-        duration_days: plan.durationDays ?? plan.duration_days ?? 30,
-        is_active: plan.isActive ?? plan.is_active ?? true,
+        priceCents: plan.priceCents ?? plan.priceCents ?? 0,
+        durationDays: plan.durationDays ?? plan.durationDays ?? 30,
+        isActive: plan.isActive ?? plan.isActive ?? true,
       })
     }
   }, [plan])
 
   const planMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      if (!user?.tenant_id) throw new Error("Tenant ID is missing")
+      if (!user?.tenantId) throw new Error("Tenant ID is missing")
 
       const payload = {
         ...data,
-        tenant_id: user.tenant_id,
+        tenantId: user.tenantId,
         // Ensure price is integer
-        price_cents: Math.round(data.price_cents),
+        priceCents: Math.round(data.priceCents),
         currency: "INR", // Default required by Prisma
       }
 
@@ -98,13 +98,13 @@ export const PlanForm: React.FC<PlanFormProps> = ({
           <Input
             id="price"
             type="number"
-            value={formData.price_cents / 100}
-            onChange={(e) => handleInputChange("price_cents", Math.round(parseFloat(e.target.value || "0") * 100))}
+            value={formData.priceCents / 100}
+            onChange={(e) => handleInputChange("priceCents", Math.round(parseFloat(e.target.value || "0") * 100))}
             min="0"
             step="0.01"
             required
           />
-          <p className="text-xs text-muted-foreground">Stored internally as {formData.price_cents} paise</p>
+          <p className="text-xs text-muted-foreground">Stored internally as {formData.priceCents} paise</p>
         </div>
 
         <div className="space-y-2">
@@ -112,8 +112,8 @@ export const PlanForm: React.FC<PlanFormProps> = ({
           <Input
             id="duration"
             type="number"
-            value={formData.duration_days}
-            onChange={(e) => handleInputChange("duration_days", parseInt(e.target.value || "30"))}
+            value={formData.durationDays}
+            onChange={(e) => handleInputChange("durationDays", parseInt(e.target.value || "30"))}
             min="1"
             required
           />
@@ -133,11 +133,11 @@ export const PlanForm: React.FC<PlanFormProps> = ({
 
       <div className="flex items-center space-x-2">
         <Checkbox
-          id="is_active"
-          checked={formData.is_active}
-          onCheckedChange={(checked) => handleInputChange("is_active", !!checked)}
+          id="isActive"
+          checked={formData.isActive}
+          onCheckedChange={(checked) => handleInputChange("isActive", !!checked)}
         />
-        <Label htmlFor="is_active" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+        <Label htmlFor="isActive" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
           Active
         </Label>
       </div>

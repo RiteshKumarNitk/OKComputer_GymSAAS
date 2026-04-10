@@ -29,16 +29,16 @@ export const SettingsPage: React.FC = () => {
 
     // Fetch Tenant Settings
     const { data: tenant, isLoading } = useQuery({
-        queryKey: ["tenant", user?.tenant_id],
+        queryKey: ["tenant", user?.tenantId],
         queryFn: async () => {
              const token = localStorage.getItem("gym_token")
-             const res = await fetch(`/api/tenants/${user?.tenant_id}`, {
+             const res = await fetch(`/api/tenants/${user?.tenantId}`, {
                  headers: { "Authorization": `Bearer ${token}` }
              })
              if (!res.ok) throw new Error("Failed to fetch tenant settings")
              return res.json()
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     // Populate forms once loaded
@@ -59,7 +59,7 @@ export const SettingsPage: React.FC = () => {
     const updateSettingsMutation = useMutation({
         mutationFn: async (updates: any) => {
              const token = localStorage.getItem("gym_token")
-             const res = await fetch(`/api/tenants/${user?.tenant_id}`, {
+             const res = await fetch(`/api/tenants/${user?.tenantId}`, {
                  method: "PATCH",
                  headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                  body: JSON.stringify(updates)

@@ -23,13 +23,13 @@ export const BranchesPage: React.FC = () => {
 
     // Fetch Branches
     const { data: branches } = useQuery({
-        queryKey: ["branches", user?.tenant_id],
+        queryKey: ["branches", user?.tenantId],
         queryFn: async () => {
-             const response = await branchesApi.list(user?.tenant_id || "")
+             const response = await branchesApi.list(user?.tenantId || "")
              if (response.error) throw response.error
              return response.data as Branch[]
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     // Create/Update Mutation

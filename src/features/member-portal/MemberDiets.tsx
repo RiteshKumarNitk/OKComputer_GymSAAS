@@ -14,7 +14,7 @@ export const MemberDiets: React.FC = () => {
     const { data: member, isLoading: isMemberLoading } = useQuery({
         queryKey: ["my-profile", user?.id],
         queryFn: async () => {
-            const tenantId = (user as any)?.tenant_id || ""
+            const tenantId = (user as any)?.tenantId || ""
             const response = await membersApi.list(tenantId)
             if (response.error) {
                 console.error("Error fetching member profile:", response.error)
@@ -83,9 +83,9 @@ export const MemberDiets: React.FC = () => {
                                         <Apple className="h-5 w-5" />
                                         <CardTitle className="text-lg">{diet?.name || "Diet Plan"}</CardTitle>
                                     </div>
-                                    {diet?.target_calories && (
+                                    {diet?.targetCalories && (
                                         <Badge className="bg-white/20 text-white border-none">
-                                            {diet.target_calories} kcal
+                                            {diet.targetCalories} kcal
                                         </Badge>
                                     )}
                                 </div>

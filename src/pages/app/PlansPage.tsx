@@ -21,13 +21,13 @@ export const PlansPage: React.FC = () => {
   const [planToDelete, setPlanToDelete] = useState<Membership | null>(null)
 
   const { data: plans, isLoading } = useQuery({
-    queryKey: ["memberships", user?.tenant_id],
+    queryKey: ["memberships", user?.tenantId],
     queryFn: async () => {
-      const response = await membershipsApi.list(user?.tenant_id || "")
+      const response = await membershipsApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as Membership[]
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Delete plan mutation
@@ -113,11 +113,11 @@ export const PlansPage: React.FC = () => {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{formatCurrency(plan.priceCents ?? plan.price_cents ?? 0, plan.currency || "INR")}</TableCell>
-                    <TableCell>{plan.durationDays ?? plan.duration_days ?? 0} Days</TableCell>
+                    <TableCell>{formatCurrency(plan.priceCents ?? plan.priceCents ?? 0, plan.currency || "INR")}</TableCell>
+                    <TableCell>{plan.durationDays ?? plan.durationDays ?? 0} Days</TableCell>
                     <TableCell>
-                      <Badge variant={(plan.isActive ?? plan.is_active) ? "default" : "secondary"}>
-                        {(plan.isActive ?? plan.is_active) ? "Active" : "Inactive"}
+                      <Badge variant={(plan.isActive ?? plan.isActive) ? "default" : "secondary"}>
+                        {(plan.isActive ?? plan.isActive) ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2">

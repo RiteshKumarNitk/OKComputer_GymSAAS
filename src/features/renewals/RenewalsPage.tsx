@@ -71,22 +71,22 @@ export const RenewalsPage: React.FC = () => {
 
     // Fetch Memberships for lookup
     const { data: memberships } = useQuery({
-        queryKey: ["memberships", user?.tenant_id],
+        queryKey: ["memberships", user?.tenantId],
         queryFn: async () => {
-            const res = await membershipsApi.list(user?.tenant_id || "")
+            const res = await membershipsApi.list(user?.tenantId || "")
             if (res.error) throw res.error
             return res.data || []
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     // Fetch Expiring & Expired Members
     const { data: members, isLoading } = useQuery({
-        queryKey: ["renewals", user?.tenant_id],
+        queryKey: ["renewals", user?.tenantId],
         queryFn: async () => {
-            if (!user?.tenant_id) return [];
+            if (!user?.tenantId) return [];
 
-            const response = await membersApi.list(user.tenant_id)
+            const response = await membersApi.list(user.tenantId)
             if (response.error) throw response.error
             const allMembers = response.data || []
 
@@ -95,16 +95,16 @@ export const RenewalsPage: React.FC = () => {
 
             return allMembers.filter((m: any) => {
                 if (m.status === "inactive") return false
-                const expiry = m.planExpiresAt || m.plan_expires_at
+                const expiry = m.planExpiresAt || m.planExpiresAt
                 if (!expiry) return false
                 return new Date(expiry) <= thirtyDaysFromNow
             })
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     const filteredMembers = members?.filter((member: any) =>
-        (member.fullName || member.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (member.fullName || member.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (member.phone && member.phone.includes(searchQuery))
     )
 
@@ -164,10 +164,10 @@ export const RenewalsPage: React.FC = () => {
                                 </TableRow>
                             )}
                             {filteredMembers?.map((member: any) => {
-                                const expiryDate = member.planExpiresAt || member.plan_expires_at
+                                const expiryDate = member.planExpiresAt || member.planExpiresAt
                                 const daysLeft = getDaysRemaining(expiryDate);
                                 const isExpired = daysLeft < 0;
-                                const plan = memberships?.find((m: any) => m.id === (member.currentPlanId || member.current_plan_id))
+                                const plan = memberships?.find((m: any) => m.id === (member.currentPlanId || member.currentPlanId))
                                 const planName = plan ? plan.name : "Unknown Plan"
 
                                 return (
@@ -184,7 +184,7 @@ export const RenewalsPage: React.FC = () => {
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            <div className="font-medium">{member.fullName || member.full_name}</div>
+                                            <div className="font-medium">{member.fullName || member.fullName}</div>
                                             <div className="text-xs text-muted-foreground flex items-center gap-1">
                                                 <Phone className="h-3 w-3" /> {member.phone}
                                             </div>
@@ -203,10 +203,10 @@ export const RenewalsPage: React.FC = () => {
                                                     size="sm"
                                                     className="h-8 w-8 p-0"
                                                     onClick={() => {
-                                                        const dateStr = member.plan_expires_at ? formatDate(member.plan_expires_at) : 'Unknown Date';
+                                                        const dateStr = member.planExpiresAt ? formatDate(member.planExpiresAt) : 'Unknown Date';
                                                         const text = isExpired
-                                                            ? `Hi ${member.full_name}, your gym membership expired on ${dateStr}. Please renew to continue your workouts!`
-                                                            : `Hi ${member.full_name}, your gym membership is expiring in ${daysLeft} days. Renew now to avoid interruption!`;
+                                                            ? `Hi ${member.fullName}, your gym membership expired on ${dateStr}. Please renew to continue your workouts!`
+                                                            : `Hi ${member.fullName}, your gym membership is expiring in ${daysLeft} days. Renew now to avoid interruption!`;
                                                         window.open(`https://wa.me/${member.phone?.replace(/\D/g, '') || ''}?text=${encodeURIComponent(text)}`, '_blank')
                                                     }}
                                                 >
@@ -214,7 +214,7 @@ export const RenewalsPage: React.FC = () => {
                                                 </Button>
                                                 <Button size="sm" onClick={() => {
                                                     setSelectedMember(member)
-                                                    setSelectedPlanId(member.currentPlanId || member.current_plan_id || "")
+                                                    setSelectedPlanId(member.currentPlanId || member.currentPlanId || "")
                                                     setIsRenewOpen(true)
                                                 }}>
                                                     <RefreshCw className="mr-2 h-3 w-3" /> Renew
@@ -241,7 +241,7 @@ export const RenewalsPage: React.FC = () => {
                     <DialogHeader>
                         <DialogTitle>Renew Membership</DialogTitle>
                         <DialogDescription>
-                            Renewing membership for <b>{(selectedMember?.fullName ?? selectedMember?.full_name)}</b>
+                            Renewing membership for <b>{(selectedMember?.fullName ?? selectedMember?.fullName)}</b>
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -254,7 +254,7 @@ export const RenewalsPage: React.FC = () => {
                                 <SelectContent>
                                     {memberships?.map((plan: any) => (
                                         <SelectItem key={plan.id} value={plan.id}>
-                                            {plan.name} ({plan.durationDays || plan.duration_days} days)
+                                            {plan.name} ({plan.durationDays || plan.durationDays} days)
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

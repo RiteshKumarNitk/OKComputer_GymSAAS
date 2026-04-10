@@ -55,4 +55,15 @@ class MemberApiService {
   Future<void> updateHealthProfile(Map<String, dynamic> data) async {
     await _apiClient.dio.patch('/members/me/health-profile', data: data);
   }
+
+  Future<Map<String, dynamic>?> getTodayWorkoutPlan() async {
+    final response = await _apiClient.dio.get('/member/workouts/today');
+    if (response.data == null || response.data.toString().isEmpty) return null;
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>?> updateDailyWorkoutPlan(String id, Map<String, dynamic> data) async {
+    final response = await _apiClient.dio.patch('/member/workouts/$id', data: data);
+    return response.data as Map<String, dynamic>;
+  }
 }

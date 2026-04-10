@@ -15,7 +15,7 @@ export const MemberSchedule: React.FC = () => {
     const { data: schedules, isLoading } = useQuery({
         queryKey: ["schedules", user?.id],
         queryFn: async () => {
-            const tenantId = (user as any)?.tenant_id || ""
+            const tenantId = (user as any)?.tenantId || ""
             const response = await schedulesApi.list(tenantId)
             if (response.error) {
                 console.error("Error fetching schedules:", response.error)
@@ -37,7 +37,7 @@ export const MemberSchedule: React.FC = () => {
 
     // Group schedules by dayOfWeek
     const groupedSchedules = schedules?.reduce((acc: any, schedule: any) => {
-        const day = schedule.day_of_week ?? 1 // default to monday if undefined
+        const day = schedule.dayOfWeek ?? 1 // default to monday if undefined
         if (!acc[day]) acc[day] = []
         acc[day].push(schedule)
         return acc
@@ -82,13 +82,13 @@ export const MemberSchedule: React.FC = () => {
                                                 <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                                                     <Clock className="h-3.5 w-3.5" />
                                                     <span>
-                                                        {item.start_time} • {item.duration_minutes} mins
+                                                        {item.startTime} • {item.duration_minutes} mins
                                                     </span>
                                                 </div>
                                                 {item.trainer && (
                                                     <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                                                         <User className="h-3.5 w-3.5" />
-                                                        <span>{item.trainer.full_name}</span>
+                                                        <span>{item.trainer.fullName}</span>
                                                     </div>
                                                 )}
                                             </div>

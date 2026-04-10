@@ -48,8 +48,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: data.user.id || data.user.sub,
           email: data.user.email,
           role: (data.user.role || "member") as UserRole,
-          tenant_id: data.user.tenantId || null,
-          full_name: data.user.name || null,
+          tenantId: data.user.tenantId || null,
+          fullName: data.user.name || null,
         })
       } else {
         // Try localStorage fallback for Vite SPA
@@ -86,12 +86,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const data = await res.json()
-    const authUser: AuthUser = {
+const authUser: AuthUser = {
       id: data.user.id,
       email: data.user.email,
       role: data.user.role as UserRole,
-      tenant_id: data.user.tenantId,
-      full_name: data.user.fullName,
+      tenantId: data.user.tenantId,
+      fullName: data.user.fullName,
     }
     setUser(authUser)
     setSession({ user: data.user, token: data.token })
@@ -116,8 +116,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: data.user.id,
       email: data.user.email,
       role: data.user.role as UserRole,
-      tenant_id: data.user.tenantId,
-      full_name: data.user.fullName,
+      tenantId: data.user.tenantId,
+      fullName: data.user.fullName,
     }
     setUser(authUser)
     setSession({ user: data.user, token: data.token })
@@ -155,8 +155,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: data.user.id,
       email: data.user.email,
       role: data.user.role as UserRole,
-      tenant_id: data.user.tenantId,
-      full_name: data.user.fullName,
+      tenantId: data.user.tenantId,
+      fullName: data.user.fullName,
     }
     setUser(authUser)
     setSession({ user: data.user, token: data.token })

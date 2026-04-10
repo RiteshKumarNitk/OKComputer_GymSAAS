@@ -25,7 +25,7 @@ export const ManualCheckin: React.FC = () => {
         queryFn: async () => {
             if (!searchQuery || searchQuery.length < 2) return []
 
-            const response = await membersApi.list(user?.tenant_id || "", searchQuery)
+            const response = await membersApi.list(user?.tenantId || "", searchQuery)
             if (response.error) throw response.error
             return response.data || []
         },
@@ -39,7 +39,7 @@ export const ManualCheckin: React.FC = () => {
             // and increments MemberFitnessStats together.
             const response = await attendanceApi.checkin({
                 memberId: member.id,
-                deviceInfo: { type: "manual", by: user?.full_name || "Admin" },
+                deviceInfo: { type: "manual", by: user?.fullName || "Admin" },
             })
 
             if (response.error) throw response.error
@@ -48,7 +48,7 @@ export const ManualCheckin: React.FC = () => {
         onSuccess: (member: any) => {
             setCheckinStatus({
                 success: true,
-                message: `Successfully checked in ${member.fullName || member.full_name}`,
+                message: `Successfully checked in ${member.fullName || member.fullName}`,
                 member,
             })
             setSearchQuery("")
@@ -102,8 +102,8 @@ export const ManualCheckin: React.FC = () => {
                                             <User className="h-4 w-4" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-sm">{member.fullName || member.full_name}</p>
-                                            <p className="text-xs text-muted-foreground">{member.memberCode || member.member_code}</p>
+                                            <p className="font-medium text-sm">{member.fullName || member.fullName}</p>
+                                            <p className="text-xs text-muted-foreground">{member.memberCode || member.memberCode}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-3">

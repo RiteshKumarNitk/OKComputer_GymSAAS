@@ -30,13 +30,13 @@ export const OperationsPage: React.FC = () => {
 
     // --- VISITORS LOGIC ---
     const { data: visitors } = useQuery({
-        queryKey: ["visitors", user?.tenant_id],
+        queryKey: ["visitors", user?.tenantId],
         queryFn: async () => {
-             const response = await visitorsApi.list(user?.tenant_id || "")
+             const response = await visitorsApi.list(user?.tenantId || "")
              if (response.error) throw response.error
              return response.data
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     const addVisitorMutation = useMutation({
@@ -53,13 +53,13 @@ export const OperationsPage: React.FC = () => {
 
     // --- COMPLAINTS LOGIC ---
     const { data: complaints } = useQuery({
-        queryKey: ["complaints", user?.tenant_id],
+        queryKey: ["complaints", user?.tenantId],
         queryFn: async () => {
-             const response = await complaintsApi.list(user?.tenant_id || "")
+             const response = await complaintsApi.list(user?.tenantId || "")
              if (response.error) throw response.error
              return response.data
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     const addComplaintMutation = useMutation({
@@ -173,7 +173,7 @@ export const OperationsPage: React.FC = () => {
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <CardTitle className="text-base">{ticket.title}</CardTitle>
-                                            <CardDescription className="text-xs">{formatDate(ticket.createdAt ?? ticket.created_at)} • {ticket.member ? (ticket.member.fullName ?? ticket.member.full_name) : "General"}</CardDescription>
+                                            <CardDescription className="text-xs">{formatDate(ticket.createdAt ?? ticket.created_at)} • {ticket.member ? (ticket.member.fullName ?? ticket.member.fullName) : "General"}</CardDescription>
                                         </div>
                                         <Badge className={ticket.status === 'resolved' ? 'bg-green-500' : 'bg-yellow-500'}>{ticket.status}</Badge>
                                     </div>

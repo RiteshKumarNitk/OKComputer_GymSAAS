@@ -19,24 +19,24 @@ export const ReportsPage: React.FC = () => {
 
     // Fetch total members separately from dashboard stats to populate the Total Members card
     const { data: statsData } = useQuery({
-        queryKey: ["dashboard-stats", user?.tenant_id],
+        queryKey: ["dashboard-stats", user?.tenantId],
         queryFn: async () => {
              const response = await dashboardApi.getStats()
              if (response.error) throw response.error
              return response.data
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     // Consolidated reports query
     const { data: reportData, isLoading } = useQuery({
-        queryKey: ["reports_members", user?.tenant_id],
+        queryKey: ["reports_members", user?.tenantId],
         queryFn: async () => {
              const response = await reportsApi.getMembers()
              if (response.error) throw response.error
              return response.data
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     const expiringMembers = reportData?.expiring || []
@@ -53,24 +53,24 @@ export const ReportsPage: React.FC = () => {
 
         if (activeTab === "expiring" && expiringMembers) {
             dataToExport = expiringMembers.map((m: any) => ({
-                Name: m.fullName ?? m.full_name,
+                Name: m.fullName ?? m.fullName,
                 Phone: m.phone,
                 Plan: m.currentPlan?.name ?? m.memberships?.name,
-                ExpiresAt: formatDate(m.planExpiresAt ?? m.plan_expires_at),
+                ExpiresAt: formatDate(m.planExpiresAt ?? m.planExpiresAt),
                 Status: m.status
             }))
         } else if (activeTab === "inactive" && inactiveMembers) {
             dataToExport = inactiveMembers.map((m: any) => ({
-                Name: m.fullName ?? m.full_name,
+                Name: m.fullName ?? m.fullName,
                 Phone: m.phone,
                 LastCheckin: "N/A", // Handled by server filters
-                MemberCode: m.memberCode ?? m.member_code
+                MemberCode: m.memberCode ?? m.memberCode
             }))
         } else if (activeTab === "new" && newMembers) {
             dataToExport = newMembers.map((m: any) => ({
-                Name: m.fullName ?? m.full_name,
+                Name: m.fullName ?? m.fullName,
                 Phone: m.phone,
-                JoinedAt: formatDate(m.joinedAt ?? m.joined_at),
+                JoinedAt: formatDate(m.joinedAt ?? m.joinedAt),
                 Plan: m.currentPlan?.name ?? m.memberships?.name,
                 Amount: m.currentPlan?.priceCents ? (m.currentPlan.priceCents / 100).toFixed(2) : "0"
             }))
@@ -168,12 +168,12 @@ export const ReportsPage: React.FC = () => {
                                         </TableHeader>
                                         <TableBody>
                                             {expiringMembers?.map((m: any) => {
-                                                const expiryDate = m.planExpiresAt ?? m.plan_expires_at
+                                                const expiryDate = m.planExpiresAt ?? m.planExpiresAt
                                                 const daysLeft = expiryDate ? Math.ceil((new Date(expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0
                                                 return (
                                                     <TableRow key={m.id}>
                                                         <TableCell className="font-medium">
-                                                            <div>{m.fullName ?? m.full_name}</div>
+                                                            <div>{m.fullName ?? m.fullName}</div>
                                                             <div className="text-xs text-muted-foreground">{m.phone}</div>
                                                         </TableCell>
                                                         <TableCell>{m.currentPlan?.name ?? m.memberships?.name}</TableCell>
@@ -215,7 +215,7 @@ export const ReportsPage: React.FC = () => {
                                         <TableBody>
                                             {inactiveMembers?.map((m: any) => (
                                                 <TableRow key={m.id}>
-                                                    <TableCell className="font-medium">{m.fullName ?? m.full_name}</TableCell>
+                                                    <TableCell className="font-medium">{m.fullName ?? m.fullName}</TableCell>
                                                     <TableCell>{"Inactive"}</TableCell>
                                                     <TableCell>{m.phone}</TableCell>
                                                     <TableCell className="text-right"><Button size="sm" variant="outline">Contact</Button></TableCell>
@@ -253,10 +253,10 @@ export const ReportsPage: React.FC = () => {
                                             {newMembers?.map((m: any) => (
                                                 <TableRow key={m.id}>
                                                     <TableCell className="font-medium">
-                                                        <div>{m.fullName ?? m.full_name}</div>
-                                                        <div className="text-xs text-muted-foreground">{m.memberCode ?? m.member_code}</div>
+                                                        <div>{m.fullName ?? m.fullName}</div>
+                                                        <div className="text-xs text-muted-foreground">{m.memberCode ?? m.memberCode}</div>
                                                     </TableCell>
-                                                    <TableCell>{formatDate(m.joinedAt ?? m.joined_at)}</TableCell>
+                                                    <TableCell>{formatDate(m.joinedAt ?? m.joinedAt)}</TableCell>
                                                     <TableCell>{(m.currentPlan?.name ?? m.memberships?.name) || "-"}</TableCell>
                                                     <TableCell>{m.currentPlan?.priceCents ? formatCurrency(m.currentPlan.priceCents) : "-"}</TableCell>
                                                     <TableCell className="text-right"><Button size="sm" variant="ghost">View</Button></TableCell>

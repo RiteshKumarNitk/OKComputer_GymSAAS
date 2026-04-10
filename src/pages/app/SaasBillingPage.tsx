@@ -28,7 +28,7 @@ import { generateInvoicePDF } from "@/utils/invoiceGenerator"
 
 export const SaasBillingPage: React.FC = () => {
     const { user } = useAuth()
-    const tenantId = user?.tenant_id
+    const tenantId = user?.tenantId
 
     const { data: tenant, isLoading: isLoadingTenant } = useQuery({
         queryKey: ["tenant", tenantId],

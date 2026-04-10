@@ -77,15 +77,15 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
       <div className="flex items-start space-x-4">
         <Avatar className="h-20 w-20">
           <AvatarFallback className="text-2xl">
-            {(member.fullName ?? member.full_name ?? "").split(" ").map((n) => n[0]).join("").toUpperCase()}
+            {(member.fullName ?? member.fullName ?? "").split(" ").map((n) => n[0]).join("").toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <h2 className="text-2xl font-bold">{member.fullName ?? member.full_name}</h2>
+          <h2 className="text-2xl font-bold">{member.fullName ?? member.fullName}</h2>
           <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
             <span className="flex items-center">
               <User className="h-4 w-4 mr-1" />
-              {member.memberCode ?? member.member_code}
+              {member.memberCode ?? member.memberCode}
             </span>
             <Badge variant={getStatusBadgeVariant(member.status)}>
               {member.status}
@@ -95,7 +95,7 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
             <div className="mt-2">
               <span className="text-sm font-medium">{member.currentPlan.name}</span>
               <span className="text-sm text-muted-foreground ml-2">
-                {formatCurrency(member.currentPlan.priceCents ?? member.currentPlan.price_cents ?? 0, member.currentPlan.currency || "INR")} / {member.currentPlan.durationDays ?? member.currentPlan.duration_days ?? 0} days
+                {formatCurrency(member.currentPlan.priceCents ?? member.currentPlan.priceCents ?? 0, member.currentPlan.currency || "INR")} / {member.currentPlan.durationDays ?? member.currentPlan.durationDays ?? 0} days
               </span>
             </div>
           )}
@@ -154,18 +154,18 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
               <CardContent className="space-y-3">
                 <div>
                   <span className="text-sm font-medium">Joined Date:</span>
-                  <span className="ml-2">{formatDate(member.joinedAt ?? member.joined_at)}</span>
+                  <span className="ml-2">{formatDate(member.joinedAt ?? member.joinedAt)}</span>
                 </div>
-                {member.plan_started_at && (
+                {member.planStartedAt && (
                   <div>
                     <span className="text-sm font-medium">Plan Started:</span>
-                    <span className="ml-2">{formatDate(member.plan_started_at)}</span>
+                    <span className="ml-2">{formatDate(member.planStartedAt)}</span>
                   </div>
                 )}
-                {member.plan_expires_at && (
+                {member.planExpiresAt && (
                   <div>
                     <span className="text-sm font-medium">Plan Expires:</span>
-                    <span className="ml-2">{formatDate(member.plan_expires_at)}</span>
+                    <span className="ml-2">{formatDate(member.planExpiresAt)}</span>
                   </div>
                 )}
                 <div>
@@ -177,7 +177,7 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
               </CardContent>
             </Card>
 
-            {(member.emergencyContact ?? member.emergency_contact) && (
+            {(member.emergencyContact ?? member.emergencyContact) && (
               <Card className="md:col-span-2">
                 <CardHeader>
                   <CardTitle>Emergency Contact</CardTitle>
@@ -185,15 +185,15 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
                 <CardContent className="space-y-2">
                   <div>
                     <span className="text-sm font-medium">Name:</span>
-                    <span className="ml-2">{(member.emergencyContact ?? member.emergency_contact).name}</span>
+                    <span className="ml-2">{(member.emergencyContact ?? member.emergencyContact).name}</span>
                   </div>
                   <div>
                     <span className="text-sm font-medium">Phone:</span>
-                    <span className="ml-2">{(member.emergencyContact ?? member.emergency_contact).phone}</span>
+                    <span className="ml-2">{(member.emergencyContact ?? member.emergencyContact).phone}</span>
                   </div>
                   <div>
                     <span className="text-sm font-medium">Relationship:</span>
-                    <span className="ml-2">{(member.emergencyContact ?? member.emergency_contact).relationship}</span>
+                    <span className="ml-2">{(member.emergencyContact ?? member.emergencyContact).relationship}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -223,14 +223,14 @@ export const MemberDetails: React.FC<MemberDetailsProps> = ({ member, onClose })
                   {attendance.map((record: any) => (
                     <div key={record.id} className="flex items-center justify-between p-2 bg-muted rounded">
                       <div>
-                        <span className="font-medium">{formatDate(record.checkinAt || record.checkin_at)}</span>
+                        <span className="font-medium">{formatDate(record.checkinAt || record.checkinAt)}</span>
                         <span className="text-sm text-muted-foreground ml-2">
-                          {new Date(record.checkinAt || record.checkin_at).toLocaleTimeString()}
+                          {new Date(record.checkinAt || record.checkinAt).toLocaleTimeString()}
                         </span>
                       </div>
-                      {(record.checkoutAt || record.checkout_at) && (
+                      {(record.checkoutAt || record.checkoutAt) && (
                         <div className="text-sm text-muted-foreground">
-                          Duration: {Math.round((new Date(record.checkoutAt || record.checkout_at).getTime() - new Date(record.checkinAt || record.checkin_at).getTime()) / (1000 * 60))} min
+                          Duration: {Math.round((new Date(record.checkoutAt || record.checkoutAt).getTime() - new Date(record.checkinAt || record.checkinAt).getTime()) / (1000 * 60))} min
                         </div>
                       )}
                     </div>

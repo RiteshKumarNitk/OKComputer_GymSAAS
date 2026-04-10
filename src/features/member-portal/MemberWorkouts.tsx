@@ -14,7 +14,7 @@ export const MemberWorkouts: React.FC = () => {
     const { data: member, isLoading: isMemberLoading } = useQuery({
         queryKey: ["my-profile", user?.id],
         queryFn: async () => {
-            const tenantId = (user as any)?.tenant_id || ""
+            const tenantId = (user as any)?.tenantId || ""
             const response = await membersApi.list(tenantId)
             if (response.error) {
                 console.error("Error fetching member profile:", response.error)

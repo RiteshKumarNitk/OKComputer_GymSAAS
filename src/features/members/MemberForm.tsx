@@ -29,17 +29,17 @@ export const MemberForm: React.FC<MemberFormProps> = ({
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [formData, setFormData] = useState({
-    full_name: "",
+    fullName: "",
     email: "",
     phone: "",
     dob: undefined as Date | undefined,
     gender: "",
     address: "",
-    emergency_contact_name: "",
-    emergency_contact_phone: "",
-    emergency_contact_relationship: "",
-    current_plan_id: "",
-    assigned_trainer_id: "",
+    emergencyContact_name: "",
+    emergencyContact_phone: "",
+    emergencyContact_relationship: "",
+    currentPlanId: "",
+    assigned_trainerId: "",
     status: "active" as MemberStatus,
     notes: "",
     avatarUrl: "",
@@ -47,88 +47,88 @@ export const MemberForm: React.FC<MemberFormProps> = ({
 
   // Fetch trainers
   const { data: trainers } = useQuery({
-    queryKey: ["trainers", user?.tenant_id],
+    queryKey: ["trainers", user?.tenantId],
     queryFn: async () => {
-      const response = await trainersApi.list(user?.tenant_id || "")
+      const response = await trainersApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       // Filter active trainers if needed on client side if server doesn't support filter config
       return (response.data || []) as Trainer[]
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Initialize form with member data (mapping from camelCase response)
   useEffect(() => {
     if (member) {
       setFormData({
-        full_name: member.fullName || "",
+        fullName: member.fullName || "",
         email: member.email || "",
         phone: member.phone || "",
         dob: member.dob ? new Date(member.dob) : undefined,
         gender: member.gender || "",
         address: member.address ? (typeof member.address === 'object' ? (member.address as any).street : member.address) : "",
-        emergency_contact_name: member.emergencyContact ? (member.emergencyContact as any).name : "",
-        emergency_contact_phone: member.emergencyContact ? (member.emergencyContact as any).phone : "",
-        emergency_contact_relationship: member.emergencyContact ? (member.emergencyContact as any).relationship : "",
-        current_plan_id: member.currentPlanId || "",
-        assigned_trainer_id: member.assignedTrainerId || "",
+        emergencyContact_name: member.emergencyContact ? (member.emergencyContact as any).name : "",
+        emergencyContact_phone: member.emergencyContact ? (member.emergencyContact as any).phone : "",
+        emergencyContact_relationship: member.emergencyContact ? (member.emergencyContact as any).relationship : "",
+        currentPlanId: member.currentPlanId || "",
+        assigned_trainerId: member.assignedTrainerId || "",
         status: member.status || "active",
         notes: member.notes || "",
-        avatarUrl: member.avatarUrl || member.avatar_url || "",
+        avatarUrl: member.avatarUrl || member.avatarUrl || "",
       })
     }
   }, [member])
 
   const memberMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      if (!user?.tenant_id) {
+      if (!user?.tenantId) {
         throw new Error("Tenant ID is missing. Please refresh the page or contact support.")
       }
 
       // memberData layout preserved as snake_case, generic CRUD converts it to camelCase for Prisma
       const memberData = {
-        member_code: member?.memberCode || generateMemberCode(),
-        full_name: data.full_name,
+        memberCode: member?.memberCode || generateMemberCode(),
+        fullName: data.fullName,
         email: data.email,
         phone: data.phone,
         dob: data.dob?.toISOString().split("T")[0],
         gender: data.gender,
         address: data.address ? { street: data.address } : null,
-        emergency_contact: data.emergency_contact_name
+        emergencyContact: data.emergencyContact_name
           ? {
-            name: data.emergency_contact_name,
-            phone: data.emergency_contact_phone,
-            relationship: data.emergency_contact_relationship,
+            name: data.emergencyContact_name,
+            phone: data.emergencyContact_phone,
+            relationship: data.emergencyContact_relationship,
           }
           : null,
-        current_plan_id: (data.current_plan_id && data.current_plan_id !== "none") ? data.current_plan_id : null,
-        assigned_trainer_id: (data.assigned_trainer_id && data.assigned_trainer_id !== "none") ? data.assigned_trainer_id : null,
+        currentPlanId: (data.currentPlanId && data.currentPlanId !== "none") ? data.currentPlanId : null,
+        assigned_trainerId: (data.assigned_trainerId && data.assigned_trainerId !== "none") ? data.assigned_trainerId : null,
         status: data.status,
         notes: data.notes,
         avatarUrl: data.avatarUrl,
       }
 
       const shouldUpdatePlanDates =
-        (!member && memberData.current_plan_id) ||
-        (member && memberData.current_plan_id && memberData.current_plan_id !== member.currentPlanId);
+        (!member && memberData.currentPlanId) ||
+        (member && memberData.currentPlanId && memberData.currentPlanId !== member.currentPlanId);
 
       if (shouldUpdatePlanDates) {
-        const selectedPlan = memberships.find(m => m.id === memberData.current_plan_id)
+        const selectedPlan = memberships.find(m => m.id === memberData.currentPlanId)
         if (selectedPlan) {
           const startDate = new Date()
           const endDate = new Date(startDate)
-          const duration = selectedPlan.durationDays ?? selectedPlan.duration_days ?? 30
+          const duration = selectedPlan.durationDays ?? selectedPlan.durationDays ?? 30
           endDate.setDate(endDate.getDate() + duration)
 
           Object.assign(memberData, {
-            plan_started_at: startDate.toISOString(),
-            plan_expires_at: endDate.toISOString()
+            planStartedAt: startDate.toISOString(),
+            planExpiresAt: endDate.toISOString()
           })
         }
-      } else if (!memberData.current_plan_id) {
+      } else if (!memberData.currentPlanId) {
         Object.assign(memberData, {
-          plan_started_at: null,
-          plan_expires_at: null
+          planStartedAt: null,
+          planExpiresAt: null
         })
       }
 
@@ -181,7 +181,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
             <Avatar className="h-24 w-24 border-2 border-slate-200 dark:border-slate-800">
               <AvatarImage src={formData.avatarUrl || ""} />
               <AvatarFallback className="text-xl font-bold bg-slate-100 dark:bg-slate-800">
-                {formData.full_name ? formData.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase() : "M"}
+                {formData.fullName ? formData.fullName.split(" ").map((n: string) => n[0]).join("").toUpperCase() : "M"}
               </AvatarFallback>
             </Avatar>
             <input
@@ -202,11 +202,11 @@ export const MemberForm: React.FC<MemberFormProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="full_name">Full Name *</Label>
+            <Label htmlFor="fullName">Full Name *</Label>
             <Input
-              id="full_name"
-              value={formData.full_name}
-              onChange={(e) => handleInputChange("full_name", e.target.value)}
+              id="fullName"
+              value={formData.fullName}
+              onChange={(e) => handleInputChange("fullName", e.target.value)}
               required
             />
           </div>
@@ -277,30 +277,30 @@ export const MemberForm: React.FC<MemberFormProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="emergency_contact_name">Contact Name</Label>
+            <Label htmlFor="emergencyContact_name">Contact Name</Label>
             <Input
-              id="emergency_contact_name"
-              value={formData.emergency_contact_name}
-              onChange={(e) => handleInputChange("emergency_contact_name", e.target.value)}
+              id="emergencyContact_name"
+              value={formData.emergencyContact_name}
+              onChange={(e) => handleInputChange("emergencyContact_name", e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="emergency_contact_phone">Contact Phone</Label>
+            <Label htmlFor="emergencyContact_phone">Contact Phone</Label>
             <Input
-              id="emergency_contact_phone"
+              id="emergencyContact_phone"
               type="tel"
-              value={formData.emergency_contact_phone}
-              onChange={(e) => handleInputChange("emergency_contact_phone", e.target.value)}
+              value={formData.emergencyContact_phone}
+              onChange={(e) => handleInputChange("emergencyContact_phone", e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="emergency_contact_relationship">Relationship</Label>
+            <Label htmlFor="emergencyContact_relationship">Relationship</Label>
             <Input
-              id="emergency_contact_relationship"
-              value={formData.emergency_contact_relationship}
-              onChange={(e) => handleInputChange("emergency_contact_relationship", e.target.value)}
+              id="emergencyContact_relationship"
+              value={formData.emergencyContact_relationship}
+              onChange={(e) => handleInputChange("emergencyContact_relationship", e.target.value)}
             />
           </div>
         </div>
@@ -312,10 +312,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="current_plan_id">Membership Plan</Label>
+            <Label htmlFor="currentPlanId">Membership Plan</Label>
             <Select
-              value={formData.current_plan_id}
-              onValueChange={(value) => handleInputChange("current_plan_id", value)}
+              value={formData.currentPlanId}
+              onValueChange={(value) => handleInputChange("currentPlanId", value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select membership plan" />
@@ -332,10 +332,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="assigned_trainer_id">Assigned Trainer</Label>
+            <Label htmlFor="assigned_trainerId">Assigned Trainer</Label>
             <Select
-              value={formData.assigned_trainer_id}
-              onValueChange={(value) => handleInputChange("assigned_trainer_id", value)}
+              value={formData.assigned_trainerId}
+              onValueChange={(value) => handleInputChange("assigned_trainerId", value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select trainer" />
@@ -344,7 +344,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
                 <SelectItem value="none">No Trainer</SelectItem>
                 {trainers?.map((trainer) => (
                   <SelectItem key={trainer.id} value={trainer.id}>
-                    {trainer.full_name}
+                    {trainer.fullName}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -371,14 +371,14 @@ export const MemberForm: React.FC<MemberFormProps> = ({
         </div>
 
         {/* Selected Plan Details - LIVE PREVIEW */}
-        {formData.current_plan_id && formData.current_plan_id !== "none" && (() => {
-          const plan = memberships.find(m => m.id === formData.current_plan_id)
+        {formData.currentPlanId && formData.currentPlanId !== "none" && (() => {
+          const plan = memberships.find(m => m.id === formData.currentPlanId)
           if (!plan) return null
           const startDate = new Date()
           const endDate = new Date(startDate)
-          const duration = plan.durationDays ?? plan.duration_days ?? 30
+          const duration = plan.durationDays ?? plan.durationDays ?? 30
           endDate.setDate(endDate.getDate() + duration)
-          const price = plan.priceCents ?? plan.price_cents ?? 0
+          const price = plan.priceCents ?? plan.priceCents ?? 0
 
           return (
             <div className="mt-4 p-4 border rounded-lg bg-primary/5 space-y-3">

@@ -1768,9 +1768,14 @@ app.post("/api/tenants", async (req, res) => {
             currency: converted.currency || converted.billingCurrency || "INR",
             logoUrl: converted.logoUrl,
             businessType: converted.businessType || "gym",
+            gstNumber: converted.gstNumber,
+            panNumber: converted.panNumber,
             registeredAddress: converted.registeredAddress,
+            billingCycle: converted.billingCycle || "monthly",
             paymentGatewayPreference: converted.paymentGatewayPreference || "cash",
             invoicePrefix: converted.invoicePrefix || "GYM",
+            primaryColor: converted.primaryColor,
+            secondaryColor: converted.secondaryColor,
             subscriptionStatus: converted.subscriptionStatus || "active",
             subscriptionExpiresAt: converted.subscriptionExpiresAt ? new Date(converted.subscriptionExpiresAt) : null,
             status: converted.status || "active",
@@ -2216,6 +2221,104 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
         res.status(500).json({ error: "Upload failed" })
     }
 })
+
+// ==================== DAILY WORKOUT PLANS ====================
+
+app.get("/api/member/workouts/today", authenticate, async (req: any, res) => {
+    try {
+        if (req.role !== "member") return res.status(403).json({ error: "Only members can access this" });
+        const memberId = req.userId;
+        
+        const member = await prisma.member.findUnique({ where: { userId: memberId, tenantId: req.tenantId } });
+        if (!member) return res.status(404).json({ error: "Member profile not found" });
+
+        const targetDate = new Date();
+        targetDate.setHours(0, 0, 0, 0);
+
+        const plan = await prisma.dailyWorkoutPlan.findFirst({
+            where: {
+                memberId: member.id,
+                tenantId: req.tenantId,
+                date: targetDate
+            }
+        });
+
+        if (!plan) return res.json(null);
+        res.json(snakeToCamel(plan));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.patch("/api/member/workouts/:id", authenticate, async (req: any, res) => {
+    try {
+        const { id } = req.params;
+        const tenantId = req.tenantId;
+
+        // Verify ownership if member
+        if (req.role === "member") {
+            const member = await prisma.member.findUnique({ where: { userId: req.userId, tenantId } });
+            if (!member) return res.status(403).json({ error: "Member profile not found" });
+
+            const existingPlan = await prisma.dailyWorkoutPlan.findFirst({
+                where: { id, tenantId, memberId: member.id }
+            });
+            if (!existingPlan) return res.status(403).json({ error: "Access denied or plan not found" });
+        }
+
+        const { exercises, progress, status } = req.body;
+
+        const updated = await prisma.dailyWorkoutPlan.update({
+            where: { id, tenantId },
+            data: { 
+                ...(exercises ? { exercises } : {}), 
+                ...(progress ? { progress } : {}), 
+                ...(status ? { status } : {}) 
+            }
+        });
+
+        res.json(snakeToCamel(updated));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post("/api/trainer/workouts/daily-plan", authenticate, async (req: any, res) => {
+    const allowed = ["super_admin", "gym_owner", "manager", "trainer"];
+    if (!allowed.includes(req.role)) return res.status(403).json({ error: "Access denied" });
+
+    try {
+        const { memberId, date, day, planType, exercises, status } = req.body;
+        const tenantId = req.tenantId;
+        
+        let trainerId = null;
+        if (req.role === "trainer") {
+            const trainer = await prisma.trainer.findUnique({ where: { userId: req.userId, tenantId } });
+            if (trainer) trainerId = trainer.id;
+        }
+
+        const planDate = date ? new Date(date) : new Date();
+        planDate.setHours(0, 0, 0, 0);
+
+        const plan = await prisma.dailyWorkoutPlan.create({
+            data: {
+                tenantId,
+                trainerId,
+                memberId,
+                date: planDate,
+                day: day || planDate.toLocaleDateString('en-US', { weekday: 'long' }),
+                planType: planType || "custom",
+                exercises: exercises || [],
+                status: status || "pending",
+                progress: { totalExercises: exercises?.length || 0, completed: 0, percentage: 0 }
+            }
+        });
+
+        res.json(snakeToCamel(plan));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ==================== ALERTS CRON (Daily) ====================
 

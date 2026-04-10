@@ -1,115 +1,107 @@
 export interface User {
   id: string
   email: string
-  full_name: string | null
+  fullName: string | null
   phone: string | null
-  avatar_url: string | null
+  avatarUrl: string | null
   role: UserRole
-  tenant_id: string | null
-  is_active: boolean
-  created_at: string
-  updated_at: string
+  tenantId: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export type UserRole = "super_admin" | "gym_owner" | "manager" | "trainer" | "frontdesk" | "member"
+
+export type Gender = "male" | "female" | "other" | "prefer_not_to_say"
 
 export interface Tenant {
   id: string
   name: string
   slug: string
+  ownerUserId: string | null
   // Owner Details
-  owner_name: string | null
-  owner_email: string | null
-  owner_phone: string | null
+  ownerName: string | null
+  ownerEmail: string | null
+  ownerPhone: string | null
+  ownerPhotoUrl: string | null
+
+  // Address
+  address: any | null
+  phone: string | null
+  email: string | null
+  timezone: string
 
   // Branding
-  logo_url: string | null
-  cover_image_url: string | null
-  primary_color: string
-  secondary_color: string
+  logoUrl: string | null
+  primaryColor: string | null
+  secondaryColor: string | null
 
   // Business Details
-  business_type: string | null
-  gst_number: string | null
-  pan_number: string | null
-  registered_address: string | null
+  businessType: string | null
+  status: TenantStatus
+  gstNumber: string | null
+  panNumber: string | null
+  registeredAddress: string | null
 
   // Billing Settings
-  billing_currency: string
-  billing_cycle: string
-  payment_gateway_preference: string
-  invoice_prefix: string
-
-  // Communication Settings
-  sms_provider: string | null
-  whatsapp_number: string | null
-  email_from_name: string | null
-  smtp_config: any | null
+  currency: string
+  billingCycle: string
+  paymentGatewayPreference: string
+  invoicePrefix: string
 
   // Subscription
-  subscription_status: string | null
-  subscription_expires_at: string | null
+  subscriptionId: string | null
+  subscriptionStatus: SubscriptionStatus
+  subscriptionExpiresAt: Date | null
   features: string[] | null
 
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
 }
+
+export type TenantStatus = "active" | "suspended" | "cancelled"
 
 export type SubscriptionStatus = "active" | "inactive" | "cancelled" | "past_due"
 
 export interface Membership {
   id: string
-  tenant_id: string
+  tenantId: string
   name: string
   description: string | null
-  duration_days: number
-  price_cents: number
+  durationDays: number
+  priceCents: number
   currency: string
   perks: any
-  is_active: boolean
-  created_at: string
-  updated_at: string
-
-  // camelCase analogs for backend parity
-  tenantId?: string
-  durationDays?: number
-  priceCents?: number
-  isActive?: boolean
+  type: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Member {
   id: string
-  tenant_id: string
-  user_id: string | null
-  member_code: string
-  full_name: string
+  tenantId: string
+  userId: string | null
+  memberCode: string
+  fullName: string
   email: string | null
   phone: string | null
-  dob: string | null
-  gender: string | null
+  dob: Date | null
+  gender: Gender | null
   address: any | null
-  emergency_contact: any | null
-  joined_at: string
-  current_plan_id: string | null
-  plan_started_at: string | null
-  plan_expires_at: string | null
+  emergencyContact: any | null
+  joinedAt: string
+  currentPlanId: string | null
+  planStartedAt: Date | null
+  planExpiresAt: Date | null
   status: MemberStatus
   notes: string | null
-  assigned_trainer_id?: string | null
-  avatar_url?: string | null
-  avatarUrl?: string | null
-
-  // camelCase analogs for backend parity
-  tenantId?: string
-  userId?: string | null
-  memberCode?: string
-  fullName?: string
-  joinedAt?: string
-  currentPlanId?: string | null
-  planStartedAt?: string | null
-  planExpiresAt?: string | null
-  assignedTrainerId?: string | null
-  emergencyContact?: any | null
+  assignedTrainerId: string | null
+  avatarUrl: string | null
+  createdAt: string
+  updatedAt: string
+  // Optional relation for backward compatibility
   currentPlan?: Membership
 }
 
@@ -117,18 +109,19 @@ export type MemberStatus = "active" | "inactive" | "suspended" | "expired"
 
 export interface Payment {
   id: string
-  tenant_id: string
-  member_id: string
-  membership_id: string | null
-  amount_cents: number
+  tenantId: string
+  memberId: string
+  membershipId: string | null
+  razorpayOrderId: string | null
+  amountCents: number
   currency: string
   provider: PaymentProvider
-  provider_payment_id: string | null
+  providerPaymentId: string | null
   status: PaymentStatus
-  paid_at: string | null
+  paidAt: Date | null
   metadata: any
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
   member?: Member
   membership?: Membership
 }
@@ -138,90 +131,84 @@ export type PaymentStatus = "pending" | "paid" | "failed" | "refunded"
 
 export interface Attendance {
   id: string
-  tenant_id: string
-  member_id: string
-  checkin_at: string
-  checkout_at: string | null
-  device_info: any
-  created_at: string
+  tenantId: string
+  memberId: string
+  checkinAt: string
+  checkoutAt: string | null
+  deviceInfo: any
+  createdAt: string
   member?: Member
 }
 
 export interface Trainer {
   id: string
-  tenant_id: string
-  user_id: string | null
-  full_name: string
+  tenantId: string
+  userId: string | null
+  fullName: string
   email: string | null
   phone: string | null
   bio: string | null
   specialties: string[]
-  hourly_rate_cents: number | null
-  is_active: boolean
-  avatar_url: string | null
-  created_at: string
-  updated_at: string
-
-  // camelCase analogs for backend parity
-  tenantId?: string
-  userId?: string | null
-  fullName?: string
-  hourlyRateCents?: number | null
-  isActive?: boolean
-  avatarUrl?: string | null
+  hourlyRateCents: number | null
+  isActive: boolean
+  avatarUrl: string | null
+  createdAt: string
+  updatedAt: string
+  user?: User
 }
 
 export interface TrainerSlot {
   id: string
-  trainer_id: string
-  tenant_id: string
-  day_of_week: number
-  start_time: string
-  end_time: string
-  is_recurring: boolean
-  is_booked: boolean
-  booked_by_member_id: string | null
-  booked_at: string | null
-  created_at: string
-  updated_at: string
+  trainerId: string
+  tenantId: string
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+  isRecurring: boolean
+  isBooked: boolean
+  bookedByMemberId: string | null
+  bookedAt: string | null
+  createdAt: string
+  updatedAt: string
   trainer?: Trainer
 }
 
 export interface Workout {
   id: string
-  tenant_id: string
+  tenantId: string
   name: string
   description: string | null
   exercises: any
-  created_by: string | null
-  is_public: boolean
+  createdBy: string | null
+  isPublic: boolean
   difficulty: string | null
-  estimated_duration_minutes: number | null
-  created_at: string
-  updated_at: string
+  estimatedDurationMinutes: number | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface DietPlan {
   id: string
-  tenant_id: string
+  tenantId: string
   name: string
   description: string | null
   meals: any
-  created_by: string | null
-  is_public: boolean
-  target_calories: number | null
-  dietary_restrictions: string[]
-  created_at: string
-  updated_at: string
+  createdBy: string | null
+  isPublic: boolean
+  targetCalories: number | null
+  dietaryRestrictions: string[]
+  createdAt: string
+  updatedAt: string
 }
 
 export interface MemberWorkout {
   id: string
-  member_id: string
-  workout_id: string
-  assigned_by: string | null
-  assigned_at: string
-  completed_at: string | null
+  tenantId: string
+  memberId: string
+  workoutId: string
+  assignedBy: string | null
+  assignedAt: string
+  completedAt: string | null
   notes: string | null
   progress: any
   workout?: Workout
@@ -229,26 +216,27 @@ export interface MemberWorkout {
 
 export interface MemberDiet {
   id: string
-  member_id: string
-  diet_plan_id: string
-  assigned_by: string | null
-  assigned_at: string
-  started_at: string | null
-  completed_at: string | null
+  tenantId: string
+  memberId: string
+  dietPlanId: string
+  assignedBy: string | null
+  assignedAt: string
+  startedAt: string | null
+  completedAt: string | null
   notes: string | null
-  diet_plan?: DietPlan
+  dietPlan?: DietPlan
 }
 
 export interface Notification {
   id: string
-  tenant_id: string
-  user_id: string | null
-  type: string
+  tenantId: string
+  userId: string | null
+  notificationType: string
   title: string
   message: string
   data: any
-  is_read: boolean
-  created_at: string
+  isRead: boolean
+  createdAt: string
 }
 
 export interface DashboardStats {
@@ -291,8 +279,71 @@ export interface AuthUser {
   id: string
   email: string
   role: UserRole
-  tenant_id: string | null
-  full_name: string | null
+  tenantId: string | null
+  fullName: string | null
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface RegisterCredentials {
+  email: string
+  password: string
+  fullName: string
+  role?: UserRole
+  tenantId?: string
+}
+
+export interface QRCodeData {
+  memberId: string
+  tenantId: string
+  timestamp: number
+}
+
+export interface DashboardStats {
+  totalMembers: number
+  activeMembers: number
+  totalTrainers: number
+  totalFrontdesk: number
+  totalManagers: number
+  totalRevenue: number
+  monthlyRevenue: number
+  attendanceToday: number
+  newMembersThisMonth: number
+  membershipDistribution: { [key: string]: number }
+  revenueTrend: { month: string; revenue: number }[]
+  attendanceTrend: { date: string; count: number }[]
+}
+
+export interface ApiResponse<T> {
+  data: T | null
+  error: Error | null
+}
+
+export interface PaginationParams {
+  page?: number
+  limit?: number
+  search?: string
+  sortBy?: string
+  sortOrder?: "asc" | "desc"
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export interface AuthUser {
+  id: string
+  email: string
+  role: UserRole
+  tenantId: string | null
+  fullName: string | null
 }
 
 export interface LoginCredentials {
@@ -316,24 +367,24 @@ export interface QRCodeData {
 
 export interface Branch {
   id: string
-  tenant_id: string
+  tenantId: string
   name: string
   address: string | null
   phone: string | null
-  manager_id: string | null
-  created_at: string
-  updated_at: string
+  managerId: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Service {
   id: string
-  tenant_id: string
+  tenantId: string
   name: string
   description: string | null
   type: "class" | "facility" | "training"
   capacity: number | null
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
 }
 
 export type StaffShift = "morning" | "evening" | "both"
@@ -381,9 +432,46 @@ export interface Invoice {
   status: "draft" | "sent" | "paid" | "overdue" | "cancelled" | "void"
   subtotalPaise: number
   discountPaise: number
+  taxPercent: number
   taxPaise: number
   totalPaise: number
   currency: string
   notes?: string
   lineItems: any[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SaasPlan {
+  id: string
+  name: string
+  description: string | null
+  pricePaise: number
+  durationDays: number | null
+  features: any
+  isActive: boolean
+  createdAt: string | null
+}
+
+export interface SaasSubscription {
+  id: string
+  tenantId: string
+  planId: string | null
+  startDate: string | null
+  endDate: string | null
+  pricePaidPaise: number | null
+  status: SubscriptionStatus
+  createdAt: string | null
+  plan?: SaasPlan
+}
+
+export interface SaasInvoice {
+  id: string
+  tenantId: string
+  subscriptionId: string | null
+  invoiceNumber: string | null
+  amountPaise: number | null
+  status: "paid" | "pending" | "failed" | "overdue"
+  paymentDate: string | null
+  createdAt: string | null
 }

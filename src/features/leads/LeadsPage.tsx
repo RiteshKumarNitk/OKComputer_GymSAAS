@@ -43,14 +43,12 @@ import { useToast } from "@/components/ui/use-toast"
 
 export interface Lead {
     id: string
-    full_name?: string
     fullName?: string
     email: string | null
     phone: string
     status: 'new' | 'contacted' | 'trial' | 'converted' | 'lost'
     source: string
     notes: string | null
-    created_at?: string
     createdAt?: string
 }
 
@@ -65,20 +63,20 @@ export const LeadsPage: React.FC = () => {
 
     // Fetch Leads
     const { data: leads } = useQuery({
-        queryKey: ["leads", user?.tenant_id],
+        queryKey: ["leads", user?.tenantId],
         queryFn: async () => {
-            const response = await leadsApi.list(user?.tenant_id || "")
+            const response = await leadsApi.list(user?.tenantId || "")
             if (response.error) throw response.error
             return response.data as Lead[]
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     // Add/Update Mutation
     const saveLeadMutation = useMutation({
         mutationFn: async (formData: FormData) => {
             const data = {
-                fullName: formData.get("full_name") as string,
+                fullName: formData.get("fullName") as string,
                 email: formData.get("email") as string,
                 phone: formData.get("phone") as string,
                 status: formData.get("status") as string,
@@ -125,7 +123,7 @@ export const LeadsPage: React.FC = () => {
     }
 
     const filteredLeads = leads?.filter(lead =>
-        (lead.fullName || lead.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (lead.fullName || lead.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         lead.phone.includes(searchQuery)
     )
 
@@ -171,7 +169,7 @@ export const LeadsPage: React.FC = () => {
                         <CardHeader className="pb-2">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <CardTitle className="text-lg">{lead.fullName || lead.full_name}</CardTitle>
+                                    <CardTitle className="text-lg">{lead.fullName || lead.fullName}</CardTitle>
                                     <CardDescription className="flex items-center mt-1">
                                         <Badge variant="secondary" className={statusColors[lead.status]}>
                                             {lead.status.toUpperCase()}
@@ -235,8 +233,8 @@ export const LeadsPage: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="full_name">Full Name</Label>
-                                <Input id="full_name" name="full_name" required defaultValue={selectedLead?.full_name} />
+                                <Label htmlFor="fullName">Full Name</Label>
+                                <Input id="fullName" name="fullName" required defaultValue={selectedLead?.fullName} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="phone">Phone</Label>

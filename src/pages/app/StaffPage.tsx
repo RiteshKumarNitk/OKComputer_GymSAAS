@@ -34,7 +34,7 @@ export const StaffPage: React.FC = () => {
 
     // Fetch Staff using profiles API
     const { data: staffProfiles } = useQuery({
-        queryKey: ["staff-profiles", user?.tenant_id],
+        queryKey: ["staff-profiles", user?.tenantId],
         queryFn: async () => {
              const token = localStorage.getItem("gym_token")
              const res = await fetch(`/api/staff/profiles`, {
@@ -43,11 +43,11 @@ export const StaffPage: React.FC = () => {
              if (!res.ok) throw new Error("Failed to fetch staff profiles")
              return await res.json()
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     const { data: leaves, isLoading: leavesLoading } = useQuery({
-        queryKey: ["staff-leaves", user?.tenant_id],
+        queryKey: ["staff-leaves", user?.tenantId],
         queryFn: async () => {
              const token = localStorage.getItem("gym_token")
              const res = await fetch(`/api/staff/leaves`, {
@@ -56,12 +56,12 @@ export const StaffPage: React.FC = () => {
              if (!res.ok) throw new Error("Failed to fetch leaves")
              return await res.json()
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     // Fetch Staff using generic API or list users
     const { data: staff, isLoading } = useQuery({
-        queryKey: ["staff", user?.tenant_id],
+        queryKey: ["staff", user?.tenantId],
         queryFn: async () => {
              const token = localStorage.getItem("gym_token")
              const res = await fetch(`/api/users`, {
@@ -72,7 +72,7 @@ export const StaffPage: React.FC = () => {
              // Filter for managers, trainers, frontdesk
              return items.filter((u: any) => ["manager", "trainer", "frontdesk"].includes(u.role))
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     const addStaffMutation = useMutation({
@@ -144,10 +144,10 @@ export const StaffPage: React.FC = () => {
     const handleEditClick = (s: any) => {
         const profile = staffProfiles?.find((p: any) => p.userId === s.id)
         setSelectedStaff(s)
-        setEditName(s.fullName || s.full_name || "")
+        setEditName(s.fullName || s.fullName || "")
         setEditRole(s.role || "")
         setEditSpecialties(s.trainer?.specialties || "")
-        setEditHourlyRate(String(s.trainer?.hourlyRateCents || s.trainer?.hourly_rate_cents || "0"))
+        setEditHourlyRate(String(s.trainer?.hourlyRateCents || s.trainer?.hourlyRateCents || "0"))
         
         setEditJoiningDate(profile?.joiningDate?.split("T")[0] || "")
         setEditResignationDate(profile?.resignationDate?.split("T")[0] || "")
@@ -238,7 +238,7 @@ export const StaffPage: React.FC = () => {
                                                             <UserCog className="h-4 w-4" />
                                                         </div>
                                                         <div>
-                                                            <div className="font-semibold">{s.fullName ?? s.full_name}</div>
+                                                            <div className="font-semibold">{s.fullName ?? s.fullName}</div>
                                                             <div className="text-xs text-muted-foreground capitalize">{s.role} • {s.email}</div>
                                                         </div>
                                                     </div>

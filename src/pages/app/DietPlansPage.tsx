@@ -24,7 +24,7 @@ interface DietPlan {
   id: string
   name: string
   description: string
-  target_calories: number
+  targetCalories: number
   meals: Meal[]
 }
 
@@ -43,20 +43,20 @@ export const DietPlansPage: React.FC = () => {
 
   // Fetch Diet Plans
   const { data: plans } = useQuery({
-    queryKey: ["diet_plans", user?.tenant_id],
+    queryKey: ["diet_plans", user?.tenantId],
     queryFn: async () => {
-      const response = await dietPlansApi.list(user?.tenant_id || "")
+      const response = await dietPlansApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as DietPlan[]
     },
-    enabled: !!user?.tenant_id
+    enabled: !!user?.tenantId
   })
 
   // Fetch Members (for assignment)
   const { data: members } = useQuery({
-    queryKey: ["members-basic", user?.tenant_id],
+    queryKey: ["members-basic", user?.tenantId],
     queryFn: async () => {
-      const response = await membersApi.list(user?.tenant_id || "", "", "active")
+      const response = await membersApi.list(user?.tenantId || "", "", "active")
       if (response.error) throw response.error
       return response.data as Member[]
     },
@@ -75,7 +75,7 @@ export const DietPlansPage: React.FC = () => {
       const data = {
         name: name,
         description: formData.get("description"),
-        target_calories: parseInt(calories as string),
+        targetCalories: parseInt(calories as string),
         meals: meals
       }
       const response = await dietPlansApi.create(data)
@@ -102,7 +102,7 @@ export const DietPlansPage: React.FC = () => {
       const data = {
         name: name,
         description: formData.get("description"),
-        target_calories: parseInt(calories as string),
+        targetCalories: parseInt(calories as string),
         meals: meals
       }
       const response = await dietPlansApi.update(selectedDiet.id, data)
@@ -122,8 +122,8 @@ export const DietPlansPage: React.FC = () => {
     mutationFn: async (memberId: string) => {
       if (!selectedDiet) return
       const response = await memberDietsApi.assign({
-        member_id: memberId,
-        diet_plan_id: selectedDiet.id
+        memberId: memberId,
+        dietPlanId: selectedDiet.id
       })
       if (response.error) throw response.error
     },
@@ -176,7 +176,7 @@ export const DietPlansPage: React.FC = () => {
               <div className="flex justify-between items-start">
                 <CardTitle>{plan.name}</CardTitle>
                 <div className="flex gap-2">
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{plan.target_calories} kCal</Badge>
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{plan.targetCalories} kCal</Badge>
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditDialog(plan)}>
                     <Pencil className="h-3 w-3" />
                   </Button>
@@ -227,7 +227,7 @@ export const DietPlansPage: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <Label>Target Calories</Label>
-                <Input name="calories" type="number" placeholder="2000" required defaultValue={selectedDiet?.target_calories} />
+                <Input name="calories" type="number" placeholder="2000" required defaultValue={selectedDiet?.targetCalories} />
               </div>
             </div>
             <div className="space-y-2">
@@ -279,8 +279,8 @@ export const DietPlansPage: React.FC = () => {
             {members?.map((member) => (
               <div key={member.id} className="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
                 <div>
-                  <p className="font-medium">{member.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{member.member_code}</p>
+                  <p className="font-medium">{member.fullName}</p>
+                  <p className="text-xs text-muted-foreground">{member.memberCode}</p>
                 </div>
                 <Button size="sm" onClick={() => assignMutation.mutate(member.id)}>Assign</Button>
               </div>

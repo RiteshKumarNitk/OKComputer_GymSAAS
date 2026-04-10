@@ -38,13 +38,13 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate()
 
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["dashboard-stats", user?.tenant_id],
+    queryKey: ["dashboard-stats", user?.tenantId],
     queryFn: async (): Promise<DashboardStats> => {
       const response = await dashboardApi.getStats()
       if (response.error) throw response.error
       return response.data as DashboardStats
     },
-    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+    enabled: !!user?.tenantId && user?.role !== "super_admin",
   })
 
   // Fetch Super Admin Stats
@@ -55,7 +55,7 @@ export const DashboardPage: React.FC = () => {
       const usersRes = await usersApi.list()
       const invoicesRes = await billingApi.getInvoices("all")
 
-      const activeTenants = tenantsRes.data?.filter((t: any) => t.subscription_status === "active") || []
+      const activeTenants = tenantsRes.data?.filter((t: any) => t.subscriptionStatus === "active") || []
       const totalRevenue = invoicesRes.data?.reduce((acc: number, curr: any) => acc + (curr.amount_cents || 0), 0) || 0
       
       // Calculate monthly revenue from recent invoices
@@ -194,11 +194,11 @@ export const DashboardPage: React.FC = () => {
                         </div>
                         <div>
                           <p className="text-sm font-medium">{tenant.name}</p>
-                          <p className="text-xs text-muted-foreground">{tenant.owner_email}</p>
+                          <p className="text-xs text-muted-foreground">{tenant.ownerEmail}</p>
                         </div>
                       </div>
-                      <Badge variant={tenant.subscription_status === 'active' ? 'default' : 'secondary'}>
-                        {tenant.subscription_status || 'Trial'}
+                      <Badge variant={tenant.subscriptionStatus === 'active' ? 'default' : 'secondary'}>
+                        {tenant.subscriptionStatus || 'Trial'}
                       </Badge>
                     </div>
                   ))}
@@ -244,7 +244,7 @@ export const DashboardPage: React.FC = () => {
           <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 p-8 text-white shadow-lg">
             <div className="relative z-10">
               <h1 className="text-3xl font-bold tracking-tight mb-2">
-                Welcome back, {user?.full_name?.split(" ")[0] || "Team Member"}!
+                Welcome back, {user?.fullName?.split(" ")[0] || "Team Member"}!
               </h1>
               <p className="text-indigo-100 max-w-xl">
                 Here's your summary for today. You currently have {stats?.attendanceToday || 0} active check-ins.

@@ -18,15 +18,15 @@ export const ProfilePage: React.FC = () => {
 
   // Fetch Profile/Tenant Details
   const { data: profileData, isLoading } = useQuery({
-    queryKey: ["profile", user?.role, user?.tenant_id, user?.id],
+    queryKey: ["profile", user?.role, user?.tenantId, user?.id],
     queryFn: async () => {
       if (user?.role === "super_admin") {
         const { data, error } = await usersApi.get(user.id)
         if (error) throw error
         return { type: "user", data }
       } else {
-        if (!user?.tenant_id) return null
-        const { data, error } = await tenantsApi.get(user.tenant_id)
+        if (!user?.tenantId) return null
+        const { data, error } = await tenantsApi.get(user.tenantId)
         if (error) throw error
         return { type: "tenant", data }
       }
@@ -50,8 +50,8 @@ export const ProfilePage: React.FC = () => {
         const { error } = await usersApi.update(user.id, updates)
         if (error) throw error
       } else {
-        if (!user.tenant_id) throw new Error("No tenant ID found")
-        const { error } = await tenantsApi.update(user.tenant_id, updates)
+        if (!user.tenantId) throw new Error("No tenant ID found")
+        const { error } = await tenantsApi.update(user.tenantId, updates)
         if (error) throw error
       }
     },
@@ -136,8 +136,8 @@ export const ProfilePage: React.FC = () => {
                   {isSuperAdmin ? (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="full_name">Full Name</Label>
-                        <Input id="full_name" name="full_name" defaultValue={profileData.data?.full_name} required />
+                        <Label htmlFor="fullName">Full Name</Label>
+                        <Input id="fullName" name="fullName" defaultValue={profileData.data?.fullName} required />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">Work Email</Label>
@@ -151,24 +151,24 @@ export const ProfilePage: React.FC = () => {
                         <Input id="name" name="name" defaultValue={profileData.data?.name} required className="text-lg font-medium" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="owner_name">Owner Name</Label>
-                        <Input id="owner_name" name="owner_name" defaultValue={profileData.data?.owner_name || ""} />
+                        <Label htmlFor="ownerName">Owner Name</Label>
+                        <Input id="ownerName" name="ownerName" defaultValue={profileData.data?.ownerName || ""} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="owner_phone">Contact Phone</Label>
-                        <Input id="owner_phone" name="owner_phone" defaultValue={profileData.data?.owner_phone || ""} />
+                        <Label htmlFor="ownerPhone">Contact Phone</Label>
+                        <Input id="ownerPhone" name="ownerPhone" defaultValue={profileData.data?.ownerPhone || ""} />
                       </div>
                       <div className="grid gap-2 md:col-span-2">
-                        <Label htmlFor="owner_email">Official Email</Label>
-                        <Input id="owner_email" name="owner_email" type="email" defaultValue={profileData.data?.owner_email || ""} />
+                        <Label htmlFor="ownerEmail">Official Email</Label>
+                        <Input id="ownerEmail" name="ownerEmail" type="email" defaultValue={profileData.data?.ownerEmail || ""} />
                       </div>
                       <div className="grid gap-2 md:col-span-2">
-                        <Label htmlFor="registered_address">Registered Address</Label>
-                        <Input id="registered_address" name="registered_address" defaultValue={profileData.data?.registered_address || ""} />
+                        <Label htmlFor="registeredAddress">Registered Address</Label>
+                        <Input id="registeredAddress" name="registeredAddress" defaultValue={profileData.data?.registeredAddress || ""} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="gst_number">GST Number</Label>
-                        <Input id="gst_number" name="gst_number" defaultValue={profileData.data?.gst_number || ""} placeholder="XXAAAAA0000A1Z5" />
+                        <Label htmlFor="gstNumber">GST Number</Label>
+                        <Input id="gstNumber" name="gstNumber" defaultValue={profileData.data?.gstNumber || ""} placeholder="XXAAAAA0000A1Z5" />
                       </div>
                     </>
                   )}
@@ -198,14 +198,14 @@ export const ProfilePage: React.FC = () => {
                   <div className="grid md:grid-cols-2 gap-12">
                     <div className="space-y-6">
                       <div className="space-y-2">
-                        <Label htmlFor="primary_color" className="text-sm font-semibold uppercase tracking-wider text-slate-500">Primary Brand Color</Label>
+                        <Label htmlFor="primaryColor" className="text-sm font-semibold uppercase tracking-wider text-slate-500">Primary Brand Color</Label>
                         <div className="flex items-center gap-4 p-3 border rounded-lg bg-slate-50">
                           <Input
-                            id="primary_color"
-                            name="primary_color"
+                            id="primaryColor"
+                            name="primaryColor"
                             type="color"
                             className="h-12 w-24 p-1 cursor-pointer border-none rounded"
-                            defaultValue={profileData.data?.primary_color || "#7c3aed"}
+                            defaultValue={profileData.data?.primaryColor || "#7c3aed"}
                           />
                           <div>
                             <p className="text-sm font-medium">Primary UI</p>
@@ -215,14 +215,14 @@ export const ProfilePage: React.FC = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="secondary_color" className="text-sm font-semibold uppercase tracking-wider text-slate-500">Secondary Accent</Label>
+                        <Label htmlFor="secondaryColor" className="text-sm font-semibold uppercase tracking-wider text-slate-500">Secondary Accent</Label>
                         <div className="flex items-center gap-4 p-3 border rounded-lg bg-slate-50">
                           <Input
-                            id="secondary_color"
-                            name="secondary_color"
+                            id="secondaryColor"
+                            name="secondaryColor"
                             type="color"
                             className="h-12 w-24 p-1 cursor-pointer border-none rounded"
-                            defaultValue={profileData.data?.secondary_color || "#4c1d95"}
+                            defaultValue={profileData.data?.secondaryColor || "#4c1d95"}
                           />
                           <div>
                             <p className="text-sm font-medium">Accent UI</p>
@@ -236,10 +236,10 @@ export const ProfilePage: React.FC = () => {
                       <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Live Preview</h4>
                       <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full" style={{ backgroundColor: profileData.data?.primary_color || "#7c3aed" }} />
+                          <div className="h-8 w-8 rounded-full" style={{ backgroundColor: profileData.data?.primaryColor || "#7c3aed" }} />
                           <div className="h-2 w-24 bg-slate-700 rounded" />
                         </div>
-                        <div className="h-10 w-full rounded flex items-center justify-center text-sm font-medium" style={{ backgroundColor: profileData.data?.primary_color || "#7c3aed" }}>
+                        <div className="h-10 w-full rounded flex items-center justify-center text-sm font-medium" style={{ backgroundColor: profileData.data?.primaryColor || "#7c3aed" }}>
                           Sample Button
                         </div>
                         <div className="h-2 w-1/2 bg-slate-800 rounded" />
