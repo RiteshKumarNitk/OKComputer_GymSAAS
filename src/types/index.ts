@@ -214,6 +214,19 @@ export interface MemberWorkout {
   workout?: Workout
 }
 
+export interface WorkoutTemplate {
+  id: string
+  tenantId: string
+  name: string
+  description: string | null
+  days: number
+  exercises: any
+  isActive: boolean
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface MemberDiet {
   id: string
   tenantId: string

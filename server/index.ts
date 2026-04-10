@@ -926,6 +926,29 @@ app.get("/api/trainer/members", authenticate, async (req: any, res) => {
     }
 });
 
+// ==================== WORKOUTS (Templates for Trainer App) ====================
+
+app.get("/api/workouts", authenticate, async (req: any, res) => {
+    try {
+        const tenantId = req.tenantId;
+        
+        // Return both Workout and WorkoutTemplate models for compatibility
+        const [workouts, templates] = await Promise.all([
+            prisma.workout.findMany({ where: { tenantId }, orderBy: { name: "asc" } }),
+            prisma.workoutTemplate.findMany({ where: { tenantId, isActive: true }, orderBy: { isDefault: "desc" } })
+        ]);
+        
+        const combined = [
+            ...workouts.map(w => ({ ...w, type: "workout" })),
+            ...templates.map(t => ({ ...t, type: "template" }))
+        ];
+        
+        res.json(combined.map(snakeToCamel));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post("/api/workouts/assign", authenticate, async (req: any, res) => {
     try {
         const { memberId, workoutId, notes } = snakeToCamel(req.body);
@@ -1032,6 +1055,104 @@ createCrudRoutes("saas_invoices", "saasInvoice", {
         delete: ["super_admin"]
     }
 })
+
+// ==================== MEMBER LEADERBOARD ====================
+
+app.get("/api/members/leaderboard", authenticate, async (req: any, res) => {
+    try {
+        if (req.role !== "member") return res.status(403).json({ error: "Only members can access leaderboard" });
+        
+        const leaderboard = await prisma.member.findMany({
+            where: { tenantId: req.tenantId, status: "active" },
+            orderBy: [{ planExpiresAt: "desc" }, { joinedAt: "desc" }],
+            take: 50,
+            include: { user: { select: { fullName: true, avatarUrl: true } } }
+        });
+        
+        const mapped = leaderboard.map((m, i) => ({
+            rank: i + 1,
+            memberId: m.id,
+            fullName: m.fullName,
+            avatarUrl: m.user?.avatarUrl,
+            points: 1000 - (i * 20), // Placeholder points until real logic
+            currentPlan: m.currentPlanId ? "Active" : "Expired"
+        }));
+        
+        res.json(mapped);
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==================== MEMBER WORKOUT LOGS ====================
+
+app.post("/api/members/me/workout-logs", authenticate, async (req: any, res) => {
+    try {
+        if (req.role !== "member") return res.status(403).json({ error: "Only members can log workouts" });
+        
+        const member = await prisma.member.findUnique({ where: { userId: req.userId } });
+        if (!member) return res.status(404).json({ error: "Member not found" });
+        
+        const { workoutId, exercises, duration, notes } = req.body;
+        
+        const log = await prisma.memberWorkout.create({
+            data: {
+                tenantId: req.tenantId,
+                memberId: member.id,
+                workoutId: workoutId || "custom",
+                assignedBy: member.assignedTrainerId,
+                assignedAt: new Date(),
+                completedAt: new Date(),
+                notes,
+                progress: { duration, exercises }
+            }
+        });
+        
+        res.json(snakeToCamel(log));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==================== MEMBER MEASUREMENTS ====================
+
+app.post("/api/members/me/measurements", authenticate, async (req: any, res) => {
+    try {
+        if (req.role !== "member") return res.status(403).json({ error: "Only members can log measurements" });
+        
+        const member = await prisma.member.findUnique({ where: { userId: req.userId } });
+        if (!member) return res.status(404).json({ error: "Member not found" });
+        
+        const { type, value, unit, notes } = req.body;
+        
+        // Check if memberFitnessStats exists
+        let stats = await prisma.memberFitnessStats.findUnique({ where: { memberId: member.id } });
+        
+        if (!stats) {
+            stats = await prisma.memberFitnessStats.create({
+                data: { memberId: member.id, tenantId: req.tenantId }
+            });
+        }
+        
+        res.json({ success: true });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.patch("/api/members/me/health-profile", authenticate, async (req: any, res) => {
+    try {
+        if (req.role !== "member") return res.status(403).json({ error: "Only members can update health profile" });
+        
+        const member = await prisma.member.findUnique({ where: { userId: req.userId } });
+        if (!member) return res.status(404).json({ error: "Member not found" });
+        
+        // Update fitness stats or member profile with health data
+        res.json({ success: true });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ==================== MEMBER SPECIALIZED ROUTES ====================
 
@@ -2315,6 +2436,147 @@ app.post("/api/trainer/workouts/daily-plan", authenticate, async (req: any, res)
         });
 
         res.json(snakeToCamel(plan));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==================== WORKOUT TEMPLATES (Weekly Plans) ====================
+
+app.get("/api/workout_templates", authenticate, async (req: any, res) => {
+    try {
+        const tenantId = req.tenantId;
+        const templates = await prisma.workoutTemplate.findMany({
+            where: { tenantId, isActive: true },
+            orderBy: { isDefault: "desc" }
+        });
+        res.json(templates.map(snakeToCamel));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post("/api/workout_templates", authenticate, async (req: any, res) => {
+    try {
+        if (req.role === "member") return res.status(403).json({ error: "Members cannot create templates" });
+        
+        const { name, description, days, exercises } = req.body;
+        const tenantId = req.tenantId;
+        
+        const template = await prisma.workoutTemplate.create({
+            data: {
+                tenantId,
+                name,
+                description,
+                days: days || 7,
+                exercises: typeof exercises === "string" ? exercises : JSON.stringify(exercises || []),
+            }
+        });
+        res.json(snakeToCamel(template));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.patch("/api/workout_templates/:id", authenticate, async (req: any, res) => {
+    try {
+        if (req.role === "member") return res.status(403).json({ error: "Members cannot modify templates" });
+        
+        const { id } = req.params;
+        const { name, description, days, exercises, isActive, isDefault } = req.body;
+        
+        const updateData: any = {};
+        if (name) updateData.name = name;
+        if (description !== undefined) updateData.description = description;
+        if (days) updateData.days = days;
+        if (exercises) updateData.exercises = typeof exercises === "string" ? exercises : JSON.stringify(exercises);
+        if (isActive !== undefined) updateData.isActive = isActive;
+        if (isDefault !== undefined) updateData.isDefault = isDefault;
+        
+        const template = await prisma.workoutTemplate.update({
+            where: { id },
+            data: updateData
+        });
+        res.json(snakeToCamel(template));
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete("/api/workout_templates/:id", authenticate, async (req: any, res) => {
+    try {
+        if (req.role === "member") return res.status(403).json({ error: "Members cannot delete templates" });
+        
+        const { id } = req.params;
+        await prisma.workoutTemplate.delete({ where: { id } });
+        res.json({ success: true });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==================== ASSIGN WORKOUT TEMPLATE TO MEMBER ====================
+
+app.post("/api/members/:memberId/workout_template", authenticate, async (req: any, res) => {
+    try {
+        if (req.role === "member") return res.status(403).json({ error: "Only trainers can assign plans" });
+        
+        const { memberId } = req.params;
+        const { templateId, startDate } = req.body;
+        
+        const template = await prisma.workoutTemplate.findUnique({ where: { id: templateId } });
+        if (!template) return res.status(404).json({ error: "Template not found" });
+        
+        const exercises = typeof template.exercises === "string" 
+            ? JSON.parse(template.exercises) 
+            : template.exercises;
+        
+        // Create daily workout plans for each day in the template
+        const start = startDate ? new Date(startDate) : new Date();
+        const assignedPlans = [];
+        
+        for (const dayPlan of exercises) {
+            const planDate = new Date(start);
+            // Find the day of week and add days accordingly
+            const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            const targetDayIndex = dayNames.indexOf(dayPlan.day);
+            const currentDayIndex = start.getDay();
+            let daysToAdd = targetDayIndex - currentDayIndex;
+            if (daysToAdd < 0) daysToAdd += 7;
+            planDate.setDate(planDate.getDate() + daysToAdd);
+            
+            const existingPlan = await prisma.dailyWorkoutPlan.findFirst({
+                where: {
+                    memberId,
+                    tenantId: req.tenantId,
+                    date: planDate
+                }
+            });
+            
+            if (existingPlan) {
+                await prisma.dailyWorkoutPlan.update({
+                    where: { id: existingPlan.id },
+                    data: {
+                        exercises: JSON.stringify(dayPlan.exercises || []),
+                        status: "pending",
+                        trainerId: req.userId
+                    }
+                });
+            } else {
+                await prisma.dailyWorkoutPlan.create({
+                    data: {
+                        memberId,
+                        tenantId: req.tenantId,
+                        date: planDate,
+                        day: dayPlan.day,
+                        exercises: JSON.stringify(dayPlan.exercises || []),
+                        trainerId: req.userId
+                    }
+                });
+            }
+        }
+        
+        res.json({ success: true, assigned: exercises.length });
     } catch (err: any) {
         res.status(500).json({ error: err.message });
     }

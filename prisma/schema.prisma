@@ -252,6 +252,7 @@ model Tenant {
   trainers            Trainer[]
   trainerSlots        TrainerSlot[]
   workouts            Workout[]
+  workoutTemplates    WorkoutTemplate[]
   dietPlans           DietPlan[]
   notifications       Notification[]
   auditLogs           AuditLog[]
@@ -1130,6 +1131,28 @@ model Discount {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, code])
+}
+
+// =====================
+// WORKOUT TEMPLATES (Weekly Plans)
+// =====================
+
+model WorkoutTemplate {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name       String
+  description String?
+  days       Int      @default(7) // 6 or 7 day plan
+  exercises  Json     @default("[]") // Array of {day: "Monday", exercises: [...]}
+  isActive   Boolean  @default(true)
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
 }
 
 // =====================
