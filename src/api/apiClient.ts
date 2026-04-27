@@ -10,7 +10,7 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<{ da
         const token = localStorage.getItem("gym_token")
         const userStored = localStorage.getItem("gym_user")
         const user = userStored ? JSON.parse(userStored) : null
-        const tenantId = user?.tenant_id || ""
+        const tenantId = user?.tenantId || ""
 
         const res = await fetch(`${BASE_URL}${endpoint}`, {
             headers: { 
@@ -114,11 +114,25 @@ export const dietPlansApi = {
     delete: (id: string) => request<void>(`/diet-plans?id=${id}`, { method: "DELETE" }),
 }
 
+// ========== WORKOUT TEMPLATES (Weekly Plans) ==========
+export const workoutTemplatesApi = {
+    list: () => request<any[]>("/workout_templates"),
+    create: (data: any) => request<any>("/workout_templates", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<any>(`/workout_templates?id=${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/workout_templates?id=${id}`, { method: "DELETE" }),
+    assignToMember: (memberId: string, templateId: string, startDate?: string) => 
+        request<any>(`/members/${memberId}/workout_template`, { method: "POST", body: JSON.stringify({ templateId, startDate }) }),
+}
+
 // ========== MEMBER WORKOUTS & DIETS ==========
 export const memberWorkoutsApi = {
     list: (memberId: string) => request<any[]>(`/member-workouts?memberId=${memberId}`),
     assign: (data: any) => request<any>("/member-workouts", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/member-workouts?id=${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+}
+
+export const trainerWorkoutsApi = {
+    assignDailyWorkout: (data: any) => request<any>("/trainer/workouts/daily-plan", { method: "POST", body: JSON.stringify(data) }),
 }
 
 export const memberDietsApi = {

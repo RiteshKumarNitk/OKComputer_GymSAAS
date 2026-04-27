@@ -75,8 +75,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 const GYM_SERVICES = [
-  "General", "Massage", "Kick Boxing", "Fitness Workout", 
-  "Personal Training", "Yoga", "Zumba", "Aerobics"
+    "General", "Massage", "Kick Boxing", "Fitness Workout",
+    "Personal Training", "Yoga", "Zumba", "Aerobics"
 ]
 
 const formatDate = (dateString?: string) => {
@@ -90,14 +90,12 @@ const formatDate = (dateString?: string) => {
 
 export interface Lead {
     id: string
-    full_name?: string
     fullName?: string
     email: string | null
     phone: string
     status: 'new' | 'contacted' | 'trial' | 'converted' | 'lost'
     source: string
     notes: string | null
-    created_at?: string
     createdAt?: string
     priority?: 'hot' | 'warm' | 'cold'
     gender?: string
@@ -112,7 +110,7 @@ export const LeadsPage: React.FC = () => {
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
-    
+
     // Filter State
     const [handleBy, setHandleBy] = useState("All")
     const [leadType, setLeadType] = useState("All")
@@ -124,7 +122,7 @@ export const LeadsPage: React.FC = () => {
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1)
     const [rowsPerPage, setRowsPerPage] = useState(10)
-    
+
     // Selection state for batch actions
     const [selectedLeads, setSelectedLeads] = useState<string[]>([])
 
@@ -146,40 +144,42 @@ export const LeadsPage: React.FC = () => {
 
     // Fetch Leads
     const { data: leads, isLoading } = useQuery({
-        queryKey: ["leads", user?.tenant_id],
+        queryKey: ["leads", user?.tenantId],
         queryFn: async () => {
-            const response = await leadsApi.list(user?.tenant_id || "")
+            const response = await leadsApi.list(user?.tenantId || "")
             if (response.error) throw response.error
             return response.data as Lead[]
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     // Add/Update Mutation
     const saveLeadMutation = useMutation({
-        mutationFn: async (payload: any) => {
+        mutationFn: async (formData: any) => {
             if (selectedLead) {
-                const response = await leadsApi.update(selectedLead.id, payload)
+                const response = await leadsApi.update(selectedLead.id, formData)
                 if (response.error) throw response.error
+                return response.data
             } else {
-                const response = await leadsApi.create(payload)
+                const response = await leadsApi.create(formData)
                 if (response.error) throw response.error
-                
-                // If it's a new lead and follow-up is requested
+
+                // If follow-up is requested
                 if (formData.addFollowUp && response.data?.id) {
-                     const followUpDate = new Date()
-                     followUpDate.setDate(followUpDate.getDate() + 3)
-             
-                     const followUpPayload = {
-                       leadId: response.data.id,
-                       type: 'enquiry',
-                       priority: formData.leadType,
-                       followUpDate: followUpDate.toISOString(),
-                       notes: 'New enquiry follow-up',
-                       status: 'pending'
-                     }
-                     await followUpsApi.create(followUpPayload)
+                    const followUpDate = new Date()
+                    followUpDate.setDate(followUpDate.getDate() + 3)
+
+                    const followUpPayload = {
+                        leadId: response.data.id,
+                        type: 'enquiry',
+                        priority: formData.leadType || 'warm',
+                        followUpDate: followUpDate.toISOString(),
+                        notes: 'New enquiry follow-up',
+                        status: 'pending'
+                    }
+                    await followUpsApi.create(followUpPayload)
                 }
+                return response.data
             }
         },
         onSuccess: () => {
@@ -187,11 +187,12 @@ export const LeadsPage: React.FC = () => {
             setIsAddOpen(false)
             setSelectedLead(null)
             resetForm()
-            toast({ title: "Success", description: `Enquiry ${selectedLead ? "updated" : "added"} successfully` })
+            // toast({ title: "Success", description: `Enquiry ${selectedLead ? "updated" : "added"} successfully` })
         },
         onError: (error: any) => {
-            toast({ title: "Error", description: error.message, variant: "destructive" })
-        },
+            // toast({ title: "Error", description: error.message, variant: "destructive" })
+            console.error("Mutation error:", error)
+        }
     })
 
     const resetForm = () => {
@@ -233,10 +234,10 @@ export const LeadsPage: React.FC = () => {
 
     const handleServiceToggle = (service: string) => {
         setFormData(prev => ({
-          ...prev,
-          services: prev.services.includes(service)
-            ? prev.services.filter(s => s !== service)
-            : [...prev.services, service]
+            ...prev,
+            services: prev.services.includes(service)
+                ? prev.services.filter(s => s !== service)
+                : [...prev.services, service]
         }))
     }
 
@@ -253,7 +254,7 @@ export const LeadsPage: React.FC = () => {
     })
 
 
-     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
         saveLeadMutation.mutate(formData)
@@ -261,7 +262,7 @@ export const LeadsPage: React.FC = () => {
 
     const filteredLeads = leads?.filter(lead => {
         const matchesSearch = (lead.fullName || lead.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            (lead.phone || "").includes(searchQuery)
+            (lead.phone || "").includes(searchQuery)
         const matchesType = leadType === "All" || lead.priority?.toLowerCase() === leadType.toLowerCase()
         const matchesGender = gender === "All" || lead.gender?.toLowerCase() === gender.toLowerCase()
         // ... other filters can go here
@@ -290,7 +291,7 @@ export const LeadsPage: React.FC = () => {
         cold: "bg-blue-500 text-white hover:bg-blue-600 h-6 px-2 rounded-lg text-[10px] font-black"
     }
 
-    const trialBadgeStyles = (booked: boolean) => booked 
+    const trialBadgeStyles = (booked: boolean) => booked
         ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 h-8 px-4 rounded-xl text-xs font-bold"
         : "bg-rose-600 text-white border-rose-700 hover:bg-rose-700 h-8 px-4 rounded-xl text-xs font-bold"
 
@@ -308,7 +309,7 @@ export const LeadsPage: React.FC = () => {
                 <div className="flex items-center space-x-3">
                     <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Enquiry</h1>
                 </div>
-                <Button 
+                <Button
                     onClick={() => navigate("/enquiries/new")}
                     className="bg-orange-500 hover:bg-orange-600 text-white px-6 rounded-xl font-bold h-11 shadow-lg shadow-orange-500/20"
                 >
@@ -463,9 +464,9 @@ export const LeadsPage: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-3">
                     <div className="relative">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <input 
-                            type="text" 
-                            placeholder="dd/mm/yyyy" 
+                        <input
+                            type="text"
+                            placeholder="dd/mm/yyyy"
                             className="pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-medium bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
                             value={dateFilter}
                             onChange={(e) => setDateFilter(e.target.value)}
@@ -478,161 +479,155 @@ export const LeadsPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Action Bar */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t dark:border-slate-800">
-                <div className="relative w-full md:w-80">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                        placeholder="Search"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 h-12 rounded-xl bg-slate-100/50 dark:bg-slate-900 border-none shadow-inner"
-                    />
-                </div>
-                <div className="flex items-center gap-2">
-                    {selectedLeads.length > 0 && (
-                        <Button className="h-12 bg-slate-900 text-white hover:bg-black rounded-xl font-bold px-6 shadow-xl animate-in zoom-in-95">
-                            <Send className="mr-2 h-4 w-4" /> Send SMS ({selectedLeads.length})
-                        </Button>
-                    )}
-                    <Button variant="outline" className="h-12 px-6 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold text-slate-600">
-                        <Download className="mr-2 h-5 w-5" /> Generate XLS Report
-                    </Button>
-                </div>
-            </div>
+    {/* Action Bar */ }
+    <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t dark:border-slate-800">
+        <div className="relative w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+                placeholder="Search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-12 rounded-xl bg-slate-100/50 dark:bg-slate-900 border-none shadow-inner"
+            />
+        </div>
+        <div className="flex items-center gap-2">
+            {selectedLeads.length > 0 && (
+                <Button className="h-12 bg-slate-900 text-white hover:bg-black rounded-xl font-bold px-6 shadow-xl animate-in zoom-in-95">
+                    <Send className="mr-2 h-4 w-4" /> Send SMS ({selectedLeads.length})
+                </Button>
+            )}
+            <Button variant="outline" className="h-12 px-6 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold text-slate-600">
+                <Download className="mr-2 h-5 w-5" /> Generate XLS Report
+            </Button>
+        </div>
+    </div>
 
-            {/* List View Table */}
-            <Card className="border-slate-100 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900">
-                <Table>
-                    <TableHeader className="bg-slate-50/50 dark:bg-slate-800/50">
-                        <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800">
-                            <TableHead className="w-12 text-center">
-                                <Checkbox 
-                                    checked={selectedLeads.length === filteredLeads?.length && filteredLeads?.length > 0}
+    {/* List View Table */ }
+    <Card className="border-slate-100 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900">
+        <Table>
+            <TableHeader className="bg-slate-50/50 dark:bg-slate-800/50">
+                <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800">
+                    <TableHead className="w-12 text-center">
+                        <Checkbox
+                            checked={selectedLeads.length === filteredLeads?.length && filteredLeads?.length > 0}
+                            onCheckedChange={(checked) => {
+                                if (checked) setSelectedLeads(filteredLeads?.map(l => l.id) || [])
+                                else setSelectedLeads([])
+                            }}
+                        />
+                    </TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Enquiry No.</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Enquiry Date</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Name & Mob. No.</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4 text-center">Trial Booked</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Handle by</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4 text-center">Lead Type</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Remark/Summary</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Created By</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4 text-right">Action</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {isLoading ? (
+                    Array(5).fill(0).map((_, i) => (
+                        <TableRow key={i} className="animate-pulse">
+                            <TableCell colSpan={9} className="h-20 bg-slate-50/30 mb-2 rounded-xl" />
+                        </TableRow>
+                    ))
+                ) : paginatedLeads.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={9} className="h-32 text-center text-slate-400 font-medium font-bold">
+                            No enquiries found.
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    paginatedLeads.map((lead) => (
+                        <TableRow key={lead.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors border-slate-100 dark:border-slate-800">
+                            <TableCell className="text-center">
+                                <Checkbox
+                                    checked={selectedLeads.includes(lead.id)}
                                     onCheckedChange={(checked) => {
-                                        if (checked) setSelectedLeads(filteredLeads?.map(l => l.id) || [])
-                                        else setSelectedLeads([])
+                                        if (checked) setSelectedLeads([...selectedLeads, lead.id])
+                                        else setSelectedLeads(selectedLeads.filter(id => id !== lead.id))
                                     }}
                                 />
-                            </TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Enquiry No.</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Enquiry Date</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Name & Mob. No.</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4 text-center">Trial Booked</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Handle by</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4 text-center">Lead Type</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Remark/Summary</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Created By</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4 text-right">Action</TableHead>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm text-slate-500 py-6 px-4">{lead.id.split('-')[0].toUpperCase()}</TableCell>
+                            <TableCell className="text-sm font-medium text-slate-600 dark:text-slate-300 py-6 px-4">
+                                {formatDate(lead.createdAt || lead.created_at)}
+                            </TableCell>
+                            <TableCell className="py-6 px-4">
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-slate-800 dark:text-white uppercase tracking-tight">{lead.fullName || lead.full_name}</span>
+                                    <span className="text-xs text-slate-500 font-medium">+91 {lead.phone}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-center py-6 px-4">
+                                <Badge className={trialBadgeStyles(lead.status === 'trial')}>
+                                    {lead.status === 'trial' ? "Yes" : "No"}
+                                </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm font-bold text-slate-700 dark:text-slate-300 py-6 px-4">{lead.source === 'walk-in' ? 'Admin' : 'Online'}</TableCell>
+                            <TableCell className="text-center py-6 px-4">
+                                <Badge className={priorityColors[lead.priority || 'warm']}>
+                                    {(lead.priority || 'warm').toUpperCase()}
+                                </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-400 max-w-[200px] truncate py-6 px-4">
+                                {lead.notes || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm font-bold text-slate-700 dark:text-slate-300 py-6 px-4">{lead.source === 'walk-in' ? 'Admin' : 'Online'}</TableCell>
+                            <TableCell className="text-right py-6 px-4">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-full hover:bg-slate-100">
+                                            <MoreVertical className="h-5 w-5 text-slate-400" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="rounded-2xl shadow-xl border-slate-200 dark:border-slate-800 p-2 min-w-[200px]">
+                                        <DropdownMenuItem
+                                            className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
+                                            onClick={() => navigate('/members/add', { state: { prefill: lead } })}
+                                        >
+                                            <Smartphone className="h-4 w-4 mr-3 text-emerald-500" /> Sale Enquiry
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
+                                            onClick={() => { setSelectedLead(lead); setIsAddOpen(true); }}
+                                        >
+                                            <UserPlus className="h-4 w-4 mr-3 text-blue-500" /> Edit Enquiry
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
+                                            onClick={() => saveLeadMutation.mutate({ ...lead, status: 'lost' })}
+                                        >
+                                            <Ban className="h-4 w-4 mr-3 text-red-500" /> Not Interested
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
+                                            onClick={() => saveLeadMutation.mutate({ ...lead, status: 'contacted' })}
+                                        >
+                                            <Phone className="h-4 w-4 mr-3 text-orange-500" /> Call Done
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
+                                            onClick={() => saveLeadMutation.mutate({ ...lead, status: 'new' })}
+                                        >
+                                            <PhoneOff className="h-4 w-4 mr-3 text-slate-400" /> Call Not Connected
+                                        </DropdownMenuItem>
+                                        <div className="h-px bg-slate-100 dark:bg-slate-800 my-1 mx-2" />
+                                        <DropdownMenuItem
+                                            className="rounded-xl px-4 py-2.5 font-bold text-orange-600"
+                                            onClick={() => { setSelectedLead(lead); setFormData({ ...formData, addFollowUp: true }); setIsAddOpen(true); }}
+                                        >
+                                            <RotateCcw className="h-4 w-4 mr-3" /> Schedule Follow Up
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
                         </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            Array(5).fill(0).map((_, i) => (
-                                <TableRow key={i} className="animate-pulse">
-                                    <TableCell colSpan={9} className="h-20 bg-slate-50/30 mb-2 rounded-xl" />
-                                </TableRow>
-                            ))
-                        ) : paginatedLeads.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={9} className="h-32 text-center text-slate-400 font-medium font-bold">
-                                    No enquiries found.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            paginatedLeads.map((lead) => (
-                                <TableRow key={lead.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors border-slate-100 dark:border-slate-800">
-                                    <TableCell className="text-center">
-                                        <Checkbox 
-                                            checked={selectedLeads.includes(lead.id)}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) setSelectedLeads([...selectedLeads, lead.id])
-                                                else setSelectedLeads(selectedLeads.filter(id => id !== lead.id))
-                                            }}
-                                        />
-                                    </TableCell>
-                                    <TableCell className="font-mono text-sm text-slate-500 py-6 px-4">{lead.id.split('-')[0].toUpperCase()}</TableCell>
-                                    <TableCell className="text-sm font-medium text-slate-600 dark:text-slate-300 py-6 px-4">
-                                        {formatDate(lead.createdAt || lead.created_at)}
-                                    </TableCell>
-                                    <TableCell className="py-6 px-4">
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-slate-800 dark:text-white uppercase tracking-tight">{lead.fullName || lead.full_name}</span>
-                                            <span className="text-xs text-slate-500 font-medium">+91 {lead.phone}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-center py-6 px-4">
-                                        <Badge className={trialBadgeStyles(lead.status === 'trial')}>
-                                            {lead.status === 'trial' ? "Yes" : "No"}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-sm font-bold text-slate-700 dark:text-slate-300 py-6 px-4">{lead.source === 'walk-in' ? 'Admin' : 'Online'}</TableCell>
-                                    <TableCell className="text-center py-6 px-4">
-                                        <Badge className={priorityColors[lead.priority || 'warm']}>
-                                            {(lead.priority || 'warm').toUpperCase()}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-slate-400 max-w-[200px] truncate py-6 px-4">
-                                        {lead.notes || "—"}
-                                    </TableCell>
-                                    <TableCell className="text-sm font-bold text-slate-700 dark:text-slate-300 py-6 px-4">{lead.source === 'walk-in' ? 'Admin' : 'Online'}</TableCell>
-                                    <TableCell className="text-right py-6 px-4">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-full hover:bg-slate-100">
-                                                    <MoreVertical className="h-5 w-5 text-slate-400" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="rounded-2xl shadow-xl border-slate-200 dark:border-slate-800 p-2 min-w-[200px]">
-                                                <DropdownMenuItem 
-                                                    className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
-                                                    onClick={() => navigate('/members/add', { state: { prefill: lead } })}
-                                                >
-                                                    <Smartphone className="h-4 w-4 mr-3 text-emerald-500" /> Sale Enquiry
-                                                </DropdownMenuItem>
-                                                
-                                                <DropdownMenuItem 
-                                                    className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
-                                                    onClick={() => { setSelectedLead(lead); setIsAddOpen(true); }}
-                                                >
-                                                    <UserPlus className="h-4 w-4 mr-3 text-blue-500" /> Edit Enquiry
-                                                </DropdownMenuItem>
-
-                                                <DropdownMenuItem 
-                                                    className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
-                                                    onClick={() => saveLeadMutation.mutate({...lead, status: 'lost'})}
-                                                >
-                                                    <Ban className="h-4 w-4 mr-3 text-red-500" /> Not Interested
-                                                </DropdownMenuItem>
-
-                                                <DropdownMenuItem 
-                                                    className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
-                                                    onClick={() => saveLeadMutation.mutate({...lead, status: 'contacted'})}
-                                                >
-                                                    <Phone className="h-4 w-4 mr-3 text-orange-500" /> Call Done
-                                                </DropdownMenuItem>
-
-                                                <DropdownMenuItem 
-                                                    className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
-                                                    onClick={() => saveLeadMutation.mutate({...lead, status: 'new'})}
-                                                >
-                                                    <PhoneOff className="h-4 w-4 mr-3 text-slate-400" /> Call Not Connected
-                                                </DropdownMenuItem>
-
-                                                <div className="h-px bg-slate-100 dark:bg-slate-800 my-1 mx-2" />
-
-                                                <DropdownMenuItem 
-                                                    className="rounded-xl px-4 py-2.5 font-bold text-orange-600"
-                                                    onClick={() => { setSelectedLead(lead); setFormData({...formData, addFollowUp: true}); setIsAddOpen(true); }}
-                                                >
-                                                    <RotateCcw className="h-4 w-4 mr-3" /> Schedule Follow Up
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
+                        ))
+            )}
                     </TableBody>
                 </Table>
             </Card>
@@ -672,16 +667,16 @@ export const LeadsPage: React.FC = () => {
                 </div>
             </div>
 
-            <Dialog open={isAddOpen} onOpenChange={(open) => { setIsAddOpen(open); if(!open) resetForm(); }}>
+            <Dialog open={isAddOpen} onOpenChange={(open) => { setIsAddOpen(open); if (!open) resetForm(); }}>
                 <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
                     <div className="bg-slate-950 p-8 flex justify-between items-center">
                         <div>
                             <h2 className="text-2xl font-black text-white">Add New Enquiry</h2>
                             <p className="text-slate-400 text-xs mt-1 uppercase tracking-widest font-bold">Registration & Lead Management</p>
                         </div>
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setIsAddOpen(false)}
                             className="rounded-full h-10 w-10 text-slate-400 hover:bg-white/10 hover:text-white"
                         >
@@ -691,216 +686,210 @@ export const LeadsPage: React.FC = () => {
 
                     <ScrollArea className="max-h-[85vh] p-8 bg-[#F8FAFC]">
                         <form onSubmit={handleFormSubmit} className="space-y-8">
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                 {/* LEFT COLUMN: Personal Info */}
-                                 <div className="md:col-span-2 space-y-6">
-                                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
-                                         <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-50">
-                                             <User className="h-4 w-4 text-orange-500" />
-                                             <span className="text-xs font-black uppercase tracking-widest text-slate-400">Personal Details</span>
-                                         </div>
-                                         <div className="grid grid-cols-2 gap-4">
-                                             <div className="space-y-1.5">
-                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">First Name</label>
-                                                 <Input 
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                {/* LEFT COLUMN: Personal Info */}
+                                <div className="md:col-span-2 space-y-6">
+                                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+                                        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-50">
+                                            <User className="h-4 w-4 text-orange-500" />
+                                            <span className="text-xs font-black uppercase tracking-widest text-slate-400">Personal Details</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">First Name</label>
+                                                <Input
                                                     className="rounded-xl h-11 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
                                                     placeholder="Enter first name"
                                                     value={formData.firstName}
-                                                    onChange={e => setFormData({...formData, firstName: e.target.value})}
+                                                    onChange={e => setFormData({ ...formData, firstName: e.target.value })}
                                                     required
-                                                 />
-                                             </div>
-                                             <div className="space-y-1.5">
-                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Last Name</label>
-                                                 <Input 
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Last Name</label>
+                                                <Input
                                                     className="rounded-xl h-11 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
                                                     placeholder="Enter last name"
                                                     value={formData.lastName}
-                                                    onChange={e => setFormData({...formData, lastName: e.target.value})}
-                                                 />
-                                             </div>
-                                         </div>
-                                         <div className="grid grid-cols-2 gap-4">
-                                             <div className="space-y-1.5">
-                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Mobile Number</label>
-                                                 <div className="relative">
-                                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
-                                                     <Input 
+                                                    onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Mobile Number</label>
+                                                <div className="relative">
+                                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+                                                    <Input
                                                         className="rounded-xl h-11 pl-10 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
                                                         placeholder="e.g. 9876543210"
                                                         value={formData.mobile}
-                                                        onChange={e => setFormData({...formData, mobile: e.target.value})}
+                                                        onChange={e => setFormData({ ...formData, mobile: e.target.value })}
                                                         required
-                                                     />
-                                                 </div>
-                                             </div>
-                                             <div className="space-y-1.5">
-                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Email Address</label>
-                                                 <div className="relative">
-                                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
-                                                     <Input 
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Email Address</label>
+                                                <div className="relative">
+                                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+                                                    <Input
                                                         className="rounded-xl h-11 pl-10 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
                                                         placeholder="example@mail.com"
                                                         value={formData.email}
-                                                        onChange={e => setFormData({...formData, email: e.target.value})}
-                                                     />
-                                                 </div>
-                                             </div>
-                                         </div>
-                                         <div className="space-y-1.5">
-                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Residential Address</label>
-                                             <div className="relative">
-                                                 <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-                                                 <Textarea 
+                                                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Residential Address</label>
+                                            <div className="relative">
+                                                <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+                                                <Textarea
                                                     className="rounded-xl pl-10 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium min-h-[80px]"
                                                     placeholder="Enter complete address..."
                                                     value={formData.address}
-                                                    onChange={e => setFormData({...formData, address: e.target.value})}
-                                                 />
-                                             </div>
-                                         </div>
-                                     </div>
+                                                    onChange={e => setFormData({ ...formData, address: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
-                                         <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-50">
-                                             <Layers className="h-4 w-4 text-blue-500" />
-                                             <span className="text-xs font-black uppercase tracking-widest text-slate-400">Services & Interest</span>
-                                         </div>
-                                         <div className="grid grid-cols-4 gap-2">
-                                             {GYM_SERVICES.map(service => (
-                                                 <button
-                                                     key={service}
-                                                     type="button"
-                                                     onClick={() => handleServiceToggle(service)}
-                                                     className={`py-2 px-3 rounded-xl text-[10px] font-black tracking-tight uppercase transition-all border ${
-                                                         formData.services.includes(service)
-                                                             ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20'
-                                                             : 'bg-slate-50/50 border-transparent text-slate-500 hover:border-slate-200'
-                                                     }`}
-                                                 >
-                                                     {service}
-                                                 </button>
-                                             ))}
-                                         </div>
-                                         <div className="space-y-1.5 pt-2">
-                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Enquiry Summary</label>
-                                             <Textarea 
+                                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+                                        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-50">
+                                            <Layers className="h-4 w-4 text-blue-500" />
+                                            <span className="text-xs font-black uppercase tracking-widest text-slate-400">Services & Interest</span>
+                                        </div>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {GYM_SERVICES.map(service => (
+                                                <button
+                                                    key={service}
+                                                    type="button"
+                                                    onClick={() => handleServiceToggle(service)}
+                                                    className={`py-2 px-3 rounded-xl text-[10px] font-black tracking-tight uppercase transition-all border ${formData.services.includes(service)
+                                                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                                            : 'bg-slate-50/50 border-transparent text-slate-500 hover:border-slate-200'
+                                                        }`}
+                                                >
+                                                    {service}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="space-y-1.5 pt-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Enquiry Summary</label>
+                                            <Textarea
                                                 className="rounded-xl bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium min-h-[100px]"
                                                 placeholder="Add details about the conversation..."
                                                 value={formData.remark}
-                                                onChange={e => setFormData({...formData, remark: e.target.value})}
-                                             />
-                                         </div>
-                                     </div>
-                                 </div>
+                                                onChange={e => setFormData({ ...formData, remark: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
 
-                                 {/* RIGHT COLUMN: Status & Logic */}
-                                 <div className="space-y-6">
-                                      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
-                                         <div className="space-y-3 pb-4 border-b border-slate-50">
-                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                               <Target className="h-3.5 w-3.5 text-rose-500" /> Lead Priority
-                                             </label>
-                                             <div className="grid grid-cols-3 gap-2">
-                                               {['hot', 'warm', 'cold'].map(type => (
-                                                 <button
-                                                   key={type}
-                                                   type="button"
-                                                   onClick={() => setFormData({...formData, leadType: type as any})}
-                                                   className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
-                                                     formData.leadType === type
-                                                       ? type === 'hot' ? 'bg-rose-600 border-rose-600 text-white' : type === 'warm' ? 'bg-orange-500 border-orange-500 text-white' : 'bg-blue-500 border-blue-500 text-white'
-                                                       : 'bg-slate-50 border-transparent text-slate-400'
-                                                   }`}
-                                                 >
-                                                   {type}
-                                                 </button>
-                                               ))}
-                                             </div>
-                                         </div>
+                                {/* RIGHT COLUMN: Status & Logic */}
+                                <div className="space-y-6">
+                                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+                                        <div className="space-y-3 pb-4 border-b border-slate-50">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <Target className="h-3.5 w-3.5 text-rose-500" /> Lead Priority
+                                            </label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {['hot', 'warm', 'cold'].map(type => (
+                                                    <button
+                                                        key={type}
+                                                        type="button"
+                                                        onClick={() => setFormData({ ...formData, leadType: type as any })}
+                                                        className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${formData.leadType === type
+                                                                ? type === 'hot' ? 'bg-rose-600 border-rose-600 text-white' : type === 'warm' ? 'bg-orange-500 border-orange-500 text-white' : 'bg-blue-500 border-blue-500 text-white'
+                                                                : 'bg-slate-50 border-transparent text-slate-400'
+                                                            }`}
+                                                    >
+                                                        {type}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
 
-                                         <div className="space-y-3 pb-4 border-b border-slate-50">
-                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                               <User className="h-3.5 w-3.5 text-blue-500" /> Gender
-                                             </label>
-                                             <div className="flex gap-2">
-                                               {['male', 'female'].map(g => (
-                                                 <button
-                                                   key={g}
-                                                   type="button"
-                                                   onClick={() => setFormData({...formData, gender: g})}
-                                                   className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
-                                                     formData.gender === g ? 'bg-slate-900 text-white' : 'bg-slate-50 border-transparent text-slate-400'
-                                                   }`}
-                                                 >
-                                                   {g}
-                                                 </button>
-                                               ))}
-                                             </div>
-                                         </div>
+                                        <div className="space-y-3 pb-4 border-b border-slate-50">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <User className="h-3.5 w-3.5 text-blue-500" /> Gender
+                                            </label>
+                                            <div className="flex gap-2">
+                                                {['male', 'female'].map(g => (
+                                                    <button
+                                                        key={g}
+                                                        type="button"
+                                                        onClick={() => setFormData({ ...formData, gender: g })}
+                                                        className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${formData.gender === g ? 'bg-slate-900 text-white' : 'bg-slate-50 border-transparent text-slate-400'
+                                                            }`}
+                                                    >
+                                                        {g}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
 
-                                         <div className="space-y-3">
-                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                               <DollarSign className="h-3.5 w-3.5 text-emerald-500" /> Estimated Budget
-                                             </label>
-                                             <div className="relative">
-                                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
-                                               <Input 
-                                                 type="number" 
-                                                 className="rounded-xl pl-8 h-11 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-black"
-                                                 placeholder="0.00"
-                                                 value={formData.budget}
-                                                 onChange={e => setFormData({...formData, budget: e.target.value})}
-                                               />
-                                             </div>
-                                         </div>
-                                      </div>
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <DollarSign className="h-3.5 w-3.5 text-emerald-500" /> Estimated Budget
+                                            </label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                                                <Input
+                                                    type="number"
+                                                    className="rounded-xl pl-8 h-11 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-black"
+                                                    placeholder="0.00"
+                                                    value={formData.budget}
+                                                    onChange={e => setFormData({ ...formData, budget: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
-                                          <div 
-                                              className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all border ${
-                                                formData.bookTrial ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-50/50 border-transparent'
-                                              }`}
-                                              onClick={() => setFormData({...formData, bookTrial: !formData.bookTrial})}
-                                          >
-                                              <div className="flex items-center gap-3">
-                                                  <div className={`p-2 rounded-xl ${formData.bookTrial ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                                                      <Calendar className="h-4 w-4" />
-                                                  </div>
-                                                  <span className="text-xs font-black uppercase tracking-widest text-slate-800">Book Trial</span>
-                                              </div>
-                                              {formData.bookTrial && <CheckCircle2 className="h-5 w-5 text-amber-500" />}
-                                          </div>
+                                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+                                        <div
+                                            className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all border ${formData.bookTrial ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-50/50 border-transparent'
+                                                }`}
+                                            onClick={() => setFormData({ ...formData, bookTrial: !formData.bookTrial })}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-xl ${formData.bookTrial ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                                                    <Calendar className="h-4 w-4" />
+                                                </div>
+                                                <span className="text-xs font-black uppercase tracking-widest text-slate-800">Book Trial</span>
+                                            </div>
+                                            {formData.bookTrial && <CheckCircle2 className="h-5 w-5 text-amber-500" />}
+                                        </div>
 
-                                          <div 
-                                              className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all border ${
-                                                formData.addFollowUp ? 'bg-orange-50/50 border-orange-200' : 'bg-slate-50/50 border-transparent'
-                                              }`}
-                                              onClick={() => setFormData({...formData, addFollowUp: !formData.addFollowUp})}
-                                          >
-                                              <div className="flex items-center gap-3">
-                                                  <div className={`p-2 rounded-xl ${formData.addFollowUp ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                                                      <Clock className="h-4 w-4" />
-                                                  </div>
-                                                  <span className="text-xs font-black uppercase tracking-widest text-slate-800">Follow-Up</span>
-                                              </div>
-                                              {formData.addFollowUp && <CheckCircle2 className="h-5 w-5 text-orange-500" />}
-                                          </div>
+                                        <div
+                                            className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all border ${formData.addFollowUp ? 'bg-orange-50/50 border-orange-200' : 'bg-slate-50/50 border-transparent'
+                                                }`}
+                                            onClick={() => setFormData({ ...formData, addFollowUp: !formData.addFollowUp })}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-xl ${formData.addFollowUp ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                                                    <Clock className="h-4 w-4" />
+                                                </div>
+                                                <span className="text-xs font-black uppercase tracking-widest text-slate-800">Follow-Up</span>
+                                            </div>
+                                            {formData.addFollowUp && <CheckCircle2 className="h-5 w-5 text-orange-500" />}
+                                        </div>
 
-                                          <Button 
-                                             block 
-                                             className="w-full h-14 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-orange-500/20 mt-4"
-                                             disabled={saveLeadMutation.isPending}
-                                          >
-                                             {saveLeadMutation.isPending ? "Processing..." : "Save Enquiry"}
-                                          </Button>
-                                      </div>
-                                 </div>
-                             </div>
+                                        <Button
+                                            className="w-full h-14 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-orange-500/20 mt-4"
+                                            disabled={saveLeadMutation.isPending}
+                                        >
+                                            {saveLeadMutation.isPending ? "Processing..." : "Save Enquiry"}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
                         </form>
                     </ScrollArea>
                 </DialogContent>
             </Dialog>
         </div>
-    )
+        )
 }

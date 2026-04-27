@@ -63,8 +63,8 @@ export const SuperAdminTenants: React.FC = () => {
                     id: user.id,
                     email: user.email,
                     role: user.role,
-                    tenant_id: user.tenantId,
-                    full_name: user.fullName
+                    tenantId: user.tenantId,
+                    fullName: user.fullName
                 }))
                 toast({ title: "Impersonation Active", description: `Acting as ${user.fullName}. Redirecting...` })
                 setTimeout(() => {

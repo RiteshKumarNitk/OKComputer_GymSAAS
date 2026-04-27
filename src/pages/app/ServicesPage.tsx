@@ -32,18 +32,18 @@ export const ServicesPage: React.FC = () => {
 
     // --- SERVICES LOGIC ---
     const { data: services } = useQuery({
-        queryKey: ["services", user?.tenant_id],
+        queryKey: ["services", user?.tenantId],
         queryFn: async () => {
-             const response = await servicesApi.list(user?.tenant_id || "")
+             const response = await servicesApi.list(user?.tenantId || "")
              if (response.error) throw response.error
              return response.data as Service[]
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     const serviceMutation = useMutation({
         mutationFn: async (formData: FormData) => {
-            if (!user?.tenant_id) throw new Error("Tenant ID Missing")
+            if (!user?.tenantId) throw new Error("Tenant ID Missing")
             const data = {
                 name: formData.get("name") as string,
                 description: formData.get("description") as string,
@@ -79,28 +79,28 @@ export const ServicesPage: React.FC = () => {
 
     // --- MEMBERSHIP PLANS LOGIC ---
     const { data: memberships } = useQuery({
-        queryKey: ["memberships", user?.tenant_id],
+        queryKey: ["memberships", user?.tenantId],
         queryFn: async () => {
-             const response = await membershipsApi.list(user?.tenant_id || "")
+             const response = await membershipsApi.list(user?.tenantId || "")
              if (response.error) throw response.error
              return response.data as Membership[]
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     const membershipMutation = useMutation({
         mutationFn: async (formData: FormData) => {
-            if (!user?.tenant_id) throw new Error("Tenant ID Missing")
+            if (!user?.tenantId) throw new Error("Tenant ID Missing")
 
             const price = parseFloat(formData.get("price") as string) * 100 // Convert to cents
 
             const data = {
-                tenant_id: user.tenant_id,
+                tenantId: user.tenantId,
                 name: formData.get("name") as string,
-                duration_days: parseInt(formData.get("duration") as string),
-                price_cents: Math.round(price),
+                durationDays: parseInt(formData.get("duration") as string),
+                priceCents: Math.round(price),
                 currency: "INR", // Force INR
-                is_active: true,
+                isActive: true,
                 description: formData.get("description") as string,
             }
 
@@ -184,9 +184,9 @@ export const ServicesPage: React.FC = () => {
                                 <CardHeader>
                                     <CardTitle className="flex justify-between items-center">
                                         <span>{plan.name}</span>
-                                        <span className="text-xl font-bold text-green-600">{formatCurrency(plan.priceCents ?? plan.price_cents)}</span>
+                                        <span className="text-xl font-bold text-green-600">{formatCurrency(plan.priceCents ?? plan.priceCents)}</span>
                                     </CardTitle>
-                                    <CardDescription>{plan.durationDays ?? plan.duration_days} Days Validity</CardDescription>
+                                    <CardDescription>{plan.durationDays ?? plan.durationDays} Days Validity</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-sm text-muted-foreground mb-4">{plan.description || "No description provided."}</p>
@@ -325,11 +325,11 @@ export const ServicesPage: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="m-price">Price (₹)</Label>
-                                <Input id="m-price" name="price" type="number" placeholder="1000" defaultValue={editingMembership ? (editingMembership.priceCents ?? editingMembership.price_cents) / 100 : ""} required />
+                                <Input id="m-price" name="price" type="number" placeholder="1000" defaultValue={editingMembership ? (editingMembership.priceCents ?? editingMembership.priceCents) / 100 : ""} required />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="m-duration">Duration (Days)</Label>
-                                <Input id="m-duration" name="duration" type="number" placeholder="30" defaultValue={editingMembership?.durationDays ?? editingMembership?.duration_days} required />
+                                <Input id="m-duration" name="duration" type="number" placeholder="30" defaultValue={editingMembership?.durationDays ?? editingMembership?.durationDays} required />
                             </div>
                         </div>
                         <div className="space-y-2">

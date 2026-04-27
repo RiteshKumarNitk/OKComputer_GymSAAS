@@ -16,11 +16,11 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
 
 interface ScheduleSlot {
   id: string
-  day_of_week: number
-  start_time: string
+  dayOfWeek: number
+  startTime: string
   duration_minutes: number
   service_id: string
-  trainer_id: string | null
+  trainerId: string | null
   service?: Service
   trainer?: Trainer
 }
@@ -38,36 +38,36 @@ export const SchedulePage: React.FC = () => {
 
   // Fetch Schedule
   const { data: schedule } = useQuery({
-    queryKey: ["schedules", user?.tenant_id],
+    queryKey: ["schedules", user?.tenantId],
     queryFn: async () => {
-      const response = await schedulesApi.list(user?.tenant_id || "")
+      const response = await schedulesApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as ScheduleSlot[]
     },
-    enabled: !!user?.tenant_id
+    enabled: !!user?.tenantId
   })
 
   // Fetch Services (Classes)
   const { data: services } = useQuery({
-    queryKey: ["services", user?.tenant_id],
+    queryKey: ["services", user?.tenantId],
     queryFn: async () => {
-      const response = await servicesApi.list(user?.tenant_id || "")
+      const response = await servicesApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       const list = (response.data || []) as Service[]
       return list.filter(s => s.type === "class")
     },
-    enabled: !!user?.tenant_id
+    enabled: !!user?.tenantId
   })
 
   // Fetch Trainers
   const { data: trainers } = useQuery({
-    queryKey: ["trainers", user?.tenant_id],
+    queryKey: ["trainers", user?.tenantId],
     queryFn: async () => {
-      const response = await trainersApi.list(user?.tenant_id || "")
+      const response = await trainersApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return (response.data || []) as Trainer[]
     },
-    enabled: !!user?.tenant_id
+    enabled: !!user?.tenantId
   })
 
   // Add Mutation
@@ -76,11 +76,11 @@ export const SchedulePage: React.FC = () => {
       if (!formService) throw new Error("Please select a class/service")
 
       const data = {
-        day_of_week: parseInt(formDay),
-        start_time: formData.get("time") as string,
+        dayOfWeek: parseInt(formDay),
+        startTime: formData.get("time") as string,
         duration_minutes: parseInt(formData.get("duration") as string),
         service_id: formService,
-        trainer_id: formTrainer === "none" ? null : formTrainer
+        trainerId: formTrainer === "none" ? null : formTrainer
       }
       const response = await schedulesApi.create(data)
       if (response.error) throw response.error
@@ -111,7 +111,7 @@ export const SchedulePage: React.FC = () => {
   }
 
   // Filter slots for current view
-  const daySlots = schedule?.filter(s => s.day_of_week === selectedDay).sort((a, b) => a.start_time.localeCompare(b.start_time))
+  const daySlots = schedule?.filter(s => s.dayOfWeek === selectedDay).sort((a, b) => a.startTime.localeCompare(b.startTime))
 
   return (
     <div className="space-y-6">
@@ -164,14 +164,14 @@ export const SchedulePage: React.FC = () => {
                 <div key={slot.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/50 transition-colors">
                   <div className="flex items-center space-x-4">
                     <div className="p-3 bg-primary/10 rounded-full text-primary font-bold text-sm min-w-[80px] text-center">
-                      {slot.start_time.slice(0, 5)}
+                      {slot.startTime.slice(0, 5)}
                     </div>
                     <div>
                       <h4 className="font-bold text-lg">{slot.service?.name || "Unknown Class"}</h4>
                       <div className="flex items-center text-sm text-muted-foreground space-x-3">
                         <span className="flex items-center"><Clock className="mr-1 h-3 w-3" /> {slot.duration_minutes}m</span>
                         {slot.trainer && (
-                          <span className="flex items-center"><User className="mr-1 h-3 w-3" /> {slot.trainer.full_name}</span>
+                          <span className="flex items-center"><User className="mr-1 h-3 w-3" /> {slot.trainer.fullName}</span>
                         )}
                       </div>
                     </div>
@@ -187,7 +187,7 @@ export const SchedulePage: React.FC = () => {
       ) : (
         <div className="space-y-6">
           {DAYS.map((day, index) => {
-            const slots = schedule?.filter(s => s.day_of_week === index).sort((a, b) => a.start_time.localeCompare(b.start_time))
+            const slots = schedule?.filter(s => s.dayOfWeek === index).sort((a, b) => a.startTime.localeCompare(b.startTime))
             if (!slots || slots.length === 0) return null
 
             return (
@@ -200,11 +200,11 @@ export const SchedulePage: React.FC = () => {
                     {slots.map((slot) => (
                       <div key={slot.id} className="flex items-center justify-between p-2 border rounded hover:bg-muted/50">
                         <div className="flex items-center space-x-4">
-                          <span className="text-sm font-bold w-16">{slot.start_time.slice(0, 5)}</span>
+                          <span className="text-sm font-bold w-16">{slot.startTime.slice(0, 5)}</span>
                           <div>
                             <p className="font-medium">{slot.service?.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {slot.duration_minutes}m • {slot.trainer ? slot.trainer.full_name : 'No Trainer'}
+                              {slot.duration_minutes}m • {slot.trainer ? slot.trainer.fullName : 'No Trainer'}
                             </p>
                           </div>
                         </div>
@@ -263,7 +263,7 @@ export const SchedulePage: React.FC = () => {
                   <SelectTrigger><SelectValue placeholder="No Trainer" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Trainer</SelectItem>
-                    {trainers?.map(t => <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>)}
+                    {trainers?.map(t => <SelectItem key={t.id} value={t.id}>{t.fullName}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

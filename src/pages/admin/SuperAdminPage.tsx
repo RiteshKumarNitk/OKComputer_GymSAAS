@@ -285,15 +285,15 @@ export const SuperAdminPage: React.FC = () => {
                                                 <TableRow key={tenant.id}>
                                                     <TableCell className="font-medium">
                                                         <div className="flex items-center space-x-2">
-                                                            {tenant.logo_url && <img src={tenant.logo_url} alt="Logo" className="w-6 h-6 rounded-full" />}
+                                                            {tenant.logoUrl && <img src={tenant.logoUrl} alt="Logo" className="w-6 h-6 rounded-full" />}
                                                             <span>{tenant.name}</span>
                                                         </div>
                                                         <div className="text-xs text-muted-foreground">{tenant.slug}</div>
                                                     </TableCell>
                                                     <TableCell>
                                                         <div className="flex flex-col">
-                                                            <span>{tenant.owner_name || "Pending"}</span>
-                                                            <span className="text-xs text-muted-foreground">{tenant.owner_email}</span>
+                                                            <span>{tenant.ownerName || "Pending"}</span>
+                                                            <span className="text-xs text-muted-foreground">{tenant.ownerEmail}</span>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
@@ -312,12 +312,12 @@ export const SuperAdminPage: React.FC = () => {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge variant={tenant.subscription_status === 'active' ? 'default' : 'secondary'} className={tenant.subscription_status === 'active' ? 'bg-emerald-500 shadow-sm' : ''}>
-                                                            {tenant.subscription_status || 'Trial'}
+                                                        <Badge variant={tenant.subscriptionStatus === 'active' ? 'default' : 'secondary'} className={tenant.subscriptionStatus === 'active' ? 'bg-emerald-500 shadow-sm' : ''}>
+                                                            {tenant.subscriptionStatus || 'Trial'}
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>
-                                                        {tenant.subscription_expires_at ? formatDate(tenant.subscription_expires_at) : "N/A"}
+                                                        {tenant.subscriptionExpiresAt ? formatDate(tenant.subscriptionExpiresAt) : "N/A"}
                                                     </TableCell>
                                                     <TableCell className="text-right space-x-2">
                                                         <Button variant="outline" size="sm" onClick={() => handleOpenSubscription(tenant)} title="Manage Subscription">
@@ -330,8 +330,8 @@ export const SuperAdminPage: React.FC = () => {
                                                             const params = new URLSearchParams({
                                                                 tenant: tenant.id,
                                                                 role: 'gym_owner',
-                                                                email: tenant.owner_email || '',
-                                                                name: tenant.owner_name || ''
+                                                                email: tenant.ownerEmail || '',
+                                                                name: tenant.ownerName || ''
                                                             })
                                                             const inviteLink = `${window.location.origin}/signup?${params.toString()}`
                                                             navigator.clipboard.writeText(inviteLink)
@@ -378,7 +378,7 @@ export const SuperAdminPage: React.FC = () => {
                                         <TableBody>
                                             {allUsers?.map((u: any) => (
                                                 <TableRow key={u.id}>
-                                                    <TableCell className="font-medium">{u.full_name}</TableCell>
+                                                    <TableCell className="font-medium">{u.fullName}</TableCell>
                                                     <TableCell>{u.email}</TableCell>
                                                     <TableCell>
                                                         <Badge variant={u.role === 'super_admin' ? 'default' : 'outline'}>

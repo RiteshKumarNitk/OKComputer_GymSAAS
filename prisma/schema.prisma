@@ -271,6 +271,7 @@ model Tenant {
   trainers            Trainer[]
   trainerSlots        TrainerSlot[]
   workouts            Workout[]
+  workoutTemplates    WorkoutTemplate[]
   dietPlans           DietPlan[]
   notifications       Notification[]
   auditLogs           AuditLog[]
@@ -304,6 +305,7 @@ model Tenant {
   invoices            Invoice[]
   discounts           Discount[]
   followUps           FollowUp[]
+  dailyWorkoutPlans   DailyWorkoutPlan[]
 }
 
 model UserProfile {
@@ -399,6 +401,7 @@ model Member {
   measurements      BodyMeasurement[]
   fitnessStats      MemberFitnessStats?
   followUps         FollowUp[]
+  dailyWorkoutPlans DailyWorkoutPlan[]
 
   @@unique([tenantId, memberCode])
 }
@@ -460,9 +463,10 @@ model Trainer {
   // Relations
   tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      UserProfile?  @relation("UserToTrainer", fields: [userId], references: [id], onDelete: SetNull)
-  slots     TrainerSlot[]
-  members   Member[]
-  schedules Schedule[]
+  slots             TrainerSlot[]
+  members           Member[]
+  schedules         Schedule[]
+  dailyWorkoutPlans DailyWorkoutPlan[]
 }
 
 model TrainerSlot {
@@ -1179,4 +1183,57 @@ model Discount {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, code])
+}
+
+// =====================
+// WORKOUT TEMPLATES (Weekly Plans)
+// =====================
+
+model WorkoutTemplate {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name       String
+  description String?
+  days       Int      @default(7) // 6 or 7 day plan
+  exercises  Json     @default("[]") // Array of {day: "Monday", exercises: [...]}
+  isActive   Boolean  @default(true)
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+}
+
+// =====================
+// DAILY EXERCISE PLANS
+// =====================
+
+model DailyWorkoutPlan {
+  id          String   @id @default(uuid())
+  tenantId    String
+  trainerId   String?  // Nullable if system auto-assigned
+  memberId    String
+  date        DateTime @db.Date  // Target date for the workout
+  day         String   // e.g., "Monday"
+  planType    String   @default("default") // "default" or "custom"
+  
+  // Array of exercise objects (status, sets, reps, completedAt)
+  exercises   Json     @default("[]") 
+  
+  // Computed progress cache
+  progress    Json     @default("{\"totalExercises\": 0, \"completed\": 0, \"percentage\": 0}")
+  status      String   @default("pending") // "pending", "in_progress", "completed", "skipped"
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  trainer     Trainer? @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, memberId, date])
 }

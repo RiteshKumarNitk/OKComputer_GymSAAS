@@ -61,20 +61,20 @@ export const TrainersPage: React.FC = () => {
   const { data: trainers, isLoading } = useQuery({
     queryKey: ["trainers", searchQuery],
     queryFn: async () => {
-       const response = await trainersApi.list(user?.tenant_id || "")
+       const response = await trainersApi.list(user?.tenantId || "")
        if (response.error) throw response.error
        const list = (response.data || []) as Trainer[]
        if (searchQuery) {
          const q = searchQuery.toLowerCase()
          return list.filter((t: any) => 
-            (t.fullName ?? t.full_name ?? "").toLowerCase().includes(q) || 
+            (t.fullName ?? t.fullName ?? "").toLowerCase().includes(q) || 
             (t.email ?? "").toLowerCase().includes(q) ||
             (t.phone ?? "").toLowerCase().includes(q)
          )
        }
        return list
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Pagination Logic
@@ -88,19 +88,19 @@ export const TrainersPage: React.FC = () => {
   // Create/Update Mutation
   const saveTrainerMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      if (!user?.tenant_id) {
+      if (!user?.tenantId) {
         throw new Error("Tenant ID is missing. Please refresh the page or contact support.")
       }
 
       const data = {
-        tenant_id: user.tenant_id,
-        full_name: formData.get("full_name") as string,
+        tenantId: user.tenantId,
+        fullName: formData.get("fullName") as string,
         email: formData.get("email") as string,
         phone: formData.get("phone") as string,
         bio: formData.get("bio") as string,
         specialties: (formData.get("specialties") as string).split(",").map((s) => s.trim()),
-        hourly_rate_cents: Math.round(parseFloat(formData.get("hourly_rate") as string) * 100),
-        is_active: true,
+        hourlyRateCents: Math.round(parseFloat(formData.get("hourly_rate") as string) * 100),
+        isActive: true,
       }
 
       let response;
@@ -203,7 +203,7 @@ export const TrainersPage: React.FC = () => {
             <TableBody>
               {paginatedTrainers?.map((trainer) => (
                 <TableRow key={trainer.id}>
-                  <TableCell className="font-medium">{trainer.fullName ?? trainer.full_name}</TableCell>
+                  <TableCell className="font-medium">{trainer.fullName ?? trainer.fullName}</TableCell>
                   <TableCell>
                     <div className="flex flex-col space-y-1 text-sm">
                       <div className="flex items-center">
@@ -225,10 +225,10 @@ export const TrainersPage: React.FC = () => {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell>{formatCurrency(trainer.hourlyRateCents ?? trainer.hourly_rate_cents ?? 0)}/hr</TableCell>
+                  <TableCell>{formatCurrency(trainer.hourlyRateCents ?? trainer.hourlyRateCents ?? 0)}/hr</TableCell>
                   <TableCell>
-                    <Badge variant={(trainer.isActive ?? trainer.is_active) ? "default" : "secondary"}>
-                      {(trainer.isActive ?? trainer.is_active) ? "Active" : "Inactive"}
+                    <Badge variant={(trainer.isActive ?? trainer.isActive) ? "default" : "secondary"}>
+                      {(trainer.isActive ?? trainer.isActive) ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
                   {canManageTrainers && (
@@ -318,11 +318,11 @@ export const TrainersPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="full_name">Full Name</Label>
+                <Label htmlFor="fullName">Full Name</Label>
                 <Input
-                  id="full_name"
-                  name="full_name"
-                  defaultValue={selectedTrainer?.full_name}
+                  id="fullName"
+                  name="fullName"
+                  defaultValue={selectedTrainer?.fullName}
                   required
                 />
               </div>
@@ -361,7 +361,7 @@ export const TrainersPage: React.FC = () => {
                   name="hourly_rate"
                   type="number"
                   step="0.01"
-                  defaultValue={(selectedTrainer?.hourlyRateCents ?? selectedTrainer?.hourly_rate_cents ?? 0) / 100}
+                  defaultValue={(selectedTrainer?.hourlyRateCents ?? selectedTrainer?.hourlyRateCents ?? 0) / 100}
                 />
               </div>
               <div className="grid gap-2">
@@ -391,7 +391,7 @@ export const TrainersPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {trainerToDelete?.full_name}? This action cannot be undone.
+              Are you sure you want to delete {trainerToDelete?.fullName}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

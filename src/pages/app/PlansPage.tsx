@@ -29,13 +29,13 @@ export const PlansPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("")
 
   const { data: plans, isLoading } = useQuery({
-    queryKey: ["memberships", user?.tenant_id],
+    queryKey: ["memberships", user?.tenantId],
     queryFn: async () => {
-      const response = await membershipsApi.list(user?.tenant_id || "")
+      const response = await membershipsApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as Membership[]
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Delete plan mutation
@@ -174,6 +174,7 @@ export const PlansPage: React.FC = () => {
                         {plan.name}
                       </Badge>
                     </TableCell>
+
                     <TableCell className="text-sm font-bold text-slate-700 dark:text-slate-300 py-6 px-4 uppercase tracking-tighter">
                       {Math.ceil((plan.durationDays ?? plan.duration_days ?? 0) / 30)} Months
                     </TableCell>

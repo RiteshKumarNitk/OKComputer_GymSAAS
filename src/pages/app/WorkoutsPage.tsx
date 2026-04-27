@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { workoutsApi, memberWorkoutsApi, membersApi } from "@/api/apiClient"
+import { workoutsApi, membersApi, trainerWorkoutsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -36,6 +36,7 @@ export const WorkoutsPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isAssignOpen, setIsAssignOpen] = useState(false)
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0])
 
   // Form States
   const [exercises, setExercises] = useState<Exercise[]>([{ name: "", sets: "3", reps: "10" }])
@@ -43,20 +44,20 @@ export const WorkoutsPage: React.FC = () => {
 
   // Fetch Workouts
   const { data: workouts } = useQuery({
-    queryKey: ["workouts", user?.tenant_id],
+    queryKey: ["workouts", user?.tenantId],
     queryFn: async () => {
-      const response = await workoutsApi.list(user?.tenant_id || "")
+      const response = await workoutsApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as Workout[]
     },
-    enabled: !!user?.tenant_id
+    enabled: !!user?.tenantId
   })
 
   // Fetch Members (for assignment)
   const { data: members } = useQuery({
-    queryKey: ["members-basic", user?.tenant_id],
+    queryKey: ["members-basic", user?.tenantId],
     queryFn: async () => {
-      const response = await membersApi.list(user?.tenant_id || "", "", "active")
+      const response = await membersApi.list(user?.tenantId || "", "", "active")
       if (response.error) throw response.error
       return response.data as Member[]
     },
@@ -113,9 +114,11 @@ export const WorkoutsPage: React.FC = () => {
   const assignMutation = useMutation({
     mutationFn: async (memberId: string) => {
       if (!selectedWorkout) return
-      const response = await memberWorkoutsApi.assign({
-        member_id: memberId,
-        workout_id: selectedWorkout.id
+      const response = await trainerWorkoutsApi.assignDailyWorkout({
+        memberId: memberId,
+        date: selectedDate,
+        planType: "template",
+        exercises: selectedWorkout.exercises
       })
       if (response.error) throw response.error
     },
@@ -274,14 +277,18 @@ export const WorkoutsPage: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign "{selectedWorkout?.name}"</DialogTitle>
-            <DialogDescription>Select a member to assign this workout plan to.</DialogDescription>
+            <DialogDescription>Select a member and date to assign this workout plan to.</DialogDescription>
           </DialogHeader>
+          <div className="py-2">
+            <Label>Assignment Date</Label>
+            <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
+          </div>
           <div className="space-y-2 max-h-[300px] overflow-y-auto">
             {members?.map((member) => (
               <div key={member.id} className="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
                 <div>
-                  <p className="font-medium">{member.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{member.member_code}</p>
+                  <p className="font-medium">{member.fullName}</p>
+                  <p className="text-xs text-muted-foreground">{member.memberCode}</p>
                 </div>
                 <Button size="sm" onClick={() => assignMutation.mutate(member.id)}>Assign</Button>
               </div>

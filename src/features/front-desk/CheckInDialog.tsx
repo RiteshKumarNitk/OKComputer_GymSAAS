@@ -36,7 +36,7 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({ open, onOpenChange
         queryFn: async () => {
             if (!searchQuery || searchQuery.length < 2) return []
 
-            const response = await membersApi.list(user?.tenant_id || "", searchQuery)
+            const response = await membersApi.list(user?.tenantId || "", searchQuery)
             if (response.error) throw response.error
             return response.data as Member[]
         },
@@ -48,7 +48,7 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({ open, onOpenChange
         mutationFn: async (member: Member) => {
             // Check if already checked in today
             const today = new Date().toISOString().split("T")[0]
-            const checkResponse = await attendanceApi.list(user?.tenant_id || "", member.id, today)
+            const checkResponse = await attendanceApi.list(user?.tenantId || "", member.id, today)
             if (checkResponse.error) throw checkResponse.error
             const existing = checkResponse.data && checkResponse.data.length > 0
 
@@ -59,7 +59,7 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({ open, onOpenChange
             const response = await attendanceApi.checkin({
                 memberId: member.id,
                 checkinAt: new Date().toISOString(),
-                deviceInfo: { type: "manual", by: user?.full_name },
+                deviceInfo: { type: "manual", by: user?.fullName },
             })
 
             if (response.error) throw response.error
@@ -68,7 +68,7 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({ open, onOpenChange
         onSuccess: (member) => {
             setCheckinStatus({
                 success: true,
-                message: `Successfully checked in ${member.full_name}`,
+                message: `Successfully checked in ${member.fullName}`,
                 member,
             })
             setSearchQuery("")
@@ -140,8 +140,8 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({ open, onOpenChange
                                                 <User className="h-4 w-4" />
                                             </div>
                                             <div>
-                                                <p className="font-medium text-sm">{member.full_name}</p>
-                                                <p className="text-xs text-muted-foreground">{member.member_code}</p>
+                                                <p className="font-medium text-sm">{member.fullName}</p>
+                                                <p className="text-xs text-muted-foreground">{member.memberCode}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center space-x-2">

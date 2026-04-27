@@ -60,7 +60,7 @@ export const SuperAdminDashboard: React.FC = () => {
     })
 
     const totalRevenue = invoices?.reduce((acc: number, curr: any) => acc + (curr.amount_cents || 0), 0) || 0
-    const activeGyms = tenants?.filter((t: any) => t.subscription_status === 'active').length || 0
+    const activeGyms = tenants?.filter((t: any) => t.subscriptionStatus === 'active').length || 0
     const totalMembers = 5000 
 
     return (
@@ -202,7 +202,7 @@ export const SuperAdminDashboard: React.FC = () => {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium truncate">{t.name}</p>
-                                        <p className="text-xs text-muted-foreground truncate">{t.owner_email}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{t.ownerEmail}</p>
                                     </div>
                                     <Badge variant="outline" className="text-[10px]">Just Now</Badge>
                                 </div>

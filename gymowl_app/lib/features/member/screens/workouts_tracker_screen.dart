@@ -47,6 +47,10 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _buildChartCard(stats),
                 const SizedBox(height: 32),
+                const Text("Today's Plan", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black)),
+                const SizedBox(height: 16),
+                _buildTodaysPlan(context, ref),
+                const SizedBox(height: 32),
                 const Text('My Routines', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black)),
                 const SizedBox(height: 16),
                 workoutsAsync.when(
@@ -117,6 +121,84 @@ class WorkoutsTrackerScreen extends ConsumerWidget {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildTodaysPlan(BuildContext context, WidgetRef ref) {
+    final dailyAsync = ref.watch(dailyWorkoutProvider);
+    
+    return dailyAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Colors.black)),
+      error: (err, _) => Text('Error loading today\'s plan: $err'),
+      data: (plan) {
+        if (plan == null || plan.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+            child: const Center(child: Text('No plan assigned for today', style: TextStyle(color: Colors.grey))),
+          );
+        }
+        
+        final exercises = (plan['exercises'] as List?) ?? [];
+        final planId = plan['id'];
+        final progress = plan['progress'] ?? {};
+        final pct = progress['percentage'] ?? 0;
+        
+        return Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Progress', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text('$pct%', style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            ...exercises.asMap().entries.map((entry) {
+               final idx = entry.key;
+               final ex = entry.value;
+               final bool isDone = ex['status'] == 'completed';
+               
+               return Container(
+                 margin: const EdgeInsets.only(bottom: 12),
+                 decoration: BoxDecoration(
+                   color: isDone ? Colors.green.shade50 : Colors.white,
+                   borderRadius: BorderRadius.circular(16),
+                   border: Border.all(color: isDone ? Colors.green.shade200 : Colors.grey.withOpacity(0.2)),
+                 ),
+                 child: ListTile(
+                   leading: Checkbox(
+                     activeColor: Colors.green,
+                     value: isDone,
+                     onChanged: (val) {
+                       List<dynamic> updatedExercises = List.from(exercises);
+                       updatedExercises[idx] = {
+                         ...ex,
+                         'status': val == true ? 'completed' : 'pending',
+                         'completedAt': val == true ? DateTime.now().toIso8601String() : null,
+                       };
+                       ref.read(dailyWorkoutNotifierProvider.notifier).updateExerciseStatus(planId, updatedExercises);
+                     },
+                   ),
+                   title: Text(ex['name'] ?? 'Exercise', style: TextStyle(
+                     fontWeight: FontWeight.bold,
+                     decoration: isDone ? TextDecoration.lineThrough : null,
+                     color: isDone ? Colors.green.shade700 : Colors.black
+                   )),
+                   subtitle: Text('${ex['sets'] ?? 0} Sets x ${ex['reps'] ?? 0} Reps • ${ex['restTime'] ?? '60s'} rest'),
+                 ),
+               );
+            }).toList(),
+          ],
+        );
+      }
     );
   }
 

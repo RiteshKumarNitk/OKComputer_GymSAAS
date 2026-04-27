@@ -28,7 +28,7 @@ import { generateInvoicePDF } from "@/utils/invoiceGenerator"
 
 export const SaasBillingPage: React.FC = () => {
     const { user } = useAuth()
-    const tenantId = user?.tenant_id
+    const tenantId = user?.tenantId
 
     // Pagination State
     const [currentPage, setCurrentPage] = React.useState(1)

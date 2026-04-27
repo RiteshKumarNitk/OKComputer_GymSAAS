@@ -5,7 +5,6 @@ import {
    CheckCircle2,
    Users,
    BarChart3,
-   Mail,
    Shield,
    Layout,
    MessageSquare,

@@ -19,7 +19,7 @@ export const InvoicesPage: React.FC = () => {
     const { user } = useAuth()
 
     const { data: invoices, isLoading } = useQuery({
-        queryKey: ["invoices", user?.tenant_id],
+        queryKey: ["invoices", user?.tenantId],
         queryFn: async () => {
             const token = localStorage.getItem("gym_token")
             const res = await fetch("/api/invoices", {
@@ -28,7 +28,7 @@ export const InvoicesPage: React.FC = () => {
             if (!res.ok) throw new Error("Failed to fetch invoices")
             return await res.json()
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     const getStatusColor = (status: string) => {

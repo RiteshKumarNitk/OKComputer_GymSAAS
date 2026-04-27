@@ -15,9 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 interface Product {
     id: string
     name: string
-    price_cents?: number
     priceCents?: number
-    stock_quantity?: number
     stockQuantity?: number
     category: string
     description: string
@@ -37,13 +35,13 @@ export const POSPage: React.FC = () => {
 
     // Fetch Products
     const { data: products } = useQuery({
-        queryKey: ["products", user?.tenant_id],
+        queryKey: ["products", user?.tenantId],
         queryFn: async () => {
-            const response = await productsApi.list(user?.tenant_id || "")
+            const response = await productsApi.list(user?.tenantId || "")
             if (response.error) throw response.error
             return response.data as Product[]
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     const addToCart = (product: Product) => {
@@ -95,12 +93,12 @@ export const POSPage: React.FC = () => {
         mutationFn: async () => {
             for (const item of cart) {
                 const updateResponse = await productsApi.update(item.id, {
-                    stockQuantity: (item.stockQuantity || item.stock_quantity || 0) - item.quantity
+                    stockQuantity: (item.stockQuantity || 0) - item.quantity
                 })
                 if (updateResponse.error) console.error("Stock update failed", updateResponse.error)
 
                 await paymentsApi.create({
-                    amountCents: (item.priceCents || item.price_cents || 0) * item.quantity,
+                    amountCents: (item.priceCents || item.priceCents || 0) * item.quantity,
                     currency: "INR",
                     status: "paid",
                     provider: "cash",
@@ -118,7 +116,7 @@ export const POSPage: React.FC = () => {
         onError: (err: any) => toast({ title: "Checkout Failed", description: err.message, variant: "destructive" })
     })
 
-    const cartTotal = cart.reduce((sum, item) => sum + ((item.priceCents || item.price_cents || 0) * item.quantity), 0)
+    const cartTotal = cart.reduce((sum, item) => sum + ((item.priceCents || item.priceCents || 0) * item.quantity), 0)
 
     return (
         <div className="flex h-[calc(100vh-2rem)] gap-4 flex-col md:flex-row">
@@ -156,9 +154,9 @@ export const POSPage: React.FC = () => {
                             </CardHeader>
                             <CardContent className="p-4 pt-0">
                                 <div className="flex justify-between items-center mt-2">
-                                    <span className="font-bold text-lg">{formatCurrency(product.priceCents || product.price_cents || 0)}</span>
-                                    <Badge variant={(product.stockQuantity ?? product.stock_quantity ?? 0) > 0 ? "outline" : "destructive"}>
-                                        {(product.stockQuantity ?? product.stock_quantity ?? 0) > 0 ? `${product.stockQuantity ?? product.stock_quantity} left` : "Out of Stock"}
+                                    <span className="font-bold text-lg">{formatCurrency(product.priceCents || product.priceCents || 0)}</span>
+                                    <Badge variant={(product.stockQuantity ?? 0) > 0 ? "outline" : "destructive"}>
+                                        {product.stockQuantity ? `${product.stockQuantity} left` : "Out of Stock"}
                                     </Badge>
                                 </div>
                             </CardContent>
@@ -182,7 +180,7 @@ export const POSPage: React.FC = () => {
                             <div key={item.id} className="flex justify-between items-center bg-muted/50 p-2 rounded-lg">
                                 <div className="flex-1 min-w-0 mr-2">
                                     <p className="font-medium text-sm truncate">{item.name}</p>
-                                    <p className="text-xs text-muted-foreground">{formatCurrency(item.priceCents || item.price_cents || 0)} x {item.quantity}</p>
+                                    <p className="text-xs text-muted-foreground">{formatCurrency(item.priceCents || item.priceCents || 0)} x {item.quantity}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.id, -1)}><Minus className="h-3 w-3" /></Button>

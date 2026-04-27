@@ -23,17 +23,17 @@ export const AttendanceLog: React.FC = () => {
     const { data: logs, isLoading } = useQuery({
         queryKey: ["attendance-log", today],
         queryFn: async () => {
-            const response = await attendanceApi.list(user?.tenant_id || "")
+            const response = await attendanceApi.list(user?.tenantId || "")
             if (response.error) throw response.error
             
             // Client-side filter for today
             const filtered = response.data?.filter((log: any) => 
-                (log.checkinAt || log.checkin_at || "").startsWith(today)
+                (log.checkinAt || log.checkinAt || "").startsWith(today)
             ) || []
             
             return filtered as any[]
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     if (isLoading) {
@@ -75,26 +75,26 @@ export const AttendanceLog: React.FC = () => {
                                 logs.map((log) => (
                                     <TableRow key={log.id}>
                                         <TableCell className="font-medium">
-                                            {new Date(log.checkinAt || log.checkin_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {new Date(log.checkinAt || log.checkinAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center space-x-2">
                                                 <Avatar className="h-6 w-6">
                                                     <AvatarFallback className="text-xs">
-                                                        {(log.member?.fullName || log.member?.full_name || "??").substring(0, 2).toUpperCase()}
+                                                        {(log.member?.fullName || log.member?.fullName || "??").substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
-                                                <span>{log.member?.fullName || log.member?.full_name}</span>
+                                                <span>{log.member?.fullName || log.member?.fullName}</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{log.member?.memberCode || log.member?.member_code}</TableCell>
+                                        <TableCell>{log.member?.memberCode || log.member?.memberCode}</TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className="text-xs">
                                                 Checked In
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right text-muted-foreground text-xs">
-                                            {(log.deviceInfo || log.device_info)?.type || "Manual"}
+                                            {(log.deviceInfo || log.deviceInfo)?.type || "Manual"}
                                         </TableCell>
                                     </TableRow>
                                 ))

@@ -165,7 +165,7 @@ export const DashboardPage: React.FC = () => {
       item.priority || "warm",
       (item.notes || item.todo || "").replace(/,/g, " ")
     ])
-    
+
     const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n")
     const blob = new Blob([csvContent], { type: "text/csv" })
     const url = window.URL.createObjectURL(blob)
@@ -270,7 +270,7 @@ export const DashboardPage: React.FC = () => {
               onChange={(e) => setFollowUpSearch(e.target.value)}
             />
           </div>
-          <Button 
+          <Button
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 rounded-xl font-bold"
             onClick={handleRefresh}
           >
@@ -301,9 +301,9 @@ export const DashboardPage: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div className="flex items-center gap-2">
               <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-200">Follow Ups ({filteredFollowUps.length})</CardTitle>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="h-7 text-[10px] font-bold uppercase tracking-wider border-slate-200"
                 onClick={exportFollowUps}
               >
@@ -316,11 +316,10 @@ export const DashboardPage: React.FC = () => {
                 <button
                   key={filter}
                   onClick={() => setPriorityFilter(filter)}
-                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
-                    priorityFilter === filter 
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${priorityFilter === filter
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                       : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                  }`}
+                    }`}
                 >
                   {filter}
                 </button>
@@ -363,9 +362,8 @@ export const DashboardPage: React.FC = () => {
                     <TableCell className="text-xs font-bold text-slate-700 dark:text-slate-300 capitalize">{item.type}</TableCell>
                     <TableCell className="text-xs font-bold text-slate-700 dark:text-slate-300">{new Date(item.followUpDate).toLocaleString()}</TableCell>
                     <TableCell>
-                      <Badge className={`text-[10px] font-bold px-2 py-0.5 capitalize ${
-                        item.priority === 'hot' ? 'bg-rose-600' : item.priority === 'warm' ? 'bg-orange-500' : 'bg-blue-500'
-                      }`}>
+                      <Badge className={`text-[10px] font-bold px-2 py-0.5 capitalize ${item.priority === 'hot' ? 'bg-rose-600' : item.priority === 'warm' ? 'bg-orange-500' : 'bg-blue-500'
+                        }`}>
                         {item.priority || 'warm'}
                       </Badge>
                     </TableCell>
@@ -572,27 +570,27 @@ export const DashboardPage: React.FC = () => {
               <div className="flex flex-col border-r border-white/20">
                 <div className="bg-[#2B6CB0] py-2.5 px-4 h-10 flex items-center"><h3 className="text-white text-[10px] font-bold">Fresh PT Sales</h3></div>
                 <div className="bg-[#4299E1] flex-1 flex flex-col p-2">
-                   <div className="flex flex-col items-center justify-center mb-2 border-b border-white/10 pb-1">
-                      <span className="text-lg font-bold text-white">1</span>
-                      <span className="text-[8px] font-bold text-white/80 uppercase">Number</span>
-                   </div>
-                   <div className="flex flex-col items-center justify-center">
-                      <span className="text-lg font-bold text-white">25000</span>
-                      <span className="text-[8px] font-bold text-white/80 uppercase">Amount</span>
-                   </div>
+                  <div className="flex flex-col items-center justify-center mb-2 border-b border-white/10 pb-1">
+                    <span className="text-lg font-bold text-white">1</span>
+                    <span className="text-[8px] font-bold text-white/80 uppercase">Number</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center">
+                    <span className="text-lg font-bold text-white">25000</span>
+                    <span className="text-[8px] font-bold text-white/80 uppercase">Amount</span>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col">
                 <div className="bg-[#2B6CB0] py-2.5 px-4 h-10 flex items-center"><h3 className="text-white text-[10px] font-bold">PT Renewal Sales</h3></div>
                 <div className="bg-[#4299E1] flex-1 flex flex-col p-2">
-                   <div className="flex flex-col items-center justify-center mb-2 border-b border-white/10 pb-1">
-                      <span className="text-lg font-bold text-white">0</span>
-                      <span className="text-[8px] font-bold text-white/80 uppercase">Number</span>
-                   </div>
-                   <div className="flex flex-col items-center justify-center">
-                      <span className="text-lg font-bold text-white">0</span>
-                      <span className="text-[8px] font-bold text-white/80 uppercase">Amount</span>
-                   </div>
+                  <div className="flex flex-col items-center justify-center mb-2 border-b border-white/10 pb-1">
+                    <span className="text-lg font-bold text-white">0</span>
+                    <span className="text-[8px] font-bold text-white/80 uppercase">Number</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center">
+                    <span className="text-lg font-bold text-white">0</span>
+                    <span className="text-[8px] font-bold text-white/80 uppercase">Amount</span>
+                  </div>
                 </div>
               </div>
             </div>

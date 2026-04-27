@@ -240,13 +240,13 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   ]
 
   const { data: tenant } = useQuery({
-    queryKey: ["tenant", user?.tenant_id],
+    queryKey: ["tenant", user?.tenantId],
     queryFn: async () => {
-      const response = await tenantsApi.get(user?.tenant_id || "")
+      const response = await tenantsApi.get(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data
     },
-    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+    enabled: !!user?.tenantId && user?.role !== "super_admin",
   })
 
   const filteredNavigation = navigation.filter((item) => {
@@ -495,6 +495,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
                 })
             )}
           </nav>
+
         </div>
       </div>
 
@@ -540,7 +541,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
                         </span>
                     </div>
                     <span className="text-xs text-slate-500 dark:text-slate-400 lowercase">
-                        {user?.full_name || "sonu verma"}
+                        {user?.fullName || "sonu verma"}
                     </span>
                   </div>
                   <ChevronDown className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />

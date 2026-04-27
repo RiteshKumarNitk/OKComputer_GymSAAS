@@ -1,9 +1,22 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, MoreVertical, Plus, QrCode, ShieldCheck } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { 
+    Search, 
+    MoreVertical, 
+    Plus, 
+    QrCode, 
+    ShieldCheck, 
+    UserCog, 
+    Clock, 
+    Calendar, 
+    Briefcase,
+    Shield
+} from "lucide-react"
 import {
   Table,
   TableBody,
@@ -13,32 +26,50 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
-
-interface Employee {
-    id: string
-    name: string
-    mobile: string
-    activities: string
-    role: string
-    isActive: boolean
-}
-
-const initialEmployees: Employee[] = [
-    { id: "652726", name: "varsha", mobile: "7397820988", activities: "", role: "Trainer, Personal trainer", isActive: true },
-    { id: "440881", name: "EMPLYEE", mobile: "8540013434", activities: "", role: "Sales consultant, Branch Manager, Receptionist", isActive: true },
-    { id: "361700", name: "navya", mobile: "6767898990", activities: "", role: "Trainer", isActive: true },
-]
+import { useAuth } from "@/features/auth/AuthContext"
+import { formatDate } from "@/lib/utils"
 
 export const StaffPage: React.FC = () => {
     const navigate = useNavigate()
+    const { user } = useAuth()
+    const queryClient = useQueryClient()
     const [searchQuery, setSearchQuery] = useState("")
-    const [employees, setEmployees] = useState<Employee[]>(initialEmployees)
 
-    const toggleStatus = (id: string) => {
-        setEmployees(prev => prev.map(emp => 
-            emp.id === id ? { ...emp, isActive: !emp.isActive } : emp
-        ))
-    }
+    // Fetch Staff using generic API or list users
+    const { data: staff, isLoading } = useQuery({
+        queryKey: ["staff", user?.tenantId],
+        queryFn: async () => {
+             const token = localStorage.getItem("gym_token")
+             const res = await fetch(`/api/users`, {
+                 headers: { "Authorization": `Bearer ${token}` }
+             })
+             if (!res.ok) throw new Error("Failed to fetch staff")
+             const items = await res.json()
+             // Filter for managers, trainers, frontdesk
+             return items.filter((u: any) => ["manager", "trainer", "frontdesk"].includes(u.role))
+        },
+        enabled: !!user?.tenantId
+    })
+
+    const toggleStatusMutation = useMutation({
+        mutationFn: async ({ id, isActive }: { id: string, isActive: boolean }) => {
+            const token = localStorage.getItem("gym_token")
+            const res = await fetch(`/api/users/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify({ isActive: !isActive })
+            })
+            if (!res.ok) throw new Error("Failed to update status")
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["staff"] })
+        }
+    })
+
+    const filteredStaff = staff?.filter((s: any) => 
+        (s.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.email || "").toLowerCase().includes(searchQuery.toLowerCase())
+    ) || []
 
     return (
         <div className="p-6 space-y-6 animate-in fade-in duration-500 max-w-[1400px] mx-auto">
@@ -84,29 +115,45 @@ export const StaffPage: React.FC = () => {
                             <TableRow className="bg-slate-50/30 hover:bg-transparent">
                                 <TableHead className="text-[11px] font-bold text-slate-500 uppercase px-6 py-4">Emp ID</TableHead>
                                 <TableHead className="text-[11px] font-bold text-slate-500 uppercase px-4 py-4">Emp Name</TableHead>
-                                <TableHead className="text-[11px] font-bold text-slate-500 uppercase px-4 py-4">Mobile Number</TableHead>
-                                <TableHead className="text-[11px] font-bold text-slate-500 uppercase px-4 py-4">Activities</TableHead>
+                                <TableHead className="text-[11px] font-bold text-slate-500 uppercase px-4 py-4">Contact Info</TableHead>
                                 <TableHead className="text-[11px] font-bold text-slate-500 uppercase px-4 py-4">Role</TableHead>
                                 <TableHead className="text-[11px] font-bold text-slate-500 uppercase px-4 py-4">Active / Inactive</TableHead>
                                 <TableHead className="text-right px-6"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {employees.map((emp) => (
-                                <TableRow key={emp.id} className="hover:bg-slate-50/50">
-                                    <TableCell className="px-6 py-5 text-xs text-slate-600 font-medium">{emp.id}</TableCell>
-                                    <TableCell className="px-4 py-5 text-xs text-slate-800 font-bold">{emp.name}</TableCell>
-                                    <TableCell className="px-4 py-5 text-xs text-slate-600 font-medium">{emp.mobile}</TableCell>
-                                    <TableCell className="px-4 py-5 text-xs text-slate-500 italic">--</TableCell>
-                                    <TableCell className="px-4 py-5 text-xs text-slate-700 font-bold max-w-[200px] truncate">{emp.role}</TableCell>
+                            {isLoading ? (
+                                <TableRow><TableCell colSpan={6} className="text-center py-8">Loading...</TableCell></TableRow>
+                            ) : filteredStaff.length === 0 ? (
+                                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No staff members found.</TableCell></TableRow>
+                            ) : filteredStaff.map((s: any) => (
+                                <TableRow key={s.id} className="hover:bg-slate-50/50">
+                                    <TableCell className="px-6 py-5 text-xs text-slate-600 font-medium">{s.id.substring(0, 8)}</TableCell>
+                                    <TableCell className="px-4 py-5 font-bold">
+                                        <div className="flex items-center">
+                                            <div className="bg-slate-100 p-2 rounded-full mr-3 text-slate-500">
+                                                <UserCog className="h-4 w-4" />
+                                            </div>
+                                            <div className="text-xs text-slate-800">{s.fullName}</div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="px-4 py-5 text-xs text-slate-600 font-medium">
+                                        <div>{s.email}</div>
+                                        <div className="text-[10px] text-slate-400">{s.phone || "No phone"}</div>
+                                    </TableCell>
+                                    <TableCell className="px-4 py-5">
+                                        <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-tighter">
+                                            {s.role}
+                                        </Badge>
+                                    </TableCell>
                                     <TableCell className="px-4 py-5">
                                         <div className="flex items-center gap-2">
-                                            <div className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${emp.isActive ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                                                {emp.isActive ? 'On' : 'Off'}
+                                            <div className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${s.isActive ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                                {s.isActive ? 'On' : 'Off'}
                                             </div>
                                             <Switch 
-                                                checked={emp.isActive} 
-                                                onCheckedChange={() => toggleStatus(emp.id)} 
+                                                checked={s.isActive} 
+                                                onCheckedChange={() => toggleStatusMutation.mutate({ id: s.id, isActive: s.isActive })} 
                                                 className="data-[state=checked]:bg-green-600"
                                             />
                                         </div>

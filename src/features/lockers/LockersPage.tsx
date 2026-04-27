@@ -17,11 +17,11 @@ interface Locker {
     locker_number?: string
     lockerNumber?: string
     status: 'available' | 'occupied' | 'maintenance'
-    assigned_to_member_id?: string | null
+    assigned_to_memberId?: string | null
     assignedToMemberId?: string | null
     expires_at?: string | null
     expiresAt?: string | null
-    members?: { full_name: string, phone: string }
+    members?: { fullName: string, phone: string }
     member?: { fullName: string }
 }
 
@@ -35,24 +35,24 @@ export const LockersPage: React.FC = () => {
 
     // Fetch Lockers
     const { data: lockers } = useQuery({
-        queryKey: ["lockers", user?.tenant_id],
+        queryKey: ["lockers", user?.tenantId],
         queryFn: async () => {
-            const response = await lockersApi.list(user?.tenant_id || "")
+            const response = await lockersApi.list(user?.tenantId || "")
             if (response.error) throw response.error
             return response.data as unknown as Locker[]
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     // Fetch Members for Dropdown
     const { data: members } = useQuery({
-        queryKey: ["active-members", user?.tenant_id],
+        queryKey: ["active-members", user?.tenantId],
         queryFn: async () => {
-            const response = await membersApi.list(user?.tenant_id || "", undefined, "active")
+            const response = await membersApi.list(user?.tenantId || "", undefined, "active")
             if (response.error) throw response.error
             return response.data
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     // Add Locker
@@ -135,7 +135,7 @@ export const LockersPage: React.FC = () => {
                             <h3 className="font-bold text-lg">{locker.lockerNumber || locker.locker_number}</h3>
                             {locker.status === 'occupied' ? (
                                 <div className="text-xs text-red-600 mt-1">
-                                    <p className="font-medium">{locker.member?.fullName || locker.members?.full_name || "Unknown"}</p>
+                                    <p className="font-medium">{locker.member?.fullName || locker.members?.fullName || "Unknown"}</p>
                                     <p>Exp: {formatDate(locker.expiresAt || locker.expires_at || "")}</p>
                                 </div>
                             ) : (
@@ -159,7 +159,7 @@ export const LockersPage: React.FC = () => {
                     {selectedLocker?.status === 'occupied' ? (
                         <div className="space-y-4">
                             <div className="p-4 bg-muted rounded-md">
-                                <p className="text-sm">Assigned to: <strong>{selectedLocker.member?.fullName || selectedLocker.members?.full_name}</strong></p>
+                                <p className="text-sm">Assigned to: <strong>{selectedLocker.member?.fullName || selectedLocker.members?.fullName}</strong></p>
                                 <p className="text-sm">Expires: {formatDate(selectedLocker.expiresAt || selectedLocker.expires_at || "")}</p>
                             </div>
                             <Button variant="destructive" className="w-full" onClick={() => updateLockerMutation.mutate({ id: selectedLocker.id, status: 'available', memberId: null })}>
@@ -176,7 +176,7 @@ export const LockersPage: React.FC = () => {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {members?.map((m: any) => (
-                                            <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+                                            <SelectItem key={m.id} value={m.id}>{m.fullName}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>

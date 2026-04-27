@@ -43,11 +43,9 @@ import { UserRole } from "@/types"
 
 interface FrontDeskStaff {
     id: string
-    full_name?: string
     fullName?: string
     email: string
     phone: string
-    is_active?: boolean
     isActive?: boolean
 }
 
@@ -64,24 +62,24 @@ export const StaffManagement: React.FC = () => {
 
     // Fetch Front Desk Staff
     const { data: staffList } = useQuery({
-        queryKey: ["front_desk", user?.tenant_id],
+        queryKey: ["front_desk", user?.tenantId],
         queryFn: async () => {
-             const response = await frontDeskApi.list(user?.tenant_id || "")
+             const response = await frontDeskApi.list(user?.tenantId || "")
              if (response.error) throw response.error
              return response.data as FrontDeskStaff[]
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     // Create/Update Mutation
     const saveStaffMutation = useMutation({
         mutationFn: async (formData: FormData) => {
-            if (!user?.tenant_id) {
+            if (!user?.tenantId) {
                 throw new Error("Tenant ID is missing. Please refresh the page or contact support.")
             }
 
             const data = {
-                fullName: formData.get("full_name") as string,
+                fullName: formData.get("fullName") as string,
                 email: formData.get("email") as string,
                 phone: formData.get("phone") as string,
                 isActive: true,
@@ -170,7 +168,7 @@ export const StaffManagement: React.FC = () => {
                                 <TableBody>
                                     {staffList?.map((staff) => (
                                         <TableRow key={staff.id}>
-                                            <TableCell className="font-medium">{staff.full_name}</TableCell>
+                                            <TableCell className="font-medium">{staff.fullName}</TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col space-y-1 text-sm">
                                                     <div className="flex items-center">
@@ -184,8 +182,8 @@ export const StaffManagement: React.FC = () => {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant={staff.is_active ? "default" : "secondary"}>
-                                                    {staff.is_active ? "Active" : "Inactive"}
+                                                <Badge variant={staff.isActive ? "default" : "secondary"}>
+                                                    {staff.isActive ? "Active" : "Inactive"}
                                                 </Badge>
                                             </TableCell>
                                             {canManageStaff && (
@@ -237,10 +235,10 @@ export const StaffManagement: React.FC = () => {
                             <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
-                                        <Label htmlFor="full_name">Full Name</Label>
+                                        <Label htmlFor="fullName">Full Name</Label>
                                         <Input
-                                            id="full_name"
-                                            name="full_name"
+                                            id="fullName"
+                                            name="fullName"
                                             required
                                         />
                                     </div>
@@ -283,11 +281,11 @@ export const StaffManagement: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="edit-full_name">Full Name</Label>
+                                <Label htmlFor="edit-fullName">Full Name</Label>
                                 <Input
-                                    id="edit-full_name"
-                                    name="full_name"
-                                    defaultValue={selectedStaff?.full_name}
+                                    id="edit-fullName"
+                                    name="fullName"
+                                    defaultValue={selectedStaff?.fullName}
                                     required
                                 />
                             </div>
@@ -329,7 +327,7 @@ export const StaffManagement: React.FC = () => {
                     <DialogHeader>
                         <DialogTitle>Confirm Deletion</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete {staffToDelete?.full_name}? This action cannot be undone.
+                            Are you sure you want to delete {staffToDelete?.fullName}? This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>

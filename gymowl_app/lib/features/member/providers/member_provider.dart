@@ -82,3 +82,45 @@ class MeasurementNotifier extends StateNotifier<AsyncValue<void>> {
 final measurementProvider = StateNotifierProvider<MeasurementNotifier, AsyncValue<void>>((ref) {
   return MeasurementNotifier(ref.watch(memberApiServiceProvider), ref);
 });
+
+final dailyWorkoutProvider = FutureProvider<Map<String, dynamic>?>((ref) {
+  return ref.watch(memberApiServiceProvider).getTodayWorkoutPlan();
+});
+
+class DailyWorkoutNotifier extends StateNotifier<AsyncValue<void>> {
+  final MemberApiService _api;
+  final Ref _ref;
+  DailyWorkoutNotifier(this._api, this._ref) : super(const AsyncValue.data(null));
+
+  Future<void> updateExerciseStatus(String id, List<dynamic> updatedExercises) async {
+    state = const AsyncValue.loading();
+    try {
+      int total = updatedExercises.length;
+      int completed = updatedExercises.where((ex) => ex['status'] == 'completed').length;
+      int pct = total == 0 ? 0 : ((completed / total) * 100).round();
+      
+      Map<String, dynamic> progress = {
+        'totalExercises': total,
+        'completed': completed,
+        'percentage': pct,
+      };
+
+      String overallStatus = pct == 100 ? 'completed' : 'in_progress';
+
+      await _api.updateDailyWorkoutPlan(id, {
+        'exercises': updatedExercises,
+        'progress': progress,
+        'status': overallStatus,
+      });
+
+      _ref.invalidate(dailyWorkoutProvider);
+      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+}
+
+final dailyWorkoutNotifierProvider = StateNotifierProvider<DailyWorkoutNotifier, AsyncValue<void>>((ref) {
+  return DailyWorkoutNotifier(ref.watch(memberApiServiceProvider), ref);
+});
