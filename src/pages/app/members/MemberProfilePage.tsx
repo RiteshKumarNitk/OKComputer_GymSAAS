@@ -1,59 +1,154 @@
-import React, { useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import React from "react"
+import { useParams, Link, useSearchParams } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { membersApi, membershipsApi, invoicesApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatDate } from "@/lib/utils"
 import { MemberForm } from "@/features/members/MemberForm"
-import type { Member, Membership } from "@/types"
+import type { Member } from "@/types"
 import {
-    ChevronLeft,
     Plus,
     CreditCard,
-    Calendar,
     Clock,
     Activity,
-    MoreVertical,
     FileText,
     Dumbbell,
-    UserCircle,
     History,
     Utensils,
     Upload,
     Fingerprint,
-    Apple,
-    HeartPulse,
-    Users,
-    Edit
+    Circle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+
+// --- Sub-Components for Tabs ---
+
+const MembershipList: React.FC<{ memberId: string; tenantId: string }> = ({ memberId }) => {
+    const { data: member } = useQuery({
+        queryKey: ["member", memberId],
+        queryFn: () => membersApi.get(memberId).then(res => res.data)
+    })
+
+    return (
+        <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900">
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50/50 dark:bg-slate-800/50">
+                        <tr>
+                            <th className="text-[10px] font-black uppercase text-slate-400 py-5 px-6">Plan Name</th>
+                            <th className="text-[10px] font-black uppercase text-slate-400 py-5 px-6">Validity</th>
+                            <th className="text-[10px] font-black uppercase text-slate-400 py-5 px-6">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                        {member?.currentPlan ? (
+                            <tr className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-5 px-6">
+                                    <p className="text-sm font-black text-slate-800 dark:text-slate-200">{member.currentPlan.name}</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Primary Plan</p>
+                                </td>
+                                <td className="py-5 px-6">
+                                    <p className="text-xs font-bold text-slate-500">{formatDate(member.plan_started_at)} - {formatDate(member.plan_expires_at)}</p>
+                                </td>
+                                <td className="py-5 px-6">
+                                    <Badge className="bg-emerald-500 text-white border-none rounded-lg text-[9px] font-black uppercase px-2 py-1 italic">Active</Badge>
+                                </td>
+                            </tr>
+                        ) : (
+                            <tr>
+                                <td colSpan={3} className="py-20 text-center font-bold text-slate-400 italic">No active membership found</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </Card>
+    )
+}
+
+const MemberFollowUps: React.FC<{ memberId: string }> = () => (
+    <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900">
+        <div className="p-8 text-center py-20">
+             <History className="h-10 w-10 text-slate-200 mx-auto mb-4" />
+             <p className="font-bold text-slate-400 italic">No follow-up history available for this member.</p>
+        </div>
+    </Card>
+)
+
+const MemberPayments: React.FC<{ memberId: string }> = ({ memberId }) => {
+    const { user } = useAuth()
+    const { data: invoices } = useQuery({
+        queryKey: ["member-invoices", memberId],
+        queryFn: () => invoicesApi.list(user?.tenant_id || "", memberId).then(res => res.data || [])
+    })
+
+    return (
+        <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900">
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50/50 dark:bg-slate-800/50">
+                        <tr>
+                            <th className="text-[10px] font-black uppercase text-slate-400 py-5 px-6">Invoice #</th>
+                            <th className="text-[10px] font-black uppercase text-slate-400 py-5 px-6">Date</th>
+                            <th className="text-[10px] font-black uppercase text-slate-400 py-5 px-6">Amount</th>
+                            <th className="text-[10px] font-black uppercase text-slate-400 py-5 px-6">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                        {invoices && invoices.length > 0 ? (
+                            invoices.map((inv: any) => (
+                                <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="py-5 px-6 text-xs font-mono font-bold text-slate-500">{inv.invoice_number || "INV-"+inv.id.slice(0,6)}</td>
+                                    <td className="py-5 px-6 text-xs font-bold text-slate-600">{formatDate(inv.created_at)}</td>
+                                    <td className="py-5 px-6 text-sm font-black text-slate-800 italic">₹{inv.total_amount}</td>
+                                    <td className="py-5 px-6">
+                                        <Badge className={`rounded-lg text-[9px] font-black uppercase px-2 py-1 ${inv.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                                            {inv.status}
+                                        </Badge>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={4} className="py-20 text-center font-bold text-slate-400 italic">No transaction records found</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </Card>
+    )
+}
+
+const MemberAttendance: React.FC<{ memberId: string }> = () => (
+    <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 p-12 text-center py-20">
+         <Clock className="h-10 w-10 text-slate-200 mx-auto mb-4" />
+         <p className="font-bold text-slate-400 italic">Historical attendance logs are being synchronized...</p>
+    </Card>
+)
+
+const MemberWorkouts: React.FC<{ memberId: string }> = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="border-none shadow-sm rounded-3xl p-8 bg-white dark:bg-slate-900 group hover:shadow-xl transition-all cursor-pointer ring-1 ring-slate-100">
+             <div className="h-40 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-slate-100 transition-colors">
+                 <Dumbbell className="h-12 w-12 text-slate-200" />
+             </div>
+             <h4 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Strength Training V1</h4>
+             <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest">Assigned: 14 April, 2026</p>
+        </Card>
+    </div>
+)
+
+// --- Main Page Component ---
 
 export const MemberProfilePage: React.FC = () => {
     const { id } = useParams<{ id: string }>()
     const { user } = useAuth()
-    const navigate = useNavigate()
-    const queryClient = useQueryClient()
-    const [activeTab, setActiveTab] = useState("memberships")
+    const [searchParams] = useSearchParams()
+    const activeTab = searchParams.get("tab") || "memberships"
 
-    // Fetch member details
     const { data: member, isLoading } = useQuery({
         queryKey: ["member", id],
         queryFn: async () => {
@@ -61,373 +156,250 @@ export const MemberProfilePage: React.FC = () => {
             if (response.error) throw response.error
             return response.data as Member
         },
-        enabled: !!id,
+        enabled: !!id
     })
 
-    // Fetch memberships for the form
-    const { data: memberships } = useQuery({
-        queryKey: ["memberships", user?.tenant_id],
-        queryFn: async () => {
-          const response = await membershipsApi.list(user?.tenant_id || "")
-          if (response.error) throw response.error
-          return response.data as Membership[]
-        },
-        enabled: !!user?.tenant_id,
-    })
+    if (isLoading) return (
+        <div className="flex items-center justify-center h-[60vh]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6B3D]"></div>
+        </div>
+    )
 
-    const { data: invoices } = useQuery({
-        queryKey: ["member-invoices", id],
-        queryFn: async () => {
-            const res = await invoicesApi.list(user?.tenant_id || "", id)
-            if (res.error) throw res.error
-            return res.data || []
-        },
-        enabled: !!id && !!user?.tenant_id
-    })
-
-    if (isLoading) return <div className="p-8 h-screen flex items-center justify-center font-black text-slate-400 animate-pulse">LOADING PROFILE HUB...</div>
-    if (!member) return <div className="p-8 h-screen flex items-center justify-center font-black text-rose-500">MEMBER NOT FOUND.</div>
-
-    const menuItems = [
-        { id: "edit", label: "Edit Profile", icon: <Edit className="h-4 w-4" /> },
-        { id: "memberships", label: "Memberships", icon: <Users className="h-4 w-4" /> },
-        { id: "followups", label: "Follow Ups", icon: <History className="h-4 w-4" /> },
-        { id: "payments", label: "Payment History", icon: <CreditCard className="h-4 w-4" /> },
-        { id: "reportcard", label: "Report Card", icon: <FileText className="h-4 w-4" /> },
-        { id: "workouts", label: "Workout History", icon: <Dumbbell className="h-4 w-4" /> },
-        { id: "diet", label: "Diet History", icon: <Utensils className="h-4 w-4" /> },
-        { id: "documents", label: "Upload Documents", icon: <Upload className="h-4 w-4" /> },
-        { id: "attendance", label: "Attendance", icon: <Calendar className="h-4 w-4" /> },
-        { id: "biometric", label: "Biometric", icon: <Fingerprint className="h-4 w-4" /> },
-        { id: "health", label: "Health Assessment", icon: <HeartPulse className="h-4 w-4" /> },
-    ]
+    if (!member) return (
+        <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+            <div className="p-6 bg-rose-50 rounded-full">
+                <FileText className="h-12 w-12 text-rose-500" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-800">Member Not Found</h2>
+            <Link to="/members" className="text-[#FF6B3D] font-black hover:underline uppercase tracking-widest text-sm">Return to Directory</Link>
+        </div>
+    )
 
     return (
-        <div className="flex h-[calc(100vh-80px)] -m-6 lg:-m-10 bg-[#F8FAFC] dark:bg-slate-950 overflow-hidden">
-            {/* Sidebar */}
-            <aside className="w-[340px] border-r border-slate-100 bg-white dark:bg-slate-900 overflow-y-auto custom-scrollbar flex flex-col">
-                <div className="p-8">
-                    <Button variant="ghost" size="sm" onClick={() => navigate("/members")} className="text-slate-400 font-bold hover:text-slate-600 mb-8 p-0 group">
-                        <ChevronLeft className="mr-1 h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Members Profile
-                    </Button>
-                    
-                    <div className="flex items-center gap-5 mb-8">
-                        <div className="relative">
-                            <Avatar className="h-20 w-20 border-4 border-slate-50 dark:border-slate-800 rounded-[28px] shadow-sm">
-                                <AvatarImage src={member.photo_url || ""} />
-                                <AvatarFallback className="bg-slate-100 text-slate-400 font-black text-2xl">
-                                    {(member.fullName || member.full_name)?.charAt(0) || "M"}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-emerald-500 border-4 border-white dark:border-slate-900 rounded-full" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-black text-slate-800 dark:text-white leading-tight lowercase tracking-tight">{member.fullName || member.full_name}</h2>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">Client ID : <span className="text-slate-800 dark:text-slate-300">{member.memberCode || member.member_code}</span></p>
-                        </div>
-                    </div>
-
-                    <Button className="w-full h-12 bg-[#FF6B3D] hover:bg-[#E85A2C] text-white rounded-xl font-black shadow-lg shadow-orange-500/30 mb-8 transition-all hover:scale-[1.02] flex items-center justify-center gap-2">
-                         <Plus className="h-5 w-5" /> Add to New Sale
-                    </Button>
-
-                    <div className="space-y-1">
-                        {menuItems.map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => setActiveTab(item.id)}
-                                className={`w-full flex items-center gap-4 px-5 py-4 rounded-xl transition-all ${
-                                    activeTab === item.id 
-                                    ? "bg-stone-50 text-[#FF6B3D] shadow-sm" 
-                                    : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold"
-                                }`}
-                            >
-                                <div className={`${activeTab === item.id ? "text-[#FF6B3D]" : "text-slate-400"}`}>
-                                    {item.icon}
-                                </div>
-                                <span className={`text-sm ${activeTab === item.id ? 'font-black' : 'font-bold'}`}>{item.label}</span>
-                            </button>
-                        ))}
-                    </div>
+        <div className="space-y-8 animate-in fade-in duration-700">
+            {/* Header / Stats Info */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                <div>
+                    <h1 className="text-3xl font-black text-slate-800 dark:text-white flex items-center gap-4">
+                        {member.fullName || member.full_name}
+                        <Badge className="bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 border-none rounded-xl text-[10px] font-black uppercase px-3 py-1.5 italic tracking-widest">Active</Badge>
+                    </h1>
+                    <p className="text-sm font-bold text-slate-400 mt-2 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <span className="text-slate-800 dark:text-white font-black">#{member.memberCode || member.member_code}</span> 
+                        <span className="opacity-30">•</span> 
+                        Joined {formatDate(member.joined_at)}
+                    </p>
                 </div>
-            </aside>
+                
+                <div className="flex items-center gap-4">
+                    <Button variant="outline" className="h-12 rounded-2xl border-slate-200 font-black text-slate-600 px-8 hover:bg-white hover:shadow-md transition-all">
+                         Generate ID Card
+                    </Button>
+                    <Button className="h-12 rounded-2xl bg-slate-900 text-white font-black px-8 shadow-xl shadow-slate-900/20 hover:scale-[1.02] transition-all">
+                         Create Receipt
+                    </Button>
+                </div>
+            </div>
 
-            {/* Main Content */}
-            <main className="flex-1 overflow-y-auto custom-scrollbar bg-[#F8FAFC] dark:bg-slate-950">
-                <div className="p-12 max-w-7xl mx-auto space-y-10">
-                    <div className="flex items-center justify-between">
-                         <h1 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-wider">
-                            {menuItems.find(i => i.id === activeTab)?.label || "Profile"}
-                         </h1>
+            {/* Quick Stats Banner */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {[
+                    { label: "Current Weight", value: "72.5", unit: "KG", icon: <Circle className="h-6 w-6 fill-current" />, color: "orange" },
+                    { label: "PT Status", value: "Active", unit: "", icon: <Activity className="h-6 w-6" />, color: "blue" },
+                    { label: "Attendance", value: "85", unit: "%", icon: <Clock className="h-6 w-6" />, color: "emerald" },
+                    { label: "Total Dues", value: "1,200", unit: "INR", icon: <CreditCard className="h-6 w-6" />, color: "rose" },
+                ].map((stat, i) => (
+                    <Card key={i} className="border-none shadow-sm rounded-[32px] bg-white dark:bg-slate-900 group hover:shadow-xl transition-all duration-500">
+                        <CardContent className="p-6 flex items-center gap-5">
+                            <div className={`h-14 w-14 bg-${stat.color}-50 dark:bg-${stat.color}-950/30 rounded-[22px] flex items-center justify-center text-${stat.color}-500 group-hover:scale-110 transition-transform`}>
+                                 {stat.icon}
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                                <p className={`text-xl font-black text-slate-800 dark:text-white ${stat.color === 'rose' ? 'text-rose-500' : ''}`}>
+                                    {stat.value} <span className="text-xs opacity-40 font-bold ml-1">{stat.unit}</span>
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Main Content Area */}
+            <div className="bg-white dark:bg-slate-900 rounded-[40px] shadow-sm border-none p-8 lg:p-12 min-h-[600px]">
+                {/* Section Rendering Logic */}
+                {activeTab === "edit" && (
+                    <div className="max-w-4xl mx-auto space-y-10">
+                        <div className="flex items-center gap-4 mb-10">
+                            <div className="h-1 w-12 bg-[#FF6B3D] rounded-full" />
+                            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Basic Profile Information</h3>
+                        </div>
+                        <MemberForm 
+                            mode="edit" 
+                            initialData={member}
+                            onSuccess={() => {}}
+                        />
                     </div>
+                )}
 
-                    {/* Member Fast Facts */}
-                    <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800">
-                        <div className="grid grid-cols-3">
+                {activeTab === "memberships" && (
+                    <div className="space-y-10">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-1 w-12 bg-[#FF6B3D] rounded-full" />
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Membership Details</h3>
+                            </div>
+                            <Button className="h-11 rounded-2xl bg-[#FF6B3D] text-white font-black px-8 shadow-lg shadow-orange-500/20">Extend Validity</Button>
+                        </div>
+                        <MembershipList memberId={member.id} tenantId={user?.tenant_id || ""} />
+                    </div>
+                )}
+
+                {activeTab === "followups" && (
+                    <div className="space-y-10">
+                         <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-1 w-12 bg-[#FF6B3D] rounded-full" />
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Notes & Followups</h3>
+                            </div>
+                            <Button className="h-11 rounded-2xl bg-slate-900 text-white font-black px-8 shadow-lg shadow-slate-900/10">Add Entry</Button>
+                        </div>
+                        <MemberFollowUps memberId={member.id} />
+                    </div>
+                )}
+
+                {activeTab === "payments" && (
+                    <div className="space-y-10">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-1 w-12 bg-[#FF6B3D] rounded-full" />
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Financial History</h3>
+                            </div>
+                            <Button variant="outline" className="h-11 rounded-2xl border-slate-200 font-black px-8 text-slate-600">Download Statement</Button>
+                        </div>
+                        <MemberPayments memberId={member.id} />
+                    </div>
+                )}
+
+                {activeTab === "attendance" && (
+                    <div className="space-y-10">
+                         <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-1 w-12 bg-[#FF6B3D] rounded-full" />
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Attendance Logs</h3>
+                            </div>
+                            <Button variant="outline" className="h-11 rounded-2xl border-slate-200 font-black px-8 text-slate-600">Manual Check-in</Button>
+                        </div>
+                        <MemberAttendance memberId={member.id} />
+                    </div>
+                )}
+
+                {activeTab === "workouts" && (
+                    <div className="space-y-10">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-1 w-12 bg-[#FF6B3D] rounded-full" />
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Training Plans</h3>
+                            </div>
+                            <Button className="h-11 rounded-2xl bg-slate-900 text-white font-black px-8">Assign Plan</Button>
+                        </div>
+                        <MemberWorkouts memberId={member.id} />
+                    </div>
+                )}
+
+                {activeTab === "diet" && (
+                    <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-[40px] border-2 border-dashed border-slate-200 dark:border-slate-700">
+                         <Utensils className="h-12 w-12 text-slate-200 mb-6" />
+                         <p className="text-lg font-black text-slate-400 uppercase tracking-widest italic">No Diet Plan Active</p>
+                         <Button className="mt-8 h-12 rounded-2xl bg-[#FF6B3D] text-white font-black px-10 shadow-xl shadow-orange-500/20">Create Custom Diet Chart</Button>
+                    </div>
+                )}
+
+                {activeTab === "health" && (
+                     <div className="space-y-10">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-1 w-12 bg-[#FF6B3D] rounded-full" />
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Biometric Vitals</h3>
+                            </div>
+                            <Button className="h-11 rounded-2xl bg-[#FF6B3D] text-white font-black px-8">New Assessment</Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {[
-                                { label: "Mobile Number", value: member.phone || "---" },
-                                { label: "Email ID", value: member.email || "---" },
-                                { label: "DOB", value: (member as any).dob || "---" },
-                                { label: "Anniversary Date", value: (member as any).anniversary_date || "---" },
-                                { label: "Emergency Contact Name", value: (member as any).emergency_contact_name || "---" },
-                                { label: "Emergency Contact No", value: (member as any).emergency_contact_phone || "---" },
-                            ].map((fact, idx) => (
-                                <div key={idx} className={`p-8 ${idx < 3 ? 'border-b' : ''} ${idx % 3 !== 2 ? 'border-r' : ''} border-slate-50 dark:border-slate-800 transition-colors hover:bg-slate-50/50`}>
-                                    <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-400 mb-3">{fact.label}</p>
-                                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{fact.value}</p>
-                                </div>
+                                { label: "Blood Pressure", value: "118/76", status: "Optimal", color: "emerald" },
+                                { label: "Heart Rate", value: "68 bpm", status: "Excellent", color: "emerald" },
+                                { label: "BMI", value: "23.5", status: "Normal", color: "emerald" },
+                                { label: "Body Fat %", value: "17.2%", status: "Good", color: "blue" },
+                                { label: "Muscle Mass", value: "35.4kg", status: "High", color: "blue" },
+                                { label: "Metabolic Age", value: "24", status: "Athletic", color: "emerald" },
+                            ].map((stat, i) => (
+                                <Card key={i} className="border-slate-100 dark:border-slate-800 shadow-sm rounded-[32px] overflow-hidden group hover:shadow-lg transition-all dark:bg-slate-900/50">
+                                    <CardContent className="p-8">
+                                        <div className="flex justify-between items-start mb-6">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
+                                            <Badge className={`bg-${stat.color}-500/10 text-${stat.color}-500 border-none rounded-lg text-[9px] font-black uppercase px-2.5 py-1 tracking-widest`}>{stat.status}</Badge>
+                                        </div>
+                                        <p className="text-3xl font-black text-slate-800 dark:text-white italic">{stat.value}</p>
+                                    </CardContent>
+                                </Card>
                             ))}
                         </div>
-                    </Card>
+                     </div>
+                )}
 
-                    {/* Content Sections */}
-                    {activeTab === "edit" && (
-                        <Card className="p-8 border-none shadow-sm rounded-3xl bg-white dark:bg-slate-900 mx-auto max-w-4xl">
-                            <MemberForm 
-                                member={member} 
-                                memberships={memberships || []} 
-                                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["member", id] })}
-                                onCancel={() => setActiveTab("memberships")}
-                            />
-                        </Card>
-                    )}
-
-                    {activeTab === "memberships" && (
-                        <div className="space-y-6">
-                            <Tabs defaultValue="active" className="w-full">
-                                <TabsList className="bg-transparent h-12 w-full justify-start gap-8 border-b border-slate-100 dark:border-slate-800 px-0 rounded-none mb-6">
-                                    <TabsTrigger value="active" className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-orange-500 data-[state=active]:text-orange-600 rounded-none h-12 px-0 text-[10px] font-black uppercase tracking-widest text-slate-400">Active Membership</TabsTrigger>
-                                    <TabsTrigger value="past" className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-orange-500 data-[state=active]:text-orange-600 rounded-none h-12 px-0 text-[10px] font-black uppercase tracking-widest text-slate-400">Past Membership</TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="active" className="mt-0">
-                                    <Card className="border-none shadow-sm rounded-3xl bg-white dark:bg-slate-900 overflow-hidden">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow className="border-slate-100 dark:border-slate-800 hover:bg-transparent">
-                                                    <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6 px-8">Name</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">Duration</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">Start Date</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">End Date</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">Status</TableHead>
-                                                    <TableHead className="text-right px-8"></TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {member.currentPlan ? (
-                                                    <TableRow className="border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 transition-colors">
-                                                        <TableCell className="px-8 py-8">
-                                                            <p className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-200">{member.currentPlan.name}</p>
-                                                        </TableCell>
-                                                        <TableCell className="text-xs font-bold text-slate-600 dark:text-slate-400">{Math.ceil(member.currentPlan.duration_days / 30)} Months</TableCell>
-                                                        <TableCell className="text-xs font-bold text-slate-500">{formatDate(member.plan_started_at || member.joined_at)}</TableCell>
-                                                        <TableCell className="text-xs font-bold text-slate-500">{formatDate(member.plan_expires_at || member.joined_at)}</TableCell>
-                                                        <TableCell>
-                                                            <Badge className="bg-emerald-500 text-white border-none rounded-lg text-[9px] font-black uppercase px-2 py-1">Active</Badge>
-                                                        </TableCell>
-                                                        <TableCell className="text-right px-8">
-                                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full"><MoreVertical className="h-4 w-4 text-slate-400" /></Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ) : (
-                                                    <TableRow>
-                                                        <TableCell colSpan={6} className="h-40 text-center text-slate-400 italic font-bold">No active membership found.</TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </Card>
-                                </TabsContent>
-                            </Tabs>
-                        </div>
-                    )}
-
-                    {activeTab === "attendance" && (
-                        <div className="space-y-6">
-                            <Card className="border-none shadow-sm rounded-3xl bg-white dark:bg-slate-900 pb-8 overflow-hidden">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow className="border-slate-100 hover:bg-transparent">
-                                            <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6 px-8">Date</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">Check In</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">Check Out</TableHead>
-                                            <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">Status</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        <TableRow className="border-slate-100 hover:bg-slate-50 transition-colors">
-                                            <TableCell className="px-8 py-6 text-xs font-bold text-slate-600">26 Apr, 2026</TableCell>
-                                            <TableCell className="text-xs font-black text-slate-800">06:45 AM</TableCell>
-                                            <TableCell className="text-xs font-black text-slate-800">08:12 AM</TableCell>
-                                            <TableCell>
-                                                <Badge className="bg-emerald-100 text-emerald-700 border-none rounded-lg text-[9px] font-black uppercase px-2 py-1">Present</Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
-                            </Card>
-                        </div>
-                    )}
-
-                    {activeTab === "payments" && (
-                        <Card className="border-none shadow-sm rounded-3xl bg-white dark:bg-slate-900 pb-8 overflow-hidden">
-                            <Table>
-                                <TableHeader className="bg-slate-50/50 dark:bg-slate-800/50">
-                                    <TableRow className="border-slate-100 hover:bg-transparent">
-                                        <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6 px-8">Invoice No</TableHead>
-                                        <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">Date</TableHead>
-                                        <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">Total</TableHead>
-                                        <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">Paid</TableHead>
-                                        <TableHead className="text-[10px] font-black uppercase text-slate-400 py-6">Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {invoices?.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="h-40 text-center text-slate-400 italic font-bold">No payment history found.</TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        invoices?.map((invoice: any) => (
-                                            <TableRow key={invoice.id} className="border-slate-100 hover:bg-slate-50 transition-colors">
-                                                <TableCell className="px-8 py-6 text-xs font-mono font-bold text-slate-500">{invoice.invoiceNumber || invoice.invoice_number}</TableCell>
-                                                <TableCell className="text-xs font-bold text-slate-700">{formatDate(invoice.createdAt || invoice.created_at)}</TableCell>
-                                                <TableCell className="text-xs font-black text-slate-800">₹{invoice.totalAmount || invoice.total_amount}</TableCell>
-                                                <TableCell className="text-xs font-bold text-emerald-600">₹{invoice.paidAmount || invoice.paid_amount}</TableCell>
-                                                <TableCell>
-                                                    <Badge className={`${invoice.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} border-none rounded-lg text-[9px] font-black uppercase px-2 py-1`}>
-                                                        {invoice.status}
-                                                    </Badge>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </Card>
-                    )}
-
-                    {activeTab === "followups" && (
-                        <Card className="border-none shadow-sm rounded-3xl bg-white dark:bg-slate-900 pb-8 overflow-hidden">
-                             <Table>
-                                <TableHeader className="bg-slate-50/50">
-                                    <TableRow className="border-slate-100 hover:bg-transparent">
-                                        <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-8">Follow Up Date</TableHead>
-                                        <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6">Remark / Feedback</TableHead>
-                                        <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 text-right px-8">Action</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    <TableRow className="border-slate-100 hover:bg-slate-50/30 transition-colors">
-                                        <TableCell className="py-6 px-8 text-xs font-bold text-slate-700">24 Apr, 2026</TableCell>
-                                        <TableCell className="max-w-[400px]">
-                                            <p className="text-xs font-bold text-slate-500 leading-relaxed italic">Payment reminder follow-up.</p>
-                                        </TableCell>
-                                        <TableCell className="text-right py-6 px-8">
-                                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full"><MoreVertical className="h-4 w-4 text-slate-400" /></Button>
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                             </Table>
-                        </Card>
-                    )}
-
-                    {activeTab === "workouts" && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white hover:shadow-xl transition-all p-6 space-y-4">
-                                <div className="h-32 bg-slate-100 rounded-2xl flex items-center justify-center">
-                                    <Dumbbell className="h-10 w-10 text-slate-200" />
-                                </div>
-                                <h3 className="text-sm font-black text-slate-800 uppercase">Morning Core Blaster</h3>
-                                <p className="text-xs font-bold text-slate-400">Assigned: 14 Apr, 2026</p>
-                            </Card>
-                        </div>
-                    )}
-
-                    {activeTab === "diet" && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white hover:shadow-xl transition-all p-6 space-y-4">
-                                <div className="h-32 bg-slate-100 rounded-2xl flex items-center justify-center">
-                                    <Utensils className="h-10 w-10 text-slate-200" />
-                                </div>
-                                <h3 className="text-sm font-black text-slate-800 uppercase">Weight Loss Diet Plan</h3>
-                                <p className="text-xs font-bold text-slate-400">Assigned: 14 Apr, 2026</p>
-                            </Card>
-                        </div>
-                    )}
-
-                    {activeTab === "health" && (
-                        <div className="space-y-6">
-                             <div className="grid grid-cols-3 gap-6">
-                                {[
-                                    { label: "Blood Group", value: "B+" },
-                                    { label: "Blood Pressure", value: "120/80" },
-                                    { label: "Heart Rate", value: "72 bpm" }
-                                ].map((h, i) => (
-                                    <Card key={i} className="border-none shadow-sm rounded-3xl p-6 bg-white shrink-0 h-32 flex flex-col justify-center">
-                                         <p className="text-[10px] font-black uppercase text-slate-400 mb-2">{h.label}</p>
-                                         <p className="text-xl font-black text-slate-800">{h.value}</p>
-                                    </Card>
-                                ))}
-                             </div>
-                        </div>
-                    )}
-
-                    {activeTab === "documents" && (
-                         <div className="space-y-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Member Documents</h3>
-                                <Button className="bg-slate-900 text-white rounded-xl font-bold h-10 px-6">
-                                    <Upload className="h-4 w-4 mr-2" /> Upload New
-                                </Button>
+                {activeTab === "documents" && (
+                    <div className="space-y-10">
+                         <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-1 w-12 bg-[#FF6B3D] rounded-full" />
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Stored Documents</h3>
                             </div>
-                            <div className="grid grid-cols-3 gap-6">
-                                {[
-                                    { name: "Aadhar_Card.pdf", size: "1.2 MB", date: "14 Apr, 2026" },
-                                    { name: "Membership_Agreement.pdf", size: "0.8 MB", date: "15 Apr, 2026" },
-                                    { name: "Medical_Certificate.jpg", size: "2.4 MB", date: "16 Apr, 2026" },
-                                ].map((doc, i) => (
-                                    <Card key={i} className="border-none shadow-sm rounded-3xl p-6 bg-white hover:bg-slate-50 transition-colors group cursor-pointer">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-12 w-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                                <FileText className="h-6 w-6" />
-                                            </div>
-                                            <div className="overflow-hidden">
-                                                <p className="text-sm font-black text-slate-800 truncate">{doc.name}</p>
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase">{doc.size} • {doc.date}</p>
-                                            </div>
+                            <Button className="h-11 rounded-2xl bg-slate-900 text-white font-black px-8 flex items-center gap-2">
+                                <Upload className="h-5 w-5" /> Upload File
+                            </Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {[
+                                { name: "Aadhar_Card.pdf", size: "1.2 MB", date: "14 Apr 2026", type: "ID Proof" },
+                                { name: "Medical_Hist.docx", size: "0.4 MB", date: "15 Apr 2026", type: "Medical" },
+                                { name: "Joining_Agreement.pdf", size: "2.1 MB", date: "16 Apr 2026", type: "Contract" },
+                            ].map((doc, i) => (
+                                <Card key={i} className="border-none shadow-sm rounded-[32px] p-8 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 transition-all group cursor-pointer ring-1 ring-slate-100 dark:ring-slate-800">
+                                    <div className="flex items-center gap-6">
+                                        <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all shadow-sm">
+                                            <FileText className="h-8 w-8" />
                                         </div>
-                                    </Card>
-                                ))}
-                            </div>
-                         </div>
-                    )}
+                                        <div className="overflow-hidden">
+                                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{doc.type}</p>
+                                            <p className="text-sm font-black text-slate-800 dark:text-white truncate lowercase tracking-tight">{doc.name}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 mt-2">{doc.size} • Uploaded {doc.date}</p>
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
-                    {activeTab === "biometric" && (
-                        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[40px] border-none shadow-sm max-w-2xl mx-auto">
-                            <div className="relative mb-10">
-                                <div className="h-32 w-32 bg-emerald-50 rounded-full flex items-center justify-center animate-pulse">
-                                    <Fingerprint className="h-16 w-16 text-emerald-500" />
-                                </div>
-                                <div className="absolute -top-2 -right-2 h-8 w-8 bg-emerald-500 rounded-full border-4 border-white dark:border-slate-900 flex items-center justify-center">
-                                    <Badge className="bg-transparent text-white p-0"><Plus className="h-4 w-4" /></Badge>
-                                </div>
+                {activeTab === "biometric" && (
+                    <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-[60px] border-none shadow-sm max-w-2xl mx-auto ring-1 ring-slate-100 dark:ring-slate-800">
+                        <div className="relative mb-12">
+                            <div className="h-40 w-40 bg-emerald-100 dark:bg-emerald-950/30 rounded-full flex items-center justify-center animate-pulse">
+                                <Fingerprint className="h-20 w-20 text-emerald-500" />
                             </div>
-                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Biometric Status: Active</h3>
-                            <p className="text-sm font-bold text-slate-400 mb-10">Fingerprint registered on 14th April, 2026</p>
-                            <div className="flex gap-4">
-                                <Button variant="outline" className="h-12 rounded-2xl px-8 font-black text-slate-600 border-slate-200">Reset Data</Button>
-                                <Button className="h-12 rounded-2xl px-8 font-black bg-slate-900 text-white">Re-Scan Finger</Button>
+                            <div className="absolute -top-1 -right-1 h-10 w-10 bg-emerald-500 rounded-full border-4 border-white dark:border-slate-900 flex items-center justify-center">
+                                <Plus className="h-5 w-5 text-white" />
                             </div>
                         </div>
-                    )}
-
-                    {!["edit", "memberships", "followups", "attendance", "workouts", "payments", "diet", "health", "documents", "biometric"].includes(activeTab) && (
-                        <div className="flex flex-col items-center justify-center py-40 bg-white dark:bg-slate-900 rounded-3xl border-none shadow-sm h-96">
-                            <Clock className="h-12 w-12 text-slate-100 mb-4" />
-                            <p className="text-slate-400 font-bold italic tracking-tight">{menuItems.find(i => i.id === activeTab)?.label} section is under development.</p>
+                        <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-3">Biometric ID : Assigned</h3>
+                        <p className="text-sm font-bold text-slate-400 mb-12 uppercase tracking-[0.2em]">Verified on 14th April, 2026</p>
+                        <div className="flex gap-6">
+                            <Button variant="outline" className="h-12 rounded-2xl px-10 font-black text-slate-600 border-slate-200 hover:bg-white hover:shadow-md transition-all">Clear Records</Button>
+                            <Button className="h-12 rounded-2xl px-10 font-black bg-slate-900 text-white shadow-xl shadow-slate-900/20 hover:scale-[1.02] transition-all">Update Fingerprint</Button>
                         </div>
-                    )}
-                </div>
-            </main>
+                    </div>
+                )}
+            </div>
         </div>
     )
 }

@@ -1,8 +1,8 @@
 import React, { useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/features/auth/AuthContext"
-import { useQuery } from "@tanstack/react-query"
-import { tenantsApi } from "@/api/apiClient"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { tenantsApi, membersApi } from "@/api/apiClient"
 import type { UserRole } from "@/types"
 import {
   LayoutGrid,
@@ -28,7 +28,14 @@ import {
   Fingerprint,
   Info,
   Circle,
-  CalendarRange
+  CalendarRange,
+  ChevronLeft,
+  Plus,
+  History,
+  FileText,
+  Upload,
+  Activity,
+  Edit
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -122,13 +129,13 @@ const navigation: NavItem[] = [
     roles: ["gym_owner", "manager"],
   },
   {
-    title: "Team",
+    title: "Employee Management",
     href: "/staff",
     icon: <Users className="h-5 w-5" />,
     roles: ["gym_owner", "manager"],
     children: [
-      { title: "Staff Directory", href: "/staff", roles: ["gym_owner", "manager"] },
-      { title: "Roles & Permissions", href: "/settings/roles", roles: ["gym_owner"] },
+      { title: "Employee Directory", href: "/staff", roles: ["gym_owner", "manager"] },
+      { title: "Access Control", href: "/settings/access-control", roles: ["gym_owner"] },
     ]
   },
   {
@@ -200,6 +207,37 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   const { user, signOut, hasRole, hasPermission, tenantFeatures } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  // Detect Member Context
+  const memberMatch = location.pathname.match(/^\/members\/([^\/]+)/)
+  const memberId = memberMatch && !['packages', 'subscriptions', 'workouts', 'analytics', 'attendance', 'renewals', 'add'].includes(memberMatch[1]) ? memberMatch[1] : null
+  const isMemberContext = !!memberId
+
+  const { data: member } = useQuery({
+    queryKey: ["member", memberId],
+    queryFn: async () => {
+        const response = await membersApi.get(memberId!)
+        if (response.error) throw response.error
+        return response.data
+    },
+    enabled: !!memberId,
+  })
+
+  // Member Sidebar Items (adapted from MemberProfilePage)
+  const memberNavItems = [
+    { id: "edit", title: "Edit Profile", icon: <Edit className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
+    { id: "memberships", title: "Memberships", icon: <Users className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
+    { id: "followups", title: "Follow Ups", icon: <History className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
+    { id: "payments", title: "Payment History", icon: <CreditCard className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
+    { id: "reportcard", title: "Report Card", icon: <FileText className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
+    { id: "workouts", title: "Workout History", icon: <Dumbbell className="h-5 w-5" />, roles: ["gym_owner", "trainer"] },
+    { id: "diet", title: "Diet History", icon: <Utensils className="h-5 w-5" />, roles: ["gym_owner", "trainer"] },
+    { id: "documents", title: "Upload Documents", icon: <Upload className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
+    { id: "attendance", title: "Attendance", icon: <CalendarRange className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
+    { id: "biometric", title: "Biometric", icon: <Fingerprint className="h-5 w-5" />, roles: ["gym_owner"] },
+    { id: "health", title: "Health Assessment", icon: <Activity className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
+  ]
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant", user?.tenant_id],
@@ -305,103 +343,157 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
           {/* Navigation */}
           <nav className="flex-1 py-4 px-4 space-y-1 overflow-y-auto custom-scrollbar">
-            {filteredNavigation.map((item) => {
-              const itemPath = item.href.split('?')[0]
-              const itemQuery = item.href.split('?')[1] || ""
-              const isActive = location.pathname === itemPath && (!itemQuery || location.search.includes(itemQuery))
-              const hasChildren = item.children && item.children.length > 0
-              const isMenuOpen = openMenus.includes(item.title)
+            {isMemberContext ? (
+                /* Member-Specific Sidebar */
+                <div className="space-y-6">
+                    <div className="px-4">
+                        <Button variant="ghost" size="sm" onClick={() => navigate("/members")} className="text-slate-400 font-bold hover:text-slate-600 mb-6 p-0 group">
+                            <ChevronLeft className="mr-1 h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Back to Members
+                        </Button>
+                        
+                        {member && (
+                            <div className="flex items-center gap-4 mb-6">
+                                <Avatar className="h-12 w-12 border-2 border-slate-50 dark:border-slate-800 rounded-2xl shadow-sm">
+                                    <AvatarImage src={member.photo_url || ""} />
+                                    <AvatarFallback className="bg-slate-100 text-slate-400 font-bold">
+                                        {member.fullName?.charAt(0) || member.full_name?.charAt(0) || "M"}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="overflow-hidden">
+                                    <h2 className="text-sm font-black text-slate-800 dark:text-white truncate lowercase tracking-tight">{member.fullName || member.full_name}</h2>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">ID: {member.memberCode || member.member_code}</p>
+                                </div>
+                            </div>
+                        )}
 
-              if (item.isHeader) {
-                return (
-                  <div key={item.title} className="pt-6 pb-2 px-4">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">
-                      {item.title}
-                    </p>
-                  </div>
-                )
-              }
+                        <Button className="w-full h-10 bg-[#FF6B3D] hover:bg-[#E85A2C] text-white rounded-xl font-black shadow-lg shadow-orange-500/20 mb-6 transition-all flex items-center justify-center gap-2 text-xs">
+                            <Plus className="h-4 w-4" /> New Sale
+                        </Button>
+                    </div>
 
-              if (hasChildren) {
-                return (
-                  <div key={item.title} className="space-y-1">
-                    <button
-                      onClick={() => toggleMenu(item.title)}
-                      className={cn(
-                        "w-full flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 group",
-                        isActive || isMenuOpen
-                          ? "text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800"
-                          : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white"
-                      )}
-                    >
-                      <div className={cn(
-                        "mr-4 p-1.5 rounded-lg transition-colors",
-                        isActive ? "text-slate-900 dark:text-white" : "text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"
-                      )}>
-                        {item.icon}
-                      </div>
-                      <span className="flex-1 text-left">{item.title}</span>
-                      {isMenuOpen ? (
-                        <ChevronDown className="h-4 w-4 text-slate-400" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
-                      )}
-                    </button>
-                    {isMenuOpen && (
-                      <div className="ml-8 mt-1 space-y-1">
-                        {item.children?.filter(child => hasRole(child.roles)).map((child) => {
-                          const isChildActive = location.pathname === child.href
-                          return (
-                            <Link
-                              key={child.href}
-                              to={child.href}
-                              className={cn(
-                                "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
-                                isChildActive
-                                  ? "text-orange-600 bg-orange-50/50 dark:bg-orange-950/20"
-                                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                              )}
-                            >
-                              <Circle className={cn(
-                                "h-2 w-2 mr-3 transition-all",
-                                isChildActive ? "fill-orange-600 text-orange-600" : "text-slate-300 dark:text-slate-700 group-hover:text-slate-400"
-                              )} />
-                              <span className="flex-1">{child.title}</span>
-                            </Link>
-                          )
+                    <div className="space-y-1">
+                        {memberNavItems.filter(item => hasRole(item.roles)).map((item) => {
+                            const isActive = location.search.includes(`tab=${item.id}`) || (item.id === 'memberships' && !location.search.includes('tab='));
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => navigate(`/members/${memberId}?tab=${item.id}`)}
+                                    className={cn(
+                                        "w-full flex items-center gap-4 px-5 py-3.5 rounded-xl transition-all",
+                                        isActive 
+                                            ? "bg-slate-50 dark:bg-slate-800/50 text-[#FF6B3D] shadow-sm font-black" 
+                                            : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 font-bold"
+                                    )}
+                                >
+                                    <div className={isActive ? "text-[#FF6B3D]" : "text-slate-400"}>
+                                        {item.icon}
+                                    </div>
+                                    <span className="text-sm">{item.title}</span>
+                                </button>
+                            );
                         })}
-                      </div>
-                    )}
-                  </div>
-                )
-              }
+                    </div>
+                </div>
+            ) : (
+                /* Standard Sidebar Navigation */
+                filteredNavigation.map((item) => {
+                    const itemPath = item.href.split('?')[0]
+                    const itemQuery = item.href.split('?')[1] || ""
+                    const isActive = location.pathname === itemPath && (!itemQuery || location.search.includes(itemQuery))
+                    const hasChildren = item.children && item.children.length > 0
+                    const isMenuOpen = openMenus.includes(item.title)
 
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className={cn(
-                    "flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 group",
-                    isActive
-                      ? item.title === "Dashboard"
-                        ? "bg-orange-50 dark:bg-orange-950/20 text-orange-600 shadow-sm"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm"
-                      : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white"
-                  )}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <div className={cn(
-                    "mr-4 p-1.5 rounded-lg transition-colors",
-                    isActive
-                      ? item.title === "Dashboard" ? "text-orange-600" : "text-slate-900 dark:text-white"
-                      : "text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"
-                  )}>
-                    {item.icon}
-                  </div>
-                  <span className="flex-1">{item.title}</span>
-                </Link>
-              )
-            })}
+                    if (item.isHeader) {
+                        return (
+                            <div key={item.title} className="pt-6 pb-2 px-4">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">
+                                {item.title}
+                                </p>
+                            </div>
+                        )
+                    }
+
+                    if (hasChildren) {
+                        return (
+                            <div key={item.title} className="space-y-1">
+                                <button
+                                    onClick={() => toggleMenu(item.title)}
+                                    className={cn(
+                                        "w-full flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 group",
+                                        isActive || isMenuOpen
+                                        ? "text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800"
+                                        : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "mr-4 p-1.5 rounded-lg transition-colors",
+                                        isActive ? "text-slate-900 dark:text-white" : "text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"
+                                    )}>
+                                        {item.icon}
+                                    </div>
+                                    <span className="flex-1 text-left">{item.title}</span>
+                                    {isMenuOpen ? (
+                                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                                    ) : (
+                                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                                    )}
+                                </button>
+                                {isMenuOpen && (
+                                    <div className="ml-8 mt-1 space-y-1">
+                                        {item.children?.filter(child => hasRole(child.roles)).map((child) => {
+                                        const isChildActive = location.pathname === child.href
+                                        return (
+                                            <Link
+                                            key={child.href}
+                                            to={child.href}
+                                            className={cn(
+                                                "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                                                isChildActive
+                                                ? "text-orange-600 bg-orange-50/50 dark:bg-orange-950/20"
+                                                : "text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                            )}
+                                            >
+                                            <Circle className={cn(
+                                                "h-2 w-2 mr-3 transition-all",
+                                                isChildActive ? "fill-orange-600 text-orange-600" : "text-slate-300 dark:text-slate-700 group-hover:text-slate-400"
+                                            )} />
+                                            <span className="flex-1">{child.title}</span>
+                                            </Link>
+                                        )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    }
+
+                    return (
+                        <Link
+                        key={item.href}
+                        to={item.href}
+                        className={cn(
+                            "flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 group",
+                            isActive
+                            ? item.title === "Dashboard"
+                                ? "bg-orange-50 dark:bg-orange-950/20 text-orange-600 shadow-sm"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm"
+                            : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white"
+                        )}
+                        onClick={() => setSidebarOpen(false)}
+                        >
+                        <div className={cn(
+                            "mr-4 p-1.5 rounded-lg transition-colors",
+                            isActive
+                            ? item.title === "Dashboard" ? "text-orange-600" : "text-slate-900 dark:text-white"
+                            : "text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"
+                        )}>
+                            {item.icon}
+                        </div>
+                        <span className="flex-1">{item.title}</span>
+                        </Link>
+                    )
+                })
+            )}
           </nav>
         </div>
       </div>

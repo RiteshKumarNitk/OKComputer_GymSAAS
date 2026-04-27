@@ -32,6 +32,8 @@ import { SchedulePage } from "@/pages/app/SchedulePage"
 import { BillingPage } from "@/pages/app/BillingPage"
 import { DietPlansPage } from "@/pages/app/DietPlansPage"
 import { ReportsPage } from "@/pages/app/ReportsPage"
+import { SalesReportPage } from "@/pages/app/SalesReportPage"
+import { AccessControlsPage } from "@/pages/app/AccessControlsPage"
 import { SettingsPage } from "@/pages/app/SettingsPage"
 import { ProfilePage } from "@/pages/app/ProfilePage"
 import { InvoicesPage } from "@/pages/app/InvoicesPage"
@@ -121,13 +123,13 @@ function App() {
                         
                         {/* Members Group */}
                         <Route path="/members" element={<MemberDirectoryPage />} />
-                        <Route path="/members/:id" element={<MemberProfilePage />} />
                         <Route path="/members/packages" element={<MembershipPackagesPage />} />
                         <Route path="/members/subscriptions" element={<MemberSubscriptionsPage />} />
                         <Route path="/members/workouts" element={<MemberWorkoutsPage />} />
                         <Route path="/members/analytics" element={<MemberAnalyticsPage />} />
                         <Route path="/members/attendance" element={<MemberAttendancePage />} />
                         <Route path="/members/renewals" element={<MemberRenewalsPage />} />
+                        <Route path="/members/:id" element={<MemberProfilePage />} />
                         <Route path="/members/add" element={<AddMemberPage />} />
 
                         <Route path="/trainers" element={<TrainersPage />} />
@@ -144,7 +146,9 @@ function App() {
                         <Route path="/diet-plans" element={<DietPlansPage />} />
                         <Route path="/feedback" element={<FeedbackPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
+                        <Route path="/reports/sales" element={<SalesReportPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/settings/access-control" element={<AccessControlsPage />} />
                         <Route path="/invoices" element={<InvoicesPage />} />
                         <Route path="/billing/saas" element={<SaasBillingPage />} />
                         <Route path="/enquiries/new" element={<AddEnquiryPage />} />
