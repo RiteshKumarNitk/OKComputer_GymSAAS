@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
-import { UserCog, Plus, Calendar, Clock, Briefcase } from "lucide-react"
+import { Calendar as CalendarIcon, Search, BadgeCheck, UserCog, Plus, Clock, Briefcase } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatDate } from "@/lib/utils"
 
@@ -21,6 +22,11 @@ export const StaffPage: React.FC = () => {
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [isEditOpen, setIsEditOpen] = useState(false)
     const [selectedStaff, setSelectedStaff] = useState<any>(null)
+    const [staffSearch, setStaffSearch] = useState("")
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1)
+    const [rowsPerPage, setRowsPerPage] = useState(10)
 
     // Form inputs for editing
     const [editName, setEditName] = useState("")
@@ -94,8 +100,6 @@ export const StaffPage: React.FC = () => {
         }
     })
 
-    // Import usersApi, trainersApi implicitly if not on screen, but they are defined in apiClient.ts 
-    // We can fetch them safely inside mutation calls
     const updateStaffMutation = useMutation({
         mutationFn: async (data: any) => {
             const token = localStorage.getItem("gym_token")
@@ -156,6 +160,18 @@ export const StaffPage: React.FC = () => {
         setIsEditOpen(true)
     }
 
+    const filteredStaff = staff?.filter((s: any) => 
+        (s.fullName || s.full_name || "").toLowerCase().includes(staffSearch.toLowerCase()) ||
+        s.email.toLowerCase().includes(staffSearch.toLowerCase())
+    ) || []
+
+    // Pagination Logic
+    const totalEntries = filteredStaff.length
+    const totalPages = Math.ceil(totalEntries / rowsPerPage)
+    const paginatedStaff = filteredStaff.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+    const showingFrom = totalEntries === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1
+    const showingTo = Math.min(currentPage * rowsPerPage, totalEntries)
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -163,49 +179,60 @@ export const StaffPage: React.FC = () => {
                     <h1 className="text-3xl font-bold tracking-tight">Staff & HR Management</h1>
                     <p className="text-muted-foreground">Manage your team, shifts, and leaves.</p>
                 </div>
-                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                    <DialogTrigger asChild>
-                        <Button><Plus className="mr-2 h-4 w-4" /> Add Staff</Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Add New Staff Member</DialogTitle>
-                            <DialogDescription>Create a login profile for your team.</DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={(e) => { e.preventDefault(); addStaffMutation.mutate(new FormData(e.currentTarget)) }} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <Label htmlFor="fullName">Full Name</Label>
-                                    <Input id="fullName" name="fullName" required placeholder="John Doe" />
+                <div className="flex items-center gap-4">
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search team members..."
+                            className="pl-9"
+                            value={staffSearch}
+                            onChange={(e) => setStaffSearch(e.target.value)}
+                        />
+                    </div>
+                    <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                        <DialogTrigger asChild>
+                            <Button><Plus className="mr-2 h-4 w-4" /> Add Staff Member</Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Add New Staff Member</DialogTitle>
+                                <DialogDescription>Create a login profile for your team.</DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={(e) => { e.preventDefault(); addStaffMutation.mutate(new FormData(e.currentTarget)) }} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="fullName">Full Name</Label>
+                                        <Input id="fullName" name="fullName" required placeholder="John Doe" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="role">Role</Label>
+                                        <Select name="role" defaultValue="trainer">
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="manager">Manager</SelectItem>
+                                                <SelectItem value="trainer">Trainer</SelectItem>
+                                                <SelectItem value="frontdesk">Front Desk</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                                 <div className="space-y-1">
-                                    <Label htmlFor="role">Role</Label>
-                                    <Select name="role" defaultValue="trainer">
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="manager">Manager</SelectItem>
-                                            <SelectItem value="trainer">Trainer</SelectItem>
-                                            <SelectItem value="frontdesk">Front Desk</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input id="email" name="email" type="email" required placeholder="john@example.com" />
                                 </div>
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="email">Email</Label>
-                                <Input id="email" name="email" type="email" required placeholder="john@example.com" />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="password">Password</Label>
-                                <Input id="password" name="password" type="password" required placeholder="Min 6 chars" />
-                            </div>
-                            <DialogFooter>
-                                <Button type="submit" className="w-full" disabled={addStaffMutation.isPending}>
-                                    {addStaffMutation.isPending ? "Creating..." : "Create Account"}
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
+                                <div className="space-y-1">
+                                    <Label htmlFor="password">Password</Label>
+                                    <Input id="password" name="password" type="password" required placeholder="Min 6 chars" />
+                                </div>
+                                <DialogFooter>
+                                    <Button type="submit" className="w-full" disabled={addStaffMutation.isPending}>
+                                        {addStaffMutation.isPending ? "Creating..." : "Create Account"}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
 
             <Tabs defaultValue="staff" className="space-y-6">
@@ -228,7 +255,20 @@ export const StaffPage: React.FC = () => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {staff?.map((s: any) => {
+                                    {isLoading ? (
+                                         Array(5).fill(0).map((_, i) => (
+                                            <TableRow key={i} className="animate-pulse">
+                                                <TableCell colSpan={5} className="h-16 bg-slate-50/50 mb-2 rounded-xl" />
+                                            </TableRow>
+                                         ))
+                                    ) : paginatedStaff.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="h-32 text-center text-slate-400 font-medium">
+                                                No staff members found.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        paginatedStaff.map((s: any) => {
                                         const profile = staffProfiles?.find((p: any) => p.userId === s.id)
                                         return (
                                             <TableRow key={s.id}>
@@ -251,7 +291,7 @@ export const StaffPage: React.FC = () => {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center text-sm text-slate-600">
-                                                        <Calendar className="mr-2 h-3 w-3" />
+                                                        <CalendarIcon className="mr-2 h-3 w-3" />
                                                         {profile?.joiningDate ? formatDate(profile.joiningDate) : "N/A"}
                                                     </div>
                                                 </TableCell>
@@ -268,14 +308,71 @@ export const StaffPage: React.FC = () => {
                                                 </TableCell>
                                             </TableRow>
                                         )
-                                    })}
-                                    {staff?.length === 0 && !isLoading && (
-                                        <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No staff members found.</TableCell></TableRow>
-                                    )}
+                                    }))}
                                 </TableBody>
                             </Table>
                         </CardContent>
                     </Card>
+
+                    {/* Pagination Integration */}
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2 py-4 text-slate-500 font-bold border-t border-slate-100 mt-4">
+                        <div className="text-xs">
+                            Showing <span className="text-slate-900">{showingFrom}</span> to <span className="text-slate-900">{showingTo}</span> of <span className="text-slate-900">{totalEntries}</span> entries
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                                Rows per page:
+                                <Select value={rowsPerPage.toString()} onValueChange={(v) => {setRowsPerPage(parseInt(v)); setCurrentPage(1);}}>
+                                    <SelectTrigger className="h-8 w-16 rounded-lg border-slate-200 font-bold">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {[10, 25, 50, 100].map(n => (
+                                            <SelectItem key={n} value={n.toString()}>{n}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="text-xs font-bold rounded-lg px-3"
+                                >
+                                    Previous
+                                </Button>
+                                <div className="flex items-center">
+                                    {Array.from({length: Math.min(3, totalPages)}, (_, i) => {
+                                        const pageNum = i + 1;
+                                        return (
+                                            <Button
+                                                key={pageNum}
+                                                variant={currentPage === pageNum ? "default" : "ghost"}
+                                                size="sm"
+                                                onClick={() => setCurrentPage(pageNum)}
+                                                className={`h-8 w-8 text-xs font-bold rounded-lg ${currentPage === pageNum ? 'bg-slate-900 text-white' : ''}`}
+                                            >
+                                                {pageNum}
+                                            </Button>
+                                        )
+                                    })}
+                                </div>
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages || totalPages === 0}
+                                    className="text-xs font-bold rounded-lg px-3"
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                 </TabsContent>
 
                 <TabsContent value="leaves">
@@ -403,6 +500,5 @@ export const StaffPage: React.FC = () => {
         </div>
     )
 }
-
 
 export default StaffPage;

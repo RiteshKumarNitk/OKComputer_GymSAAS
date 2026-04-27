@@ -48,6 +48,10 @@ export const TrainersPage: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null)
   const [trainerToDelete, setTrainerToDelete] = useState<Trainer | null>(null)
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
   const { user, hasRole } = useAuth()
   const { toast } = useToast()
   const queryClient = useQueryClient()
@@ -72,6 +76,14 @@ export const TrainersPage: React.FC = () => {
     },
     enabled: !!user?.tenant_id,
   })
+
+  // Pagination Logic
+  const filteredTrainers = trainers || []
+  const totalEntries = filteredTrainers.length
+  const totalPages = Math.ceil(totalEntries / rowsPerPage)
+  const paginatedTrainers = filteredTrainers.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+  const showingFrom = totalEntries === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1
+  const showingTo = Math.min(currentPage * rowsPerPage, totalEntries)
 
   // Create/Update Mutation
   const saveTrainerMutation = useMutation({
@@ -189,7 +201,7 @@ export const TrainersPage: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {trainers?.map((trainer) => (
+              {paginatedTrainers?.map((trainer) => (
                 <TableRow key={trainer.id}>
                   <TableCell className="font-medium">{trainer.fullName ?? trainer.full_name}</TableCell>
                   <TableCell>
@@ -245,7 +257,7 @@ export const TrainersPage: React.FC = () => {
                   )}
                 </TableRow>
               ))}
-              {trainers?.length === 0 && (
+              {paginatedTrainers?.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No trainers found
@@ -254,6 +266,43 @@ export const TrainersPage: React.FC = () => {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination Integration */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2 py-4 text-slate-500 font-bold border-t border-slate-100 mt-4">
+              <div className="text-xs">
+                  Showing <span className="text-slate-900">{showingFrom}</span> to <span className="text-slate-900">{showingTo}</span> of <span className="text-slate-900">{totalEntries}</span> entries
+              </div>
+
+              <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                      Rows:
+                      <select className="bg-transparent font-bold text-slate-900 focus:outline-none" value={rowsPerPage} onChange={(e) => {setRowsPerPage(Number(e.target.value)); setCurrentPage(1);}}>
+                          {[10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                      <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          className="text-xs font-bold"
+                      >
+                          Prev
+                      </Button>
+                      <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage === totalPages || totalPages === 0}
+                          className="text-xs font-bold"
+                      >
+                          Next
+                      </Button>
+                  </div>
+              </div>
+          </div>
         </CardContent>
       </Card>
 

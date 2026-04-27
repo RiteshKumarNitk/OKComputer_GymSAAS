@@ -762,69 +762,7 @@ app.post("/api/members/renew", authenticate, async (req: any, res) => {
     }
 });
 
-app.get("/api/reports/dashboard", authenticate, async (req: any, res) => {
-    try {
-        const tenantId = req.tenantId;
-
-        const totalMembers = await prisma.member.count({ where: { tenantId } });
-        const activeMembers = await prisma.member.count({ where: { tenantId, status: "active" } });
-
-        const totalRevenueResult = await prisma.payment.aggregate({
-            _sum: { amountCents: true },
-            where: { tenantId, status: "paid" }
-        });
-        const totalRevenue = (totalRevenueResult._sum.amountCents || 0) / 100;
-
-        const now = new Date();
-        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthlyRevenueResult = await prisma.payment.aggregate({
-            _sum: { amountCents: true },
-            where: { tenantId, status: "paid", paidAt: { gte: firstDayOfMonth } }
-        });
-        const monthlyRevenue = (monthlyRevenueResult._sum.amountCents || 0) / 100;
-
-        const todayStart = new Date(now.setHours(0,0,0,0));
-        const attendanceToday = await prisma.attendance.count({
-            where: { tenantId, checkinAt: { gte: todayStart } }
-        });
-
-        const newMembersThisMonth = await prisma.member.count({
-            where: { tenantId, createdAt: { gte: firstDayOfMonth } }
-        });
-
-        const totalTrainers = await prisma.userProfile.count({ where: { tenantId, role: "trainer" } });
-        const totalFrontdesk = await prisma.userProfile.count({ where: { tenantId, role: "frontdesk" } });
-        const totalManagers = await prisma.userProfile.count({ where: { tenantId, role: "manager" } });
-
-        // Structure matches DashboardStats interface accurately
-        const responseData = {
-            totalMembers,
-            activeMembers,
-            totalTrainers,
-            totalFrontdesk,
-            totalManagers,
-            totalRevenue,
-            monthlyRevenue,
-            attendanceToday,
-            newMembersThisMonth,
-            membershipDistribution: { "Gold": 12, "Silver": 8 },
-            revenueTrend: [
-                { month: "Jan", revenue: 500 },
-                { month: "Feb", revenue: 600 },
-                { month: "Mar", revenue: monthlyRevenue }
-            ],
-            attendanceTrend: [
-                { date: "Mon", count: 12 },
-                { date: "Tue", count: 18 },
-                { date: "Wed", count: attendanceToday }
-            ]
-        };
-
-        res.json(responseData);
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
-    }
-});
+// Removed redundant dashboard route (duplicate found at footer)
 
 app.post("/api/attendance", authenticate, async (req: any, res) => {
     try {
@@ -971,7 +909,8 @@ createCrudRoutes("workouts", "workout")
 createCrudRoutes("diet-plans", "dietPlan")
 createCrudRoutes("services", "service")
 createCrudRoutes("branches", "branch")
-createCrudRoutes("leads", "lead", { searchFields: ["fullName", "email", "phone"], filterFields: ["status"] })
+createCrudRoutes("leads", "lead", { searchFields: ["fullName", "email", "phone"], filterFields: ["status", "priority"] })
+createCrudRoutes("follow-ups", "followUp", { include: { lead: true, member: true }, filterFields: ["status", "type", "priority"] })
 createCrudRoutes("visitors", "visitor")
 createCrudRoutes("complaints", "complaint", { include: { member: { select: { fullName: true } } }, filterFields: ["status", "priority"] })
 createCrudRoutes("invoices", "invoice", { filterFields: ["status", "memberId"] })
@@ -1526,13 +1465,19 @@ app.get("/api/reports/dashboard", authenticate, async (req: any, res) => {
         const { tenantId } = req
         if (!tenantId) return res.status(400).json({ error: "Tenant ID required" })
 
-        // 1. Total & Active Members
+        const { startDate, endDate } = req.query
+        const start = startDate ? new Date(startDate as string) : new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+        const end = endDate ? new Date(endDate as string) : new Date()
+        
+        const todayStr = new Date().toISOString().split("T")[0]
+
+        // 1. Core Counts
         const [totalMembers, activeMembers, totalTrainers, totalFrontdesk, totalManagers, activeLeaves] = await Promise.all([
             prisma.member.count({ where: { tenantId } }),
             prisma.member.count({ where: { tenantId, status: "active" } }),
             prisma.userProfile.count({ where: { tenantId, role: "trainer" } }),
             prisma.userProfile.count({ where: { tenantId, role: "frontdesk" } }),
-            prisma.userProfile.count({ where: { tenantId, role: "manager" } }),
+            prisma.userProfile.count({ where: { tenantId, role: "frontdesk" } }), // frontdesk
             prisma.staffLeave.count({ 
                 where: { 
                     tenantId, 
@@ -1543,23 +1488,21 @@ app.get("/api/reports/dashboard", authenticate, async (req: any, res) => {
             })
         ])
 
-        // 2. Revenue (from Payments)
+        // 2. Revenue & New Sales
         const payments = await prisma.payment.findMany({
             where: { tenantId, status: "paid" },
-            select: { amountCents: true, paidAt: true }
+            select: { amountCents: true, paidAt: true, createdAt: true }
         })
 
         const totalRevenue = payments.reduce((sum: number, p: any) => sum + (p.amountCents || 0), 0)
-
-        const currentMonth = new Date().getMonth()
-        const currentYear = new Date().getFullYear()
-
         const monthlyRevenue = payments
-            .filter((p: any) => p.paidAt && new Date(p.paidAt).getMonth() === currentMonth && new Date(p.paidAt).getFullYear() === currentYear)
+            .filter((p: any) => {
+                const date = p.paidAt || p.createdAt
+                return date && new Date(date) >= start && new Date(date) <= end
+            })
             .reduce((sum: number, p: any) => sum + (p.amountCents || 0), 0)
 
-        // 3. Attendance Today
-        const todayStr = new Date().toISOString().split("T")[0]
+        // 3. Attendance
         const attendanceToday = await prisma.attendance.count({
             where: {
                 tenantId,
@@ -1570,67 +1513,26 @@ app.get("/api/reports/dashboard", authenticate, async (req: any, res) => {
             }
         })
 
-        // 4. New Members This Month
-        const monthStart = new Date(currentYear, currentMonth, 1)
-        const newMembersThisMonth = await prisma.member.count({
-            where: { tenantId, createdAt: { gte: monthStart } }
-        })
-
-        // 5. Membership Distribution
-        const membersWithPlan = await prisma.member.findMany({
-            where: { tenantId, status: "active" },
-            include: { currentPlan: { select: { name: true } } }
-        })
-        const membershipDistribution: { [key: string]: number } = {}
-        membersWithPlan.forEach((m: any) => {
-            const name = m.currentPlan?.name || "No Plan"
-            membershipDistribution[name] = (membershipDistribution[name] || 0) + 1
-        })
-
-        // 6. Revenue Trend (last 6 months)
-        const revenueTrend = []
-        for (let i = 5; i >= 0; i--) {
-            const month = new Date()
-            month.setMonth(month.getMonth() - i)
-            const monthStart = new Date(month.getFullYear(), month.getMonth(), 1)
-            const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0)
-
-            const monthRevenue = payments
-                .filter((p: any) => {
-                    if (!p.paidAt) return false
-                    const paidDate = new Date(p.paidAt)
-                    return paidDate >= monthStart && paidDate <= monthEnd
-                })
-                .reduce((sum: number, p: any) => sum + (p.amountCents || 0), 0)
-
-            revenueTrend.push({
-                month: month.toLocaleDateString("en-US", { month: "short" }),
-                revenue: monthRevenue
-            })
-        }
-
-        // 7. Attendance Trend (last 7 days)
-        const attendanceTrend = []
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date()
-            date.setDate(date.getDate() - i)
-            const dateStr = date.toISOString().split("T")[0]
-
-            const dayAttendance = await prisma.attendance.count({
-                where: {
-                    tenantId,
-                    checkinAt: {
-                        gte: new Date(`${dateStr}T00:00:00.000Z`),
-                        lt: new Date(`${dateStr}T23:59:59.999Z`)
+        // 4. Leads & Follow-ups
+        const [totalLeads, hotLeads, pendingFollowUps, totalFollowUpsToday] = await Promise.all([
+            prisma.lead.count({ where: { tenantId } }),
+            prisma.lead.count({ where: { tenantId, priority: "hot" } }),
+            prisma.followUp.count({ where: { tenantId, status: "pending" } }),
+            prisma.followUp.count({ 
+                where: { 
+                    tenantId, 
+                    followUpDate: { 
+                        gte: new Date(`${todayStr}T00:00:00.000Z`),
+                        lt: new Date(`${todayStr}T23:59:59.999Z`)
                     }
-                }
+                } 
             })
+        ])
 
-            attendanceTrend.push({
-                date: date.toLocaleDateString("en-US", { weekday: "short" }),
-                count: dayAttendance || 0
-            })
-        }
+        // 5. New Joiners in Period
+        const newMembersThisMonth = await prisma.member.count({
+            where: { tenantId, createdAt: { gte: start, lte: end } }
+        })
 
         res.json({
             totalMembers,
@@ -1643,9 +1545,10 @@ app.get("/api/reports/dashboard", authenticate, async (req: any, res) => {
             monthlyRevenue,
             attendanceToday,
             newMembersThisMonth,
-            membershipDistribution,
-            revenueTrend,
-            attendanceTrend
+            totalLeads,
+            hotLeads,
+            pendingFollowUps,
+            totalFollowUpsToday
         })
 
     } catch (err: any) {
@@ -1917,90 +1820,7 @@ app.post("/api/payments/razorpay-order", authenticate, async (req: any, res) => 
 
 // ==================== DASHBOARD STATS ====================
 
-app.get("/api/dashboard/stats", authenticate, async (req: any, res) => {
-    try {
-        const tenantId = req.tenantId;
-        const today = new Date();
-        const startOfToday = new Date(today);
-        startOfToday.setHours(0, 0, 0, 0);
-        const endOfToday = new Date(today);
-        endOfToday.setHours(23, 59, 59, 999);
-
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        // 1. Counts
-        const totalMembers = await prisma.member.count({ where: { tenantId } });
-        const activeMembers = await prisma.member.count({ where: { tenantId, status: "active" } });
-
-        // 2. Revenue
-        const payments = await prisma.payment.findMany({
-            where: { tenantId, status: "paid" },
-            select: { amountCents: true, createdAt: true }
-        });
-        const totalRevenue = payments.reduce((sum: number, p: any) => sum + (p.amountCents || 0), 0);
-        const monthlyRevenue = payments
-            .filter((p: any) => new Date(p.createdAt) > thirtyDaysAgo)
-            .reduce((sum: number, p: any) => sum + (p.amountCents || 0), 0);
-
-        // 3. Activity
-        const attendanceToday = await prisma.attendance.count({
-            where: {
-                tenantId,
-                checkinAt: { gte: startOfToday, lte: endOfToday }
-            }
-        });
-
-        const newMembersThisMonth = await prisma.member.count({
-            where: {
-                tenantId,
-                joinedAt: { gte: thirtyDaysAgo }
-            }
-        });
-
-        // 4. Distribution
-        const memberships = await prisma.member.findMany({
-            where: { tenantId, status: "active" },
-            select: { membershipId: true }
-        });
-        const plans = await prisma.membership.findMany({ where: { tenantId } });
-        const distribution: { [key: string]: number } = {};
-        plans.forEach((p: any) => {
-            const count = memberships.filter((m: any) => m.membershipId === p.id).length;
-            if (count > 0) distribution[p.name] = count;
-        });
-
-        // 5. Trends (Simplified for rendering fallback checks)
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const currentMonth = new Date().getMonth();
-        const revenueTrend = [];
-        for (let i = 5; i >= 0; i--) {
-            const mIndex = (currentMonth - i + 12) % 12;
-            revenueTrend.push({ month: months[mIndex], revenue: Math.floor(totalRevenue / 12) || 0 });
-        }
-
-        const attendanceTrend = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            attendanceTrend.push({ date: d.toISOString().split("T")[0], count: Math.floor(attendanceToday / 7) || 0 });
-        }
-
-        res.json({
-            totalMembers,
-            activeMembers,
-            totalRevenue,
-            monthlyRevenue,
-            attendanceToday,
-            newMembersThisMonth,
-            membershipDistribution: distribution,
-            revenueTrend,
-            attendanceTrend
-        });
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
-    }
-});
+// Removed redundant dashboard stats route (consoldated in /api/reports/dashboard)
 
 // ==================== ATTENDANCE (specialized) ====================
 

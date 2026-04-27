@@ -31,6 +31,11 @@ class MemberApiService {
     return List<Map<String, dynamic>>.from(response.data);
   }
 
+  Future<List<Map<String, dynamic>>> getWeeklySchedule() async {
+    final response = await _apiClient.dio.get('/schedules');
+    return List<Map<String, dynamic>>.from(response.data);
+  }
+
   Future<void> logWorkoutActivity(Map<String, dynamic> data) async {
     await _apiClient.dio.post('/members/me/workout-logs', data: data);
   }

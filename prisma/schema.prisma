@@ -207,6 +207,25 @@ enum BodyMeasurementType {
   bmi
 }
 
+enum LeadPriority {
+  hot
+  warm
+  cold
+}
+
+enum FollowUpType {
+  enquiry
+  balance
+  feedback
+  renewal
+}
+
+enum FollowUpStatus {
+  pending
+  completed
+  cancelled
+}
+
 // =====================
 // MODELS
 // =====================
@@ -284,6 +303,7 @@ model Tenant {
   razorpayWebhooks    RazorpayWebhookLog[]
   invoices            Invoice[]
   discounts           Discount[]
+  followUps           FollowUp[]
 }
 
 model UserProfile {
@@ -308,6 +328,7 @@ model UserProfile {
   auditLogs        AuditLog[]
   createdWorkouts  Workout[]       @relation("CreatedWorkouts")
   createdDietPlans DietPlan[]      @relation("CreatedDietPlans")
+  assignedFollowUps FollowUp[]
   assignedWorkouts MemberWorkout[] @relation("AssignedWorkouts")
   assignedDiets    MemberDiet[]    @relation("AssignedDiets")
   staffProfile     StaffProfile?
@@ -377,6 +398,7 @@ model Member {
   healthProfile     MemberHealthProfile?
   measurements      BodyMeasurement[]
   fitnessStats      MemberFitnessStats?
+  followUps         FollowUp[]
 
   @@unique([tenantId, memberCode])
 }
@@ -634,20 +656,50 @@ model Expense {
 }
 
 model Lead {
-  id         String     @id @default(uuid())
+  id         String       @id @default(uuid())
   tenantId   String
-  fullName   String
+  firstName  String?
+  lastName   String?
+  fullName   String?
   email      String?
   phone      String
-  status     LeadStatus @default(new)
-  source     String?    @default("walk-in")
+  gender     Gender?
+  priority   LeadPriority @default(warm)
+  status     LeadStatus   @default(new)
+  source     String?      @default("walk-in")
+  budget     Float?
+  address    String?
   notes      String?
+  services   Json?        @default("[]")
   assignedTo String? // Links to UserProfile.id
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   // Relations
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  followUps FollowUp[]
+}
+
+model FollowUp {
+  id           String         @id @default(uuid())
+  tenantId     String
+  leadId       String?
+  memberId     String?
+  type         FollowUpType   @default(enquiry)
+  status       FollowUpStatus @default(pending)
+  priority     LeadPriority?  @default(warm)
+  followUpDate DateTime
+  notes        String?
+  todo         String?
+  assignedTo   String? // Links to UserProfile.id
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  tenant   Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead     Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  member   Member?      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  assignee UserProfile? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
 }
 
 model Product {

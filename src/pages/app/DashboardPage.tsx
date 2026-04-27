@@ -1,520 +1,879 @@
-import React from "react"
+import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
-import { tenantsApi, usersApi, billingApi, dashboardApi } from "@/api/apiClient"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { tenantsApi, usersApi, billingApi, dashboardApi, followUpsApi, membersApi, attendanceApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
-import type { DashboardStats } from "@/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import {
   Users,
-  DollarSign,
-  Activity,
-  TrendingUp,
-  TrendingDown,
-  UserPlus,
+  Search,
+  RefreshCcw,
   Calendar,
+  MoreVertical,
+  ChevronDown,
+  Plus,
   ArrowRight,
   CreditCard,
   Dumbbell,
   Shield,
-  Plus,
-  Building,
-  Users as UsersIcon,
-  Settings,
-  IndianRupee,
-  UserCog
+  ChevronLeft,
+  Filter,
+  User,
+  Download,
+  FileText
 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { RevenueChart } from "@/components/charts/RevenueChart"
-import { AttendanceChart } from "@/components/charts/AttendanceChart"
-import { MembershipChart } from "@/components/charts/MembershipChart"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  PieChart as ReChartsPieChart,
+  Pie,
+  Cell
+} from "recharts"
+
+const leadData = [
+  { name: 'Jan 2026', hot: 12, warm: 8, cold: 2 },
+  { name: 'Feb 2026', hot: 18, warm: 10, cold: 4 },
+  { name: 'Mar 2026', hot: 25, warm: 15, cold: 6 },
+  { name: 'Apr 2026', hot: 30, warm: 20, cold: 8 },
+  { name: 'May 2026', hot: 35, warm: 25, cold: 10 },
+  { name: 'Jun 2026', hot: 40, warm: 30, cold: 12 },
+  { name: 'Jul 2026', hot: 45, warm: 35, cold: 14 },
+  { name: 'Aug 2026', hot: 50, warm: 40, cold: 16 },
+  { name: 'Sep 2026', hot: 55, warm: 45, cold: 18 },
+  { name: 'Oct 2026', hot: 60, warm: 50, cold: 20 },
+  { name: 'Nov 2026', hot: 65, warm: 55, cold: 22 },
+  { name: 'Dec 2026', hot: 70, warm: 60, cold: 24 },
+]
+
+const financialData = [
+  { name: 'April W1', paid: 160000, balance: 10000, pending: 40000, expense: 50000, profit: 110000 },
+  { name: 'April W2', paid: 80000, balance: 5000, pending: 20000, expense: 30000, profit: 50000 },
+  { name: 'April W3', paid: 120000, balance: 15000, pending: 30000, expense: 40000, profit: 80000 },
+  { name: 'April W4', paid: 100000, balance: 10000, pending: 30000, expense: 30000, profit: 70000 },
+]
+
+const followUps = [
+  { name: "test test", phone: "9898765489", type: "Membership Renewal", date: "14 Apr, 2026 11:50 PM", status: "Hot", comment: "gym work out, 12 months, renewal due on 28-04-2026." },
+  { name: "JAYDEEP KUMAR", phone: "8527649106", type: "Membership Renewal", date: "14 Apr, 2026 11:50 PM", status: "Hot", comment: "DOUTFULL FULL PACKAGE, 12 months, renewal due on 28-04-2026." },
+  { name: "Iswar singh", phone: "9818097000", type: "Membership Renewal", date: "14 Apr, 2026 11:50 PM", status: "Hot", comment: "Monthly, 1 month, renewal due on 16-04-2026." },
+]
 
 export const DashboardPage: React.FC = () => {
   const { user, hasRole } = useAuth()
   const navigate = useNavigate()
+  const [showFollowUps, setShowFollowUps] = useState(true)
+  const [followUpSearch, setFollowUpSearch] = useState("")
+  const [priorityFilter, setPriorityFilter] = useState("All")
+  const queryClient = useQueryClient()
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["dashboard-stats", user?.tenant_id],
-    queryFn: async (): Promise<DashboardStats> => {
+    queryFn: async () => {
       const response = await dashboardApi.getStats()
       if (response.error) throw response.error
-      return response.data as DashboardStats
+      return response.data
     },
     enabled: !!user?.tenant_id && user?.role !== "super_admin",
   })
 
-  // Fetch Super Admin Stats
+  const { data: realFollowUps, isLoading: followUpsLoading, refetch: refetchFollowUps } = useQuery({
+    queryKey: ["follow-ups", user?.tenant_id],
+    queryFn: async () => {
+      const response = await followUpsApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      return response.data
+    },
+    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+  })
+
+  // Global Members Query for precise stats
+  const { data: allMembers } = useQuery({
+    queryKey: ["all-members-stats", user?.tenant_id],
+    queryFn: async () => {
+      const response = await membersApi.list({ tenantId: user?.tenant_id || "" })
+      if (response.error) throw response.error
+      return response.data || []
+    },
+    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+  })
+
+  // Attendance Today Query
+  const { data: attendanceToday } = useQuery({
+    queryKey: ["attendance-today", user?.tenant_id],
+    queryFn: async () => {
+      const response = await attendanceApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      return response.data || []
+    },
+    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+  })
+
+  const statsCalculated = React.useMemo(() => {
+    if (!allMembers) return { active: 0, upcoming: 0, past: 0, birthday: 0, anniversary: 0 }
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+    const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+    return {
+      active: allMembers.filter(m => m.status === 'active').length,
+      upcoming: allMembers.filter(m => m.plan_expires_at && m.plan_expires_at >= today && m.plan_expires_at <= next7Days).length,
+      past: allMembers.filter(m => m.status === 'expired' || m.status === 'inactive').length,
+      birthday: allMembers.filter(m => m.dob && m.dob.split('-').slice(1).join('-') === today.split('-').slice(1).join('-')).length,
+      anniversary: allMembers.filter(m => m.joined_at && m.joined_at.split('-').slice(1).join('-') === today.split('-').slice(1).join('-')).length
+    }
+  }, [allMembers])
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
+    refetchFollowUps()
+    toast({ title: "Refreshing Data", description: "Updating dashboard metrics..." })
+  }
+
+  const exportFollowUps = () => {
+    if (!realFollowUps || realFollowUps.length === 0) return
+    const headers = ["Name", "Phone", "Type", "Date", "Priority", "Notes"]
+    const rows = filteredFollowUps.map((item: any) => [
+      item.lead?.fullName || item.lead?.firstName || item.member?.fullName || "N/A",
+      item.lead?.phone || item.member?.phone || "N/A",
+      item.type,
+      new Date(item.followUpDate).toLocaleString(),
+      item.priority || "warm",
+      (item.notes || item.todo || "").replace(/,/g, " ")
+    ])
+    
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `follow-ups-${new Date().toISOString().split("T")[0]}.csv`
+    a.click()
+  }
+
+  const filteredFollowUps = realFollowUps?.filter((item: any) => {
+    const name = (item.lead?.fullName || item.lead?.firstName || item.member?.fullName || "").toLowerCase()
+    const phone = (item.lead?.phone || item.member?.phone || "")
+    const matchesSearch = name.includes(followUpSearch.toLowerCase()) || phone.includes(followUpSearch)
+    const matchesPriority = priorityFilter === "All" || item.priority?.toLowerCase() === priorityFilter.toLowerCase()
+    return matchesSearch && matchesPriority
+  }) || []
+
   const { data: superStats, isLoading: superLoading } = useQuery({
     queryKey: ["super-admin-stats"],
     queryFn: async () => {
       const tenantsRes = await tenantsApi.list()
       const usersRes = await usersApi.list()
       const invoicesRes = await billingApi.getInvoices("all")
-
       const activeTenants = tenantsRes.data?.filter((t: any) => t.subscription_status === "active") || []
       const totalRevenue = invoicesRes.data?.reduce((acc: number, curr: any) => acc + (curr.amount_cents || 0), 0) || 0
-      
-      // Calculate monthly revenue from recent invoices
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-      const monthlyRevenue = invoicesRes.data
-        ?.filter((inv: any) => new Date(inv.created_at) > thirtyDaysAgo)
-        .reduce((acc: number, curr: any) => acc + (curr.amount_cents || 0), 0) || 0
-
       return {
         totalTenants: tenantsRes.data?.length || 0,
         activeTenants: activeTenants.length,
         totalUsers: usersRes.data?.length || 0,
         totalRevenue,
-        monthlyRevenue,
         recentTenants: tenantsRes.data?.slice(0, 5) || []
       }
     },
     enabled: user?.role === "super_admin"
   })
 
-  const StatCard: React.FC<{
-    title: string
-    value: string | number
-    icon: React.ReactNode
-    description?: string
-    trend?: number
-    loading?: boolean
-    className?: string
-  }> = ({ title, value, icon, description, trend, loading, className }) => {
-    if (loading) {
-      return (
-        <Card className={className}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Skeleton className="h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-24 mb-2" />
-            {description && <Skeleton className="h-4 w-32" />}
-          </CardContent>
-        </Card>
-      )
-    }
+  // Basic Stat Card Component
+  const StatCard: React.FC<{ title: string; value: string | number; icon: React.ReactNode; color: string }> = ({ title, value, icon, color }) => (
+    <Card className="border-none shadow-sm h-32 relative overflow-hidden group transition-all hover:shadow-md" style={{ backgroundColor: color }}>
+      <div className="p-4 h-full flex flex-col justify-between text-white">
+        <div className="flex justify-between items-start">
+          <h3 className="text-sm font-bold opacity-90">{title}</h3>
+          <div className="opacity-20 group-hover:scale-110 transition-transform">{icon}</div>
+        </div>
+        <div className="text-2xl font-bold">{value}</div>
+      </div>
+    </Card>
+  )
 
+  if (user?.role === "super_admin") {
     return (
-      <Card className={`transition-all duration-200 hover:shadow-md border-l-4 ${className}`}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-          <div className="p-2 bg-primary/10 rounded-full text-primary">{icon}</div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white">{value}</div>
-          <div className="flex items-center justify-between mt-1">
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
-            {trend !== undefined && (
-              <div className={`flex items-center text-xs font-medium ${trend >= 0 ? "text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded" : "text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded"}`}>
-                {trend >= 0 ? (
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 mr-1" />
-                )}
-                {Math.abs(trend)}%
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="relative overflow-hidden rounded-2xl bg-slate-900 p-8 text-white shadow-xl">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">System Control Center</h1>
+          <p className="text-slate-400 max-w-xl">Super Admin access for managing the entire GymPro ecosystem.</p>
+          <Shield className="absolute right-8 top-1/2 -translate-y-1/2 h-24 w-24 text-white/5" />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card className="p-6 border-l-4 border-emerald-500"><div className="text-sm font-medium text-slate-500">Total Revenue</div><div className="text-2xl font-bold mt-1">{formatCurrency(superStats?.totalRevenue || 0)}</div></Card>
+          <Card className="p-6 border-l-4 border-blue-500"><div className="text-sm font-medium text-slate-500">Active Tenants</div><div className="text-2xl font-bold mt-1">{superStats?.activeTenants || 0}</div></Card>
+          <Card className="p-6 border-l-4 border-amber-500"><div className="text-sm font-medium text-slate-500">Total Users</div><div className="text-2xl font-bold mt-1">{superStats?.totalUsers || 0}</div></Card>
+          <Card className="p-6 border-l-4 border-violet-500"><div className="text-sm font-medium text-slate-500">System Health</div><div className="text-2xl font-bold mt-1 text-emerald-500">Optimal</div></Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="shadow-sm">
+            <CardHeader><CardTitle>Recent Tenants</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {superStats?.recentTenants.map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <div><p className="font-bold">{t.name}</p><p className="text-xs text-slate-500">{t.owner_email}</p></div>
+                  <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">{t.subscription_status}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardHeader><CardTitle>Admin Actions</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 gap-3">
+              <Button variant="outline" className="h-20" onClick={() => navigate("/super-admin")}><Plus className="mr-2 h-4 w-4" /> Add Gym</Button>
+              <Button variant="outline" className="h-20" onClick={() => navigate("/super-admin?tab=billing")}><CreditCard className="mr-2 h-4 w-4" /> Billing</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     )
   }
 
   return (
-    <div className="space-y-8">
-      {user?.role === "super_admin" ? (
-        <>
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 p-8 text-white shadow-lg">
-            <div className="relative z-10">
-              <h1 className="text-3xl font-bold tracking-tight mb-2">
-                System Overview
-              </h1>
-              <p className="text-slate-300 max-w-xl">
-                Manage the entire GymPro ecosystem. You currently have {superStats?.activeTenants || 0} active gyms across the platform.
-              </p>
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
+      {/* Search & Actions Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-center gap-4 flex-1 max-w-2xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder='Search & Create "New Sales"'
+              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 transition-all font-medium shadow-sm"
+              value={followUpSearch}
+              onChange={(e) => setFollowUpSearch(e.target.value)}
+            />
+          </div>
+          <Button 
+            className="bg-orange-500 hover:bg-orange-600 text-white px-6 rounded-xl font-bold"
+            onClick={handleRefresh}
+          >
+            <RefreshCcw className="h-4 w-4 mr-2" /> Refresh
+          </Button>
+          <div className="flex items-center gap-2">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-4 h-[42px] rounded-xl font-bold shadow-sm" onClick={() => navigate("/members/add")}>
+              <Plus className="h-4 w-4 mr-2" /> New Sale
+            </Button>
+            <Button className="bg-amber-500 hover:bg-amber-600 text-white px-4 h-[42px] rounded-xl font-bold shadow-sm" onClick={() => navigate("/enquiries/new")}>
+              <Plus className="h-4 w-4 mr-2" /> New Enquiry
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <span className="text-xs font-bold text-slate-500 ml-2">Sort by</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300">
+            <Calendar className="h-3 w-3 text-slate-400" />
+            14-04-2026 - 14-04-2026
+            <ChevronDown className="h-3 w-3 text-slate-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Follow Ups Table Section with Pagination & Filters */}
+      <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <CardHeader className="bg-white dark:bg-slate-900 border-b dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between py-4 gap-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-200">Follow Ups ({filteredFollowUps.length})</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-7 text-[10px] font-bold uppercase tracking-wider border-slate-200"
+                onClick={exportFollowUps}
+              >
+                <Download className="h-3 w-3 mr-1" /> Export
+              </Button>
             </div>
-            <Shield className="absolute right-8 top-1/2 -translate-y-1/2 h-24 w-24 text-white/10" />
+            {/* Lead Filters */}
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+              {['All', 'Hot', 'Warm', 'Cold'].map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setPriorityFilter(filter)}
+                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
+                    priorityFilter === filter 
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold text-slate-500 cursor-pointer hover:bg-slate-100 transition-colors">
+                <Filter className="h-3 w-3" /> More Filters <ChevronDown className="h-3 w-3" />
+              </div>
+            </div>
           </div>
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Total Revenue"
-              value={formatCurrency(superStats?.totalRevenue || 0)}
-              icon={<DollarSign className="h-4 w-4" />}
-              description="All-time SaaS revenue"
-              loading={superLoading}
-              className="border-l-emerald-500"
-            />
-            <StatCard
-              title="Monthly Revenue"
-              value={formatCurrency(superStats?.monthlyRevenue || 0)}
-              icon={<TrendingUp className="h-4 w-4" />}
-              description="Last 30 days"
-              loading={superLoading}
-              className="border-l-blue-500"
-            />
-            <StatCard
-              title="Active Tenants"
-              value={superStats?.activeTenants || 0}
-              icon={<Building className="h-4 w-4" />}
-              description={`Out of ${superStats?.totalTenants || 0} total`}
-              loading={superLoading}
-              className="border-l-amber-500"
-            />
-            <StatCard
-              title="System Users"
-              value={superStats?.totalUsers || 0}
-              icon={<UsersIcon className="h-4 w-4" />}
-              description="Total platform users"
-              loading={superLoading}
-              className="border-l-violet-500"
-            />
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Tenants</CardTitle>
-                <CardDescription>Latest gyms to join the platform.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {superStats?.recentTenants.map((tenant: any) => (
-                    <div key={tenant.id} className="flex items-center justify-between border-b last:border-0 pb-2">
-                      <div className="flex items-center space-x-3">
-                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
-                          <Building className="h-4 w-4 text-slate-500" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{tenant.name}</p>
-                          <p className="text-xs text-muted-foreground">{tenant.owner_email}</p>
-                        </div>
-                      </div>
-                      <Badge variant={tenant.subscription_status === 'active' ? 'default' : 'secondary'}>
-                        {tenant.subscription_status || 'Trial'}
+          <button onClick={() => setShowFollowUps(!showFollowUps)} className="text-xs font-bold text-orange-500 hover:text-orange-600 transition-colors">
+            {showFollowUps ? 'Collapse Table' : 'Expand Table'}
+          </button>
+        </CardHeader>
+        {showFollowUps && (
+          <>
+            <Table>
+              <TableHeader className="bg-slate-50/50 dark:bg-slate-800/50">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-4">Name & Number</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-4">Type</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-4">Date & Time</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-4">Status</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-4">Comment</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {followUpsLoading ? (
+                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-400">Loading follow ups...</TableCell></TableRow>
+                ) : filteredFollowUps.length === 0 ? (
+                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-400">No matching follow ups found.</TableCell></TableRow>
+                ) : filteredFollowUps.map((item: any, i: number) => (
+                  <TableRow key={item.id} className="hover:bg-slate-50/30 border-b dark:border-slate-800">
+                    <TableCell className="py-4">
+                      <p className="text-xs font-bold text-blue-600">{item.lead?.fullName || item.lead?.firstName || item.member?.fullName || "N/A"}</p>
+                      <p className="text-[10px] font-bold text-slate-400">{item.lead?.phone || item.member?.phone || "N/A"}</p>
+                    </TableCell>
+                    <TableCell className="text-xs font-bold text-slate-700 dark:text-slate-300 capitalize">{item.type}</TableCell>
+                    <TableCell className="text-xs font-bold text-slate-700 dark:text-slate-300">{new Date(item.followUpDate).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge className={`text-[10px] font-bold px-2 py-0.5 capitalize ${
+                        item.priority === 'hot' ? 'bg-rose-600' : item.priority === 'warm' ? 'bg-orange-500' : 'bg-blue-500'
+                      }`}>
+                        {item.priority || 'warm'}
                       </Badge>
-                    </div>
-                  ))}
-                  {superStats?.recentTenants.length === 0 && (
-                    <p className="text-sm text-center text-muted-foreground py-4">No tenants yet.</p>
-                  )}
-                </div>
-                <Button variant="link" className="w-full mt-4" onClick={() => navigate("/super-admin")}>
-                  View All Tenants <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Common administrative tasks.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <Button variant="outline" className="h-20 flex flex-col" onClick={() => navigate("/super-admin")}>
-                  <Plus className="h-5 w-5 mb-2" />
-                  Add Tenant
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col" onClick={() => navigate("/super-admin#plans")}>
-                  <CreditCard className="h-5 w-5 mb-2" />
-                  Manage Plans
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col" onClick={() => navigate("/super-admin?tab=users")}>
-                  <UsersIcon className="h-5 w-5 mb-2" />
-                  View Users
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col" onClick={() => navigate("/settings")}>
-                  <Settings className="h-5 w-5 mb-2" />
-                  System Settings
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Welcome Banner */}
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 p-8 text-white shadow-lg">
-            <div className="relative z-10">
-              <h1 className="text-3xl font-bold tracking-tight mb-2">
-                Welcome back, {user?.full_name?.split(" ")[0] || "Team Member"}!
-              </h1>
-              <p className="text-indigo-100 max-w-xl">
-                Here's your summary for today. You currently have {stats?.attendanceToday || 0} active check-ins.
-              </p>
-            </div>
-            <div className="absolute right-0 top-0 h-full w-1/3 bg-white/5 -skew-x-12 transform translate-x-12" />
-            <div className="absolute right-20 bottom-0 h-full w-1/3 bg-white/5 -skew-x-12 transform translate-x-12" />
-          </div>
-
-          {/* Stats Grid: Conditionally Rendered by Role */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {hasRole(["gym_owner", "manager"]) && (
-              <>
-                <StatCard title="Total Members" value={stats?.totalMembers || 0} icon={<Users className="h-4 w-4" />} description="Active members" loading={statsLoading} className="border-l-blue-500 bg-gradient-to-br from-white to-blue-50/30" />
-                <StatCard title="Revenue (Monthly)" value={formatCurrency(stats?.monthlyRevenue || 0)} icon={<DollarSign className="h-4 w-4" />} description="This month" trend={12.5} loading={statsLoading} className="border-l-emerald-500 bg-gradient-to-br from-white to-emerald-50/30" />
-                <StatCard title="Total Trainers" value={stats?.totalTrainers || 0} icon={<Dumbbell className="h-4 w-4" />} description="Active trainers" loading={statsLoading} className="border-l-amber-500 bg-gradient-to-br from-white to-amber-50/30" />
-                <StatCard title="Total Management" value={(stats?.totalManagers || 0) + (stats?.totalFrontdesk || 0)} icon={<Shield className="h-4 w-4" />} description="Frontdesk & Managers" loading={statsLoading} className="border-l-violet-500 bg-gradient-to-br from-white to-violet-50/30" />
-              </>
-            )}
-            {hasRole(["frontdesk"]) && (
-              <>
-                <StatCard title="Attendance Today" value={stats?.attendanceToday || 0} icon={<Activity className="h-4 w-4" />} description="Checked in today" loading={statsLoading} className="border-l-amber-500 bg-gradient-to-br from-white to-amber-50/30" />
-                <StatCard title="New Members" value={stats?.newMembersThisMonth || 0} icon={<UserPlus className="h-4 w-4" />} description="This month" loading={statsLoading} className="border-l-violet-500 bg-gradient-to-br from-white to-violet-50/30" />
-                <StatCard title="Total Members" value={stats?.totalMembers || 0} icon={<Users className="h-4 w-4" />} description="Active members" loading={statsLoading} className="border-l-blue-500 bg-gradient-to-br from-white to-blue-50/30" />
-                <StatCard title="Total Frontdesk" value={stats?.totalFrontdesk || 0} icon={<UsersIcon className="h-4 w-4" />} description="Colleagues" loading={statsLoading} className="border-l-emerald-500 bg-gradient-to-br from-white to-emerald-50/30" />
-              </>
-            )}
-            {hasRole(["trainer"]) && (
-              <>
-                <StatCard title="Check-ins Today" value={stats?.attendanceToday || 0} icon={<Activity className="h-4 w-4" />} description="Potential trainees" loading={statsLoading} className="border-l-emerald-500 bg-gradient-to-br from-white to-emerald-50/30" />
-                <StatCard title="New Members" value={stats?.newMembersThisMonth || 0} icon={<UserPlus className="h-4 w-4" />} description="This month" loading={statsLoading} className="border-l-blue-500 bg-gradient-to-br from-white to-blue-50/30" />
-                <StatCard title="Total Trainers" value={stats?.totalTrainers || 0} icon={<Dumbbell className="h-4 w-4" />} description="Colleagues" loading={statsLoading} className="border-l-amber-500 bg-gradient-to-br from-white to-amber-50/30" />
-                <StatCard title="Total Members" value={stats?.totalMembers || 0} icon={<Users className="h-4 w-4" />} description="Active members" loading={statsLoading} className="border-l-violet-500 bg-gradient-to-br from-white to-violet-50/30" />
-              </>
-            )}
-          </div>
-
-          {/* Charts & Analytics */}
-          <Tabs defaultValue="overview" className="space-y-6">
-            <div className="flex items-center justify-between mt-4">
-              <TabsList className="bg-slate-100 p-1">
-                <TabsTrigger value="overview" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Overview</TabsTrigger>
-                {hasRole(["gym_owner", "manager", "super_admin"]) && (
-                  <TabsTrigger value="analytics" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Analytics</TabsTrigger>
-                )}
-                {hasRole(["gym_owner", "manager", "super_admin"]) && (
-                  <TabsTrigger value="reports" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Financials</TabsTrigger>
-                )}
-              </TabsList>
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground bg-white px-3 py-1 rounded-md border shadow-sm">
-                <Calendar className="h-4 w-4 text-primary" />
-                <span>{formatDate(new Date(), "EEEE, MMMM d, yyyy")}</span>
+                    </TableCell>
+                    <TableCell className="text-xs font-medium text-slate-500 truncate max-w-[200px]">{item.notes || item.todo}</TableCell>
+                    <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreVertical className="h-4 w-4" /></Button></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-50/50 dark:bg-slate-900 border-t dark:border-slate-800">
+              <p className="text-[10px] font-bold text-slate-400">Showing 1 to 3 of 5 entries</p>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0 rounded-md border-slate-200"><ChevronLeft className="h-4 w-4" /></Button>
+                <Button variant="default" size="sm" className="h-7 w-7 p-0 rounded-md bg-orange-500 text-[10px] font-bold">1</Button>
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0 rounded-md border-slate-200"><Plus className="h-4 w-4 rotate-45" /></Button>
               </div>
             </div>
+          </>
+        )}
+      </Card>
 
-            <TabsContent value="overview" className="space-y-6">
-              {hasRole(["gym_owner", "manager"]) ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-                  <Card className="col-span-4 shadow-sm border-slate-200">
-                    <CardHeader>
-                      <CardTitle>Revenue Overview</CardTitle>
-                      <CardDescription>Monthly revenue performance</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pl-2">
-                       <RevenueChart data={stats?.revenueTrend || []} />
-                    </CardContent>
-                  </Card>
-                  <Card className="col-span-3 shadow-sm border-slate-200">
-                    <CardHeader>
-                      <CardTitle>Membership Distribution</CardTitle>
-                      <CardDescription>Active members by plan</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <MembershipChart data={stats?.membershipDistribution || {}} />
-                    </CardContent>
-                  </Card>
-                 </div>
-              ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-                  <Card className="col-span-7 shadow-sm border-slate-200">
-                    <CardHeader>
-                      <CardTitle>Attendance Trend</CardTitle>
-                      <CardDescription>Members arriving over the last 7 days</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pl-2">
-                       <AttendanceChart data={stats?.attendanceTrend || []} />
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Quick Actions Row based on role */}
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => navigate("/members")}>
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="p-3 bg-blue-100 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                      <UserPlus className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Add / View Members</h3>
-                      <p className="text-sm text-muted-foreground">Manage gym members</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                  </CardContent>
-                </Card>
-
-                {hasRole(["gym_owner", "manager", "frontdesk"]) && (
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => navigate("/billing")}>
-                    <CardContent className="p-6 flex items-center space-x-4">
-                      <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                        <CreditCard className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">Record Payment</h3>
-                        <p className="text-sm text-muted-foreground">Process transactions</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                    </CardContent>
-                  </Card>
-                )}
-
-                {hasRole(["gym_owner", "trainer"]) && (
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => navigate("/workouts")}>
-                    <CardContent className="p-6 flex items-center space-x-4">
-                      <div className="p-3 bg-amber-100 text-amber-600 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                        <Dumbbell className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">Create Workout</h3>
-                        <p className="text-sm text-muted-foreground">Design workout plans</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                    </CardContent>
-                  </Card>
-                )}
+      {/* Overview Grid Section - Exactly matching reference */}
+      <div className="space-y-4">
+        <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider ml-1">Overview</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Members Card */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="bg-[#2B6CB0] py-2.5 px-4"><h3 className="text-white text-xs font-bold">Members</h3></div>
+            <div className="bg-[#4299E1] flex-1 flex">
+              <div className="flex-1 flex flex-col items-center justify-center border-r border-white/20">
+                <span className="text-3xl font-bold text-white mb-1">{statsCalculated.active}</span>
+                <span className="text-[10px] font-bold text-white/90 uppercase">Active</span>
               </div>
-            </TabsContent>
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold text-white mb-1">{statsCalculated.upcoming}</span>
+                <span className="text-[10px] font-bold text-white/90 uppercase">Upcoming</span>
+              </div>
+            </div>
+          </Card>
 
-            {hasRole(["gym_owner", "manager", "super_admin"]) && (
-              <TabsContent value="analytics" className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <Card className="shadow-sm border-slate-200">
-                    <CardHeader>
-                      <CardTitle>Attendance Trend</CardTitle>
-                      <CardDescription>Last 7 days check-in activity</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <AttendanceChart data={stats?.attendanceTrend || []} />
-                    </CardContent>
-                  </Card>
+          {/* Follow Ups Card */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="bg-[#C05621] py-2.5 px-4"><h3 className="text-white text-xs font-bold">Follow Ups Overview</h3></div>
+            <div className="bg-[#ED8936] flex-1 flex">
+              <div className="flex-1 flex flex-col items-center justify-center border-r border-white/20">
+                <span className="text-3xl font-bold text-white mb-1">{(stats?.totalFollowUpsToday || 0) + (stats?.pendingFollowUps || 0)}</span>
+                <span className="text-[10px] font-bold text-white/90 uppercase">Total</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold text-white mb-1">{stats?.totalFollowUpsToday || 0}</span>
+                <span className="text-[10px] font-bold text-white/90 uppercase">Today</span>
+              </div>
+            </div>
+          </Card>
 
-                  <Card className="shadow-sm border-slate-200">
-                    <CardHeader>
-                      <CardTitle>Recent Activity</CardTitle>
-                      <CardDescription>Latest actions and updates</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {[1, 2, 3].map((_, i) => (
-                          <div key={i} className="flex items-start space-x-4 pb-4 border-b last:border-0 last:pb-0">
-                            <div className="h-2 w-2 mt-2 rounded-full bg-primary" />
-                            <div>
-                              <p className="text-sm font-medium">System Update Logged</p>
-                              <p className="text-xs text-muted-foreground">Activity recorded</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+          {/* Enquiry Card */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="bg-[#2C7A7B] py-2.5 px-4"><h3 className="text-white text-xs font-bold">Enquiry Overview</h3></div>
+            <div className="bg-[#38B2AC] flex-1 flex">
+              <div className="flex-1 flex flex-col items-center justify-center border-r border-white/20">
+                <span className="text-3xl font-bold text-white mb-1">{stats?.totalLeads || 0}</span>
+                <span className="text-[10px] font-bold text-white/90 uppercase text-center px-2">Total Leads</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold text-white mb-1">{stats?.hotLeads || 0}</span>
+                <span className="text-[10px] font-bold text-white/90 uppercase">Hot Leads</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Attendance & Date Card */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="flex-1 flex">
+              {/* Attendance Side */}
+              <div className="flex-1 flex flex-col border-r border-white/10 overflow-hidden">
+                <div className="bg-[#B7791F] py-2.5 px-3"><h3 className="text-white text-[10px] font-bold whitespace-nowrap">Attendance</h3></div>
+                <div className="bg-[#D69E2E] flex-1 p-3 flex flex-col justify-around">
+                  <div className="flex flex-col">
+                    <span className="text-lg font-bold text-white leading-tight">{attendanceToday?.length || 0}</span>
+                    <span className="text-[8px] font-bold text-white/80 uppercase">Attendance</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-lg font-bold text-white leading-tight">{Math.max(0, statsCalculated.active - (attendanceToday?.length || 0))}</span>
+                    <span className="text-[8px] font-bold text-white/80 uppercase">Absent</span>
+                  </div>
                 </div>
-              </TabsContent>
-            )}
+              </div>
+              {/* Date Side */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="bg-[#C0851D] py-2.5 px-3"><h3 className="text-white text-[10px] font-bold">Date</h3></div>
+                <div className="bg-[#ECC94B] flex-1 p-3 flex flex-col justify-around">
+                  <div className="flex flex-col">
+                    <span className="text-lg font-bold text-white/90 leading-tight">{statsCalculated.birthday}</span>
+                    <span className="text-[8px] font-bold text-white/80 uppercase">Birthday</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-lg font-bold text-white/90 leading-tight">{statsCalculated.anniversary}</span>
+                    <span className="text-[8px] font-bold text-white/80 uppercase">Anniversary</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
 
-            {hasRole(["gym_owner", "manager", "super_admin"]) && (
-              <TabsContent value="reports" className="space-y-6">
-                <Card className="shadow-sm border-slate-200">
-                  <CardHeader>
-                    <CardTitle>Financial Reports</CardTitle>
-                    <CardDescription>Monthly revenue and expense tracking</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-100">
-                        <span className="font-medium text-slate-700">Total Revenue</span>
-                        <span className="font-bold text-lg text-emerald-600">{formatCurrency(stats?.totalRevenue || 0)}</span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <Card className="border-none shadow-xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white overflow-hidden relative group">
-                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                                <Users className="h-24 w-24" />
-                            </div>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium uppercase tracking-wider opacity-80">Total Members</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-4xl font-bold">{stats?.totalMembers ?? "--"}</div>
-                                <div className="mt-4 flex items-center text-xs">
-                                    <div className="bg-white/20 px-2 py-1 rounded-full mr-2">
-                                        {stats?.activeMembers ?? 0} Active
-                                    </div>
-                                    <span className="opacity-60">Across all plans</span>
-                                </div>
-                            </CardContent>
-                        </Card>
+          {/* Total Sales Card */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="bg-[#276749] py-2.5 px-4"><h3 className="text-white text-xs font-bold">Total Sales</h3></div>
+            <div className="bg-[#38A169] flex-1 flex">
+              <div className="flex-1 flex flex-col items-center justify-center border-r border-white/20">
+                <span className="text-3xl font-bold text-white mb-1">1</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-white mb-1">25000</span>
+              </div>
+            </div>
+          </Card>
 
-                        <Card className="border-none shadow-xl bg-gradient-to-br from-emerald-600 to-emerald-800 text-white overflow-hidden relative group">
-                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                                <IndianRupee className="h-24 w-24" />
-                            </div>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium uppercase tracking-wider opacity-80">Monthly Revenue</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-4xl font-bold">{formatCurrency(stats?.monthlyRevenue ?? 0)}</div>
-                                <div className="mt-4 flex items-center text-xs">
-                                    <div className="bg-white/20 px-2 py-1 rounded-full mr-2">
-                                        +12.5%
-                                    </div>
-                                    <span className="opacity-60">vs last month</span>
-                                </div>
-                            </CardContent>
-                        </Card>
+          {/* Fresh / Renewal Sales Card */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="grid grid-cols-2 flex-1">
+              <div className="flex flex-col border-r border-white/20">
+                <div className="bg-[#553C9A] py-2.5 px-4 whitespace-nowrap"><h3 className="text-white text-[10px] font-bold">Fresh Sales</h3></div>
+                <div className="bg-[#805AD5] flex-1 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-bold text-white mb-1">1</span>
+                  <span className="text-[10px] font-bold text-white/90 uppercase">Number</span>
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <div className="bg-[#553C9A] py-2.5 px-4 whitespace-nowrap"><h3 className="text-white text-[10px] font-bold">Renewal Sales</h3></div>
+                <div className="bg-[#805AD5] flex-1 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-bold text-white mb-1">0</span>
+                  <span className="text-[10px] font-bold text-white/90 uppercase">Number</span>
+                </div>
+              </div>
+            </div>
+          </Card>
 
-                        <Card className="border-none shadow-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white overflow-hidden relative group">
-                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                                <Activity className="h-24 w-24" />
-                            </div>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium uppercase tracking-wider opacity-80">Today's Attendance</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-4xl font-bold">{stats?.attendanceToday ?? "--"}</div>
-                                <div className="mt-4 flex items-center text-xs">
-                                    <div className="bg-white/20 px-2 py-1 rounded-full mr-2">
-                                        {stats?.newMembersThisMonth ?? 0} New
-                                    </div>
-                                    <span className="opacity-60">joiners this month</span>
-                                </div>
-                            </CardContent>
-                        </Card>
+          {/* Balance Payment Card */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="bg-[#285E61] py-2.5 px-4"><h3 className="text-white text-xs font-bold">Balance Payment</h3></div>
+            <div className="bg-[#38B2AC] flex-1 flex">
+              <div className="flex-1 flex flex-col items-center justify-center border-r border-white/20">
+                <span className="text-3xl font-bold text-white mb-1">0</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-white mb-1">1000</span>
+              </div>
+            </div>
+          </Card>
 
-                        <Card className="border-none shadow-xl bg-gradient-to-br from-rose-500 to-rose-700 text-white overflow-hidden relative group">
-                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                                <UserCog className="h-24 w-24" />
-                            </div>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium uppercase tracking-wider opacity-80">Staff Overview</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-4xl font-bold">{(stats?.totalTrainers || 0) + (stats?.totalFrontdesk || 0) + (stats?.totalManagers || 0)}</div>
-                                <div className="mt-4 flex flex-wrap gap-1">
-                                    <Badge className="bg-white/20 text-[10px] py-0">{stats?.totalTrainers ?? 0} Trainers</Badge>
-                                    <Badge className="bg-white/20 text-[10px] py-0">{stats?.totalFrontdesk ?? 0} Frontdesk</Badge>
-                                </div>
-                            </CardContent>
-                        </Card>
-                      </div>
-                      <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-100">
-                        <span className="font-medium text-slate-700">Active Members</span>
-                        <span className="font-bold text-lg text-violet-600">{stats?.activeMembers || 0}</span>
-                      </div>
+          {/* Transformations Card */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="grid grid-cols-2 flex-1">
+              <div className="flex flex-col border-r border-white/20 overflow-hidden">
+                <div className="bg-[#553C9A] py-2 px-3 h-10 flex items-center"><h3 className="text-white text-[9px] leading-tight font-bold">Transformation Fresh Sales</h3></div>
+                <div className="bg-[#9F7AEA] flex-1 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-bold text-white mb-1">0</span>
+                  <span className="text-[9px] font-bold text-white/90 uppercase">Number</span>
+                </div>
+              </div>
+              <div className="flex flex-col overflow-hidden">
+                <div className="bg-[#553C9A] py-2 px-3 h-10 flex items-center"><h3 className="text-white text-[9px] leading-tight font-bold">Transformation Renewal Sales</h3></div>
+                <div className="bg-[#9F7AEA] flex-1 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-bold text-white mb-1">0</span>
+                  <span className="text-[9px] font-bold text-white/90 uppercase">Number</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Total PT Sales Card - GREEN */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="bg-[#276749] py-2.5 px-4"><h3 className="text-white text-xs font-bold">Total PT Sales</h3></div>
+            <div className="bg-[#38A169] flex-1 flex">
+              <div className="flex-1 flex flex-col items-center justify-center border-r border-white/20">
+                <span className="text-3xl font-bold text-white mb-1">1</span>
+                <span className="text-[10px] font-bold text-white/90 uppercase">Number</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-white mb-1">25000</span>
+                <span className="text-[10px] font-bold text-white/90 uppercase">Amount</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Sales Card - ORANGE */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="bg-[#C05621] py-2.5 px-4"><h3 className="text-white text-xs font-bold">Sales</h3></div>
+            <div className="bg-[#ED8936] flex-1 flex">
+              <div className="flex-1 flex flex-col items-center justify-center border-r border-white/20">
+                <span className="text-3xl font-bold text-white mb-1">0/0</span>
+                <span className="text-[10px] font-bold text-white/90 uppercase">Upgrade</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold text-white mb-1">0/0</span>
+                <span className="text-[10px] font-bold text-white/90 uppercase">Transfer</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Fresh PT / Renewal PT Sales Card - BLUE */}
+          <Card className="border-none shadow-lg overflow-hidden h-44 flex flex-col">
+            <div className="grid grid-cols-2 flex-1">
+              <div className="flex flex-col border-r border-white/20">
+                <div className="bg-[#2B6CB0] py-2.5 px-4 h-10 flex items-center"><h3 className="text-white text-[10px] font-bold">Fresh PT Sales</h3></div>
+                <div className="bg-[#4299E1] flex-1 flex flex-col p-2">
+                   <div className="flex flex-col items-center justify-center mb-2 border-b border-white/10 pb-1">
+                      <span className="text-lg font-bold text-white">1</span>
+                      <span className="text-[8px] font-bold text-white/80 uppercase">Number</span>
+                   </div>
+                   <div className="flex flex-col items-center justify-center">
+                      <span className="text-lg font-bold text-white">25000</span>
+                      <span className="text-[8px] font-bold text-white/80 uppercase">Amount</span>
+                   </div>
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <div className="bg-[#2B6CB0] py-2.5 px-4 h-10 flex items-center"><h3 className="text-white text-[10px] font-bold">PT Renewal Sales</h3></div>
+                <div className="bg-[#4299E1] flex-1 flex flex-col p-2">
+                   <div className="flex flex-col items-center justify-center mb-2 border-b border-white/10 pb-1">
+                      <span className="text-lg font-bold text-white">0</span>
+                      <span className="text-[8px] font-bold text-white/80 uppercase">Number</span>
+                   </div>
+                   <div className="flex flex-col items-center justify-center">
+                      <span className="text-lg font-bold text-white">0</span>
+                      <span className="text-[8px] font-bold text-white/80 uppercase">Amount</span>
+                   </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Analytics Section - Full Width for better view as requested */}
+      <div className="space-y-6">
+        {/* Leads & Members Analytics - DUAL PANE AS PER SCREENSHOT */}
+        <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden min-h-[450px]">
+          <CardHeader className="flex flex-row items-center justify-between border-b dark:border-slate-800 pb-4">
+            <div>
+              <CardTitle className="text-base font-bold text-slate-700 dark:text-slate-300">Leads & Members Analytics</CardTitle>
+              <CardDescription className="text-[10px] font-bold uppercase text-slate-400">Conversion Funnel & Membership Growth</CardDescription>
+            </div>
+            <button className="text-slate-400 hover:text-slate-600"><MoreVertical className="h-4 w-4" /></button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x dark:divide-slate-800">
+              {/* LEFT: Leads Donut Funnel */}
+              <div className="lg:w-1/3 p-6 flex flex-col items-center">
+                <div className="h-64 w-full relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ReChartsPieChart>
+                      <Pie
+                        data={[
+                          { name: 'Hot', value: stats?.hotLeads || 0 },
+                          { name: 'Warm', value: (stats?.totalLeads || 0) - (stats?.hotLeads || 0) },
+                          { name: 'Cold', value: 0 }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={65}
+                        outerRadius={90}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        <Cell fill="#F43F5E" /> {/* Hot */}
+                        <Cell fill="#ED8936" /> {/* Warm */}
+                        <Cell fill="#3B82F6" /> {/* Cold */}
+                      </Pie>
+                      <Tooltip />
+                    </ReChartsPieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                    <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{stats?.totalLeads || 0}</span>
+                  </div>
+                </div>
+
+                {/* Leads Legend List */}
+                <div className="w-full space-y-4 mt-4 px-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-[#F43F5E]" />
+                      <span className="text-xs font-bold text-rose-600 uppercase">Hot Leads</span>
                     </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            )}
-          </Tabs>
-        </>
-      )}
+                    <span className="text-sm font-bold text-slate-600">65</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-[#ED8936]" />
+                      <span className="text-xs font-bold text-orange-600 uppercase">Warm Leads</span>
+                    </div>
+                    <span className="text-sm font-bold text-slate-600">12</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-[#3B82F6]" />
+                      <span className="text-xs font-bold text-blue-600 uppercase">Cold Leads</span>
+                    </div>
+                    <span className="text-sm font-bold text-slate-600">0</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT: Stacked Bar Membership Analysis */}
+              <div className="flex-1 p-6 flex flex-col">
+                <div className="flex flex-wrap items-center gap-8 mb-8">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-[#10B981]" />
+                    <span className="text-xs font-bold text-[#10B981]">Active Members : 4</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-[#F43F5E]" />
+                    <span className="text-xs font-bold text-[#F43F5E]">Inactive Members : 2</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-[#ED8936]" />
+                    <span className="text-xs font-bold text-[#ED8936]">Upcoming Members : 0</span>
+                  </div>
+                </div>
+
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { name: 'Jan', active: 3, inactive: 5, upcoming: 0 },
+                      { name: 'Feb', active: 2, inactive: 2, upcoming: 0 },
+                      { name: 'Mar', active: 6, inactive: 0, upcoming: 0 },
+                      { name: 'Apr', active: 6, inactive: 0, upcoming: 0 },
+                      { name: 'May', active: 0, inactive: 0, upcoming: 0 },
+                      { name: 'Jun', active: 0, inactive: 0, upcoming: 0 },
+                      { name: 'Jul', active: 0, inactive: 0, upcoming: 0 },
+                      { name: 'Aug', active: 0, inactive: 0, upcoming: 0 },
+                      { name: 'Sep', active: 0, inactive: 0, upcoming: 0 },
+                      { name: 'Oct', active: 0, inactive: 0, upcoming: 0 },
+                      { name: 'Nov', active: 0, inactive: 0, upcoming: 0 },
+                      { name: 'Dec', active: 0, inactive: 0, upcoming: 0 },
+                    ]} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={true} stroke="#E2E8F0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                      <Tooltip contentStyle={{ borderRadius: '12px' }} />
+                      <Bar dataKey="active" stackId="a" fill="#10B981" barSize={35} />
+                      <Bar dataKey="inactive" stackId="a" fill="#F43F5E" barSize={35} />
+                      <Bar dataKey="upcoming" stackId="a" fill="#ED8936" barSize={35} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Financial Analytics - EXACTLY AS PER SCREENSHOT */}
+        <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between border-b dark:border-slate-800 py-4">
+            <div>
+              <CardTitle className="text-base font-bold text-slate-700 dark:text-slate-300">Financial Analytics</CardTitle>
+              <CardDescription className="text-[10px] font-bold uppercase text-slate-400">P&L, Revenue & Collection Status</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="h-8 text-xs font-bold text-slate-400">Yearly <ChevronDown className="ml-1 h-3 w-3" /></Button>
+              <button className="text-slate-400 hover:text-slate-600"><MoreVertical className="h-4 w-4" /></button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0 flex-1 flex flex-col">
+            {/* Top Legend matching screenshot exactly */}
+            <div className="flex flex-wrap items-center gap-6 px-6 py-3 border-b dark:border-slate-800">
+              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#38B2AC]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Paid Amount</span></div>
+              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#D69E2E]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Paid Balance Amount</span></div>
+              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#ED8936]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Pending Payment</span></div>
+              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#F43F5E]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Total Expenses</span></div>
+              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#48BB78]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Total Profit</span></div>
+            </div>
+
+            {/* Chart Area with dots on data points */}
+            <div className="h-[350px] w-full p-6">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={[
+                  { name: 'Jan', paid: 158000, balance: 20000, pending: 65000, expense: 0, profit: 158000 },
+                  { name: 'Feb', paid: 72000, balance: 10000, pending: 8000, expense: 0, profit: 72000 },
+                  { name: 'Mar', paid: 116000, balance: 15000, pending: 12000, expense: 0, profit: 116000 },
+                  { name: 'Apr', paid: 94000, balance: 12000, pending: 12000, expense: 0, profit: 94000 },
+                  { name: 'May', paid: 0, balance: 0, pending: 0, expense: 0, profit: 0 },
+                  { name: 'Jun', paid: 0, balance: 0, pending: 0, expense: 0, profit: 0 },
+                  { name: 'Jul', paid: 0, balance: 0, pending: 0, expense: 0, profit: 0 },
+                  { name: 'Aug', paid: 0, balance: 0, pending: 0, expense: 0, profit: 0 },
+                  { name: 'Sep', paid: 0, balance: 0, pending: 0, expense: 0, profit: 0 },
+                  { name: 'Oct', paid: 0, balance: 0, pending: 0, expense: 0, profit: 0 },
+                  { name: 'Nov', paid: 0, balance: 0, pending: 0, expense: 0, profit: 0 },
+                  { name: 'Dec', paid: 0, balance: 0, pending: 0, expense: 0, profit: 0 },
+                ]} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={true} stroke="#E2E8F0" />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: '#94A3B8' }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: '#94A3B8' }}
+                  />
+                  <Tooltip contentStyle={{ borderRadius: '12px' }} />
+                  {/* Rendering areas with dots at data points as per screenshot */}
+                  <Area type="monotone" dataKey="paid" stroke="#38B2AC" fill="#38B2AC40" strokeWidth={3} dot={{ r: 3, fill: '#38B2AC' }} activeDot={{ r: 5 }} />
+                  <Area type="monotone" dataKey="balance" stroke="#D69E2E" fill="transparent" strokeWidth={2} dot={{ r: 3, fill: '#D69E2E' }} />
+                  <Area type="monotone" dataKey="pending" stroke="#ED8936" fill="transparent" strokeWidth={2} dot={{ r: 3, fill: '#ED8936' }} />
+                  <Area type="monotone" dataKey="expense" stroke="#F43F5E" fill="transparent" strokeWidth={2} dot={{ r: 3, fill: '#F43F5E' }} />
+                  <Area type="monotone" dataKey="profit" stroke="#48BB78" fill="transparent" strokeWidth={2} dot={{ r: 3, fill: '#48BB78' }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Bottom Stats Row - Exact replica of screenshot layout */}
+            <div className="grid grid-cols-4 border-t dark:border-slate-800 bg-slate-50/30">
+              <div className="flex flex-col items-center justify-center py-6 px-4 border-r dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-2 w-2 rounded-full bg-[#38B2AC]" />
+                  <span className="text-[10px] font-bold text-[#38B2AC] uppercase tracking-wide">Total Revenue</span>
+                </div>
+                <div className="text-xl font-bold text-slate-800 dark:text-slate-100">₹441096.00</div>
+              </div>
+              <div className="flex flex-col items-center justify-center py-6 px-4 border-r dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-2 w-2 rounded-full bg-[#ED8936]" />
+                  <span className="text-[10px] font-bold text-[#ED8936] uppercase tracking-wide">Pending Payment</span>
+                </div>
+                <div className="text-xl font-bold text-slate-800 dark:text-slate-100">₹98439.00</div>
+              </div>
+              <div className="flex flex-col items-center justify-center py-6 px-4 border-r dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-2 w-2 rounded-full bg-[#F43F5E]" />
+                  <span className="text-[10px] font-bold text-[#F43F5E] uppercase tracking-wide">Total Expenses</span>
+                </div>
+                <div className="text-xl font-bold text-slate-800 dark:text-slate-100">₹0.00</div>
+              </div>
+              <div className="flex flex-col items-center justify-center py-6 px-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-2 w-2 rounded-full bg-[#48BB78]" />
+                  <span className="text-[10px] font-bold text-[#48BB78] uppercase tracking-wide">Total Profit</span>
+                </div>
+                <div className="text-xl font-bold text-slate-800 dark:text-slate-100">₹441096.00</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Restored Features Section */}
+      <div className="pt-10 border-t dark:border-slate-800">
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-2">
+          <Plus className="h-5 w-5 text-orange-500" /> Quick Management Actions
+        </h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="hover:shadow-lg transition-all cursor-pointer group hover:border-orange-200" onClick={() => navigate("/members")}>
+            <CardContent className="p-6 flex items-center space-x-4">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors"><Plus className="h-6 w-6" /></div>
+              <div><h3 className="font-bold text-slate-900 dark:text-white">New Member</h3><p className="text-xs text-slate-500">Onboard a client</p></div>
+              <ArrowRight className="h-4 w-4 ml-auto text-slate-300 group-hover:text-orange-500 transition-all" />
+            </CardContent>
+          </Card>
+
+          {hasRole(["gym_owner", "manager", "frontdesk"]) && (
+            <Card className="hover:shadow-lg transition-all cursor-pointer group hover:border-emerald-200" onClick={() => navigate("/billing")}>
+              <CardContent className="p-6 flex items-center space-x-4">
+                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors"><CreditCard className="h-6 w-6" /></div>
+                <div><h3 className="font-bold text-slate-900 dark:text-white">Record Payment</h3><p className="text-xs text-slate-500">Process invoice</p></div>
+                <ArrowRight className="h-4 w-4 ml-auto text-slate-300 group-hover:text-orange-500 transition-all" />
+              </CardContent>
+            </Card>
+          )}
+
+          {hasRole(["gym_owner", "trainer"]) && (
+            <Card className="hover:shadow-lg transition-all cursor-pointer group hover:border-amber-200" onClick={() => navigate("/workouts")}>
+              <CardContent className="p-6 flex items-center space-x-4">
+                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:bg-amber-600 group-hover:text-white transition-colors"><Dumbbell className="h-6 w-6" /></div>
+                <div><h3 className="font-bold text-slate-900 dark:text-white">Daily Workout</h3><p className="text-xs text-slate-500">Assign exercises</p></div>
+                <ArrowRight className="h-4 w-4 ml-auto text-slate-300 group-hover:text-orange-500 transition-all" />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        <div className="mt-8 grid gap-4 grid-cols-1 md:grid-cols-2">
+          <Card className="border-slate-100 dark:border-slate-800">
+            <CardHeader><CardTitle className="text-sm font-bold">Today's Reminders</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                <div className="h-2 w-2 rounded-full bg-orange-500" />
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Attendance Today: {stats?.attendanceToday || 0} members checked in.</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-100 dark:border-slate-800">
+            <CardHeader><CardTitle className="text-sm font-bold">Platform Stats</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Total Members</p>
+                <p className="text-lg font-bold text-slate-700 dark:text-slate-300">{stats?.totalMembers || 0}</p>
+              </div>
+              <div className="text-center p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Monthly Rev</p>
+                <p className="text-lg font-bold text-emerald-600">{formatCurrency(stats?.monthlyRevenue || 0)}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
-}
+}

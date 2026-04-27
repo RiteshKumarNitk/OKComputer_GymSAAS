@@ -4,8 +4,11 @@ import { expensesApi, paymentsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import {
-  TrendingDown,
-  ArrowLeft
+  Download,
+  Filter,
+  MoreVertical,
+  Printer,
+  FileText
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -57,6 +60,16 @@ export const BillingPage: React.FC = () => {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false)
+
+  // Pagination State (Invoices)
+  const [invoicePage, setInvoicePage] = useState(1)
+  const [invoiceRowsPerPage, setInvoiceRowsPerPage] = useState(10)
+
+  // Pagination State (Expenses)
+  const [expensePage, setExpensePage] = useState(1)
+  const [expenseRowsPerPage, setExpenseRowsPerPage] = useState(10)
 
   // Fetch Expenses
   const { data: expenses } = useQuery({
@@ -106,10 +119,41 @@ export const BillingPage: React.FC = () => {
     enabled: !!user?.tenant_id,
   })
 
+  // Fetch Invoices
+  const { data: invoices, isLoading: isInvoicesLoading } = useQuery({
+    queryKey: ["all-invoices", user?.tenant_id],
+    queryFn: async () => {
+      const response = await paymentsApi.list(user?.tenant_id || "")
+      if (response.error) throw response.error
+      return response.data || []
+    },
+    enabled: !!user?.tenant_id,
+  })
+
+  // Invoices Pagination Logic
+  const filteredInvoices = invoices || []
+  const totalInvoices = filteredInvoices.length
+  const invoiceTotalPages = Math.ceil(totalInvoices / invoiceRowsPerPage)
+  const paginatedInvoices = filteredInvoices.slice((invoicePage - 1) * invoiceRowsPerPage, invoicePage * invoiceRowsPerPage)
+  const invoiceShowingFrom = totalInvoices === 0 ? 0 : (invoicePage - 1) * invoiceRowsPerPage + 1
+  const invoiceShowingTo = Math.min(invoicePage * invoiceRowsPerPage, totalInvoices)
+
+  // Expenses Pagination Logic
+  const filteredExpenses = expenses || []
+  const totalExpensesCount = filteredExpenses.length
+  const expenseTotalPages = Math.ceil(totalExpensesCount / expenseRowsPerPage)
+  const paginatedExpensesList = filteredExpenses.slice((expensePage - 1) * expenseRowsPerPage, expensePage * expenseRowsPerPage)
+  const expenseShowingFrom = totalExpensesCount === 0 ? 0 : (expensePage - 1) * expenseRowsPerPage + 1
+  const expenseShowingTo = Math.min(expensePage * expenseRowsPerPage, totalExpensesCount)
+
   const handleAddExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     addExpenseMutation.mutate(formData)
+  }
+
+  const handlePrintInvoice = () => {
+    window.print()
   }
 
 
@@ -184,6 +228,7 @@ export const BillingPage: React.FC = () => {
       <Tabs defaultValue="transactions" className="space-y-4">
         <TabsList>
           <TabsTrigger value="transactions">Transactions (In/Out)</TabsTrigger>
+          <TabsTrigger value="invoices">Member Invoices</TabsTrigger>
           <TabsTrigger value="expenses">Expenses Log</TabsTrigger>
         </TabsList>
 
@@ -237,6 +282,104 @@ export const BillingPage: React.FC = () => {
           </div>
         </TabsContent>
 
+        <TabsContent value="invoices" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Member Billing History</CardTitle>
+              <CardDescription>View and generate invoices for members.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice ID</TableHead>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isInvoicesLoading ? (
+                    Array(5).fill(0).map((_, i) => (
+                      <TableRow key={i} className="animate-pulse">
+                        <TableCell colSpan={6} className="h-12 bg-slate-50" />
+                      </TableRow>
+                    ))
+                  ) : paginatedInvoices.map((inv: any) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="font-mono text-xs">{inv.id.split('-')[0].toUpperCase()}</TableCell>
+                      <TableCell className="font-medium">{inv.member?.fullName || "Unassigned"}</TableCell>
+                      <TableCell>{formatDate(inv.paidAt || inv.createdAt)}</TableCell>
+                      <TableCell>{formatCurrency(inv.amount_cents)}</TableCell>
+                      <TableCell>
+                        <Badge variant={inv.status === 'paid' ? 'default' : 'secondary'}>
+                          {inv.status?.toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => { setSelectedInvoice(inv); setIsInvoiceOpen(true); }}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!isInvoicesLoading && invoices?.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        No invoices found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* Invoices Pagination */}
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2 py-4 text-slate-500 font-bold border-t border-slate-100 mt-4">
+                  <div className="text-xs">
+                      Showing <span className="text-slate-900">{invoiceShowingFrom}</span> to <span className="text-slate-900">{invoiceShowingTo}</span> of <span className="text-slate-900">{totalInvoices}</span> entries
+                  </div>
+
+                  <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                          Rows per page:
+                          <select className="bg-transparent font-bold text-slate-900 focus:outline-none" value={invoiceRowsPerPage} onChange={(e) => {setInvoiceRowsPerPage(Number(e.target.value)); setInvoicePage(1);}}>
+                              {[10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                          <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setInvoicePage(prev => Math.max(1, prev - 1))}
+                              disabled={invoicePage === 1}
+                              className="text-xs font-bold"
+                          >
+                              Prev
+                          </Button>
+                          <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setInvoicePage(prev => Math.min(invoiceTotalPages, prev + 1))}
+                              disabled={invoicePage === invoiceTotalPages || invoiceTotalPages === 0}
+                              className="text-xs font-bold"
+                          >
+                              Next
+                          </Button>
+                      </div>
+                  </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="expenses" className="space-y-4">
           <Card>
             <CardHeader>
@@ -254,7 +397,7 @@ export const BillingPage: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {expenses?.map((expense) => (
+                  {paginatedExpensesList.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell>{formatDate(expense.expense_date)}</TableCell>
                       <TableCell className="font-medium">{expense.title}</TableCell>
@@ -264,12 +407,139 @@ export const BillingPage: React.FC = () => {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {totalExpensesCount === 0 && <TableRow><TableCell colSpan={4} className="text-center py-8">No expenses recorded.</TableCell></TableRow>}
                 </TableBody>
               </Table>
+
+              {/* Expenses Pagination */}
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2 py-4 text-slate-500 font-bold border-t border-slate-100 mt-4">
+                  <div className="text-xs">
+                      Showing <span className="text-slate-900">{expenseShowingFrom}</span> to <span className="text-slate-900">{expenseShowingTo}</span> of <span className="text-slate-900">{totalExpensesCount}</span> entries
+                  </div>
+
+                  <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                          Rows:
+                          <select className="bg-transparent font-bold text-slate-900 focus:outline-none" value={expenseRowsPerPage} onChange={(e) => {setExpenseRowsPerPage(Number(e.target.value)); setExpensePage(1);}}>
+                              {[10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                          <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setExpensePage(prev => Math.max(1, prev - 1))}
+                              disabled={expensePage === 1}
+                              className="text-xs font-bold"
+                          >
+                              Prev
+                          </Button>
+                          <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setExpensePage(prev => Math.min(expenseTotalPages, prev + 1))}
+                              disabled={expensePage === expenseTotalPages || expenseTotalPages === 0}
+                              className="text-xs font-bold"
+                          >
+                              Next
+                          </Button>
+                      </div>
+                  </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Invoice View Dialog */}
+      <Dialog open={isInvoiceOpen} onOpenChange={setIsInvoiceOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader className="print:hidden">
+            <DialogTitle>Tax Invoice</DialogTitle>
+          </DialogHeader>
+          
+          <div id="printable-invoice" className="p-6 bg-white dark:bg-slate-950 rounded-lg">
+            <div className="flex justify-between items-start border-b pb-6 mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-primary">GYM PRO</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  123 Fitness Street, Health Hub<br />
+                  contact@gympro.com | +91 98765 43210
+                </p>
+              </div>
+              <div className="text-right">
+                <h3 className="text-xl font-bold uppercase">Invoice</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  ID: {selectedInvoice?.id.split('-')[0].toUpperCase()}<br />
+                  Date: {formatDate(selectedInvoice?.paidAt || selectedInvoice?.createdAt)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 mb-8">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase mb-2">Billed To</p>
+                <p className="font-bold">{selectedInvoice?.member?.fullName}</p>
+                <p className="text-sm text-muted-foreground">
+                  ID: {selectedInvoice?.member?.memberCode}<br />
+                  {selectedInvoice?.member?.phone}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-slate-500 uppercase mb-2">Payment Info</p>
+                <p className="text-sm font-medium">Status: <span className="text-emerald-500 uppercase">{selectedInvoice?.status}</span></p>
+                <p className="text-sm text-muted-foreground">Gateway: {selectedInvoice?.paymentMethod || "Digital Transfer"}</p>
+              </div>
+            </div>
+
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50 dark:bg-slate-900">
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>
+                    <p className="font-medium">Membership Subscription</p>
+                    <p className="text-xs text-muted-foreground">Access period as per active membership plan.</p>
+                  </TableCell>
+                  <TableCell className="text-right font-bold">
+                    {formatCurrency(selectedInvoice?.amount_cents)}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="text-right font-bold pt-6">SUBTOTAL</TableCell>
+                  <TableCell className="text-right pt-6">{formatCurrency(selectedInvoice?.amount_cents)}</TableCell>
+                </TableRow>
+                <TableRow className="border-t-2 border-slate-900 dark:border-white">
+                  <TableCell className="text-right font-black text-lg">TOTAL PAID</TableCell>
+                  <TableCell className="text-right font-black text-lg">
+                    {formatCurrency(selectedInvoice?.amount_cents)}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+
+            <div className="mt-12 pt-6 border-t text-center">
+              <p className="text-xs text-muted-foreground italic">
+                This is a computer generated invoice and does not require a physical signature.
+              </p>
+              <p className="text-sm font-bold mt-2">Thank you for your business!</p>
+            </div>
+          </div>
+
+          <DialogFooter className="print:hidden">
+            <Button variant="outline" onClick={() => setIsInvoiceOpen(false)}>Close</Button>
+            <Button onClick={handlePrintInvoice}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print Invoice
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -24,20 +24,31 @@ export const OperationsPage: React.FC = () => {
     // Default tab from URL
     const defaultTab = searchParams.get("tab") || "visitors"
 
+    // Pagination State (Visitors)
+    const [visitorPage, setVisitorPage] = useState(1)
+    const [visitorRowsPerPage, setVisitorRowsPerPage] = useState(10)
+
     // States
     const [isAddVisitorOpen, setIsAddVisitorOpen] = useState(false)
     const [isAddComplaintOpen, setIsAddComplaintOpen] = useState(false)
 
     // --- VISITORS LOGIC ---
-    const { data: visitors } = useQuery({
+    const { data: visitors, isLoading: isVisitorLoading } = useQuery({
         queryKey: ["visitors", user?.tenant_id],
         queryFn: async () => {
              const response = await visitorsApi.list(user?.tenant_id || "")
              if (response.error) throw response.error
-             return response.data
+             return response.data || []
         },
         enabled: !!user?.tenant_id
     })
+
+    const filteredVisitors = visitors || []
+    const totalVisitors = filteredVisitors.length
+    const visitorTotalPages = Math.ceil(totalVisitors / visitorRowsPerPage)
+    const paginatedVisitors = filteredVisitors.slice((visitorPage - 1) * visitorRowsPerPage, visitorPage * visitorRowsPerPage)
+    const visitorShowingFrom = totalVisitors === 0 ? 0 : (visitorPage - 1) * visitorRowsPerPage + 1
+    const visitorShowingTo = Math.min(visitorPage * visitorRowsPerPage, totalVisitors)
 
     const addVisitorMutation = useMutation({
         mutationFn: async (formData: FormData) => {
@@ -126,19 +137,66 @@ export const OperationsPage: React.FC = () => {
                                     <TableHead>Phone</TableHead>
                                 </TableRow>
                             </TableHeader>
-                            <TableBody>
-                                {visitors?.map((v: any) => (
-                                    <TableRow key={v.id}>
-                                        <TableCell>{formatDate(v.visitTime ?? v.visit_time, "h:mm a")}</TableCell>
-                                        <TableCell className="font-medium">{v.name}</TableCell>
-                                        <TableCell><Badge variant="outline">{v.visitPurpose ?? v.visit_purpose}</Badge></TableCell>
-                                        <TableCell>{v.phone || "-"}</TableCell>
-                                    </TableRow>
-                                ))}
-                                {visitors?.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-4">No visitors today.</TableCell></TableRow>}
-                            </TableBody>
-                        </Table>
-                    </CardContent></Card>
+                                <TableBody>
+                                    {isVisitorLoading ? (
+                                        Array(5).fill(0).map((_, i) => (
+                                            <TableRow key={i} className="animate-pulse">
+                                                <TableCell colSpan={4} className="h-10 bg-slate-50" />
+                                            </TableRow>
+                                        ))
+                                    ) : paginatedVisitors.length > 0 ? (
+                                        paginatedVisitors.map((v: any) => (
+                                            <TableRow key={v.id}>
+                                                <TableCell>{formatDate(v.visitTime ?? v.visit_time, "h:mm a")}</TableCell>
+                                                <TableCell className="font-medium">{v.name}</TableCell>
+                                                <TableCell><Badge variant="outline">{v.visitPurpose ?? v.visit_purpose}</Badge></TableCell>
+                                                <TableCell>{v.phone || "-"}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow><TableCell colSpan={4} className="text-center py-4">No visitors today.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+
+                            {/* Pagination Integration */}
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 py-3 text-slate-500 font-bold border-t border-slate-100">
+                                <div className="text-xs">
+                                    Showing <span className="text-slate-900">{visitorShowingFrom}</span> to <span className="text-slate-900">{visitorShowingTo}</span> of <span className="text-slate-900">{totalVisitors}</span> entries
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                                        Rows:
+                                        <select className="bg-transparent font-bold text-slate-900 focus:outline-none" value={visitorRowsPerPage} onChange={(e) => {setVisitorRowsPerPage(Number(e.target.value)); setVisitorPage(1);}}>
+                                            {[10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div className="flex items-center gap-1">
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={() => setVisitorPage(prev => Math.max(1, prev - 1))}
+                                            disabled={visitorPage === 1}
+                                            className="h-8 text-xs font-bold"
+                                        >
+                                            Prev
+                                        </Button>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={() => setVisitorPage(prev => Math.min(visitorTotalPages, prev + 1))}
+                                            disabled={visitorPage === visitorTotalPages || visitorTotalPages === 0}
+                                            className="h-8 text-xs font-bold"
+                                        >
+                                            Next
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </TabsContent>
 
                 {/* COMPLAINTS TAB */}

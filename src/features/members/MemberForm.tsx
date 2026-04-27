@@ -18,6 +18,7 @@ interface MemberFormProps {
   memberships: Membership[]
   onSuccess: () => void
   onCancel: () => void
+  prefillData?: Partial<typeof formData>
 }
 
 export const MemberForm: React.FC<MemberFormProps> = ({
@@ -25,6 +26,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
   memberships,
   onSuccess,
   onCancel,
+  prefillData,
 }) => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -76,8 +78,10 @@ export const MemberForm: React.FC<MemberFormProps> = ({
         notes: member.notes || "",
         avatarUrl: member.avatarUrl || member.avatar_url || "",
       })
+    } else if (prefillData) {
+      setFormData(prev => ({ ...prev, ...prefillData }))
     }
-  }, [member])
+  }, [member, prefillData])
 
   const memberMutation = useMutation({
     mutationFn: async (data: typeof formData) => {

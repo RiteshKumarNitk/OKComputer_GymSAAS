@@ -1,35 +1,19 @@
 import React, { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { membersApi, membershipsApi, attendanceApi, trainersApi } from "@/api/apiClient"
+import { membersApi, membershipsApi, trainersApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import type { Member, Membership } from "@/types"
 import { formatDate } from "@/lib/utils"
 import {
   Search,
-  RefreshCcw,
   Plus,
   MoreVertical,
-  ChevronDown,
   Download,
-  Phone,
-  User,
-  Calendar,
-  CreditCard,
   Users,
-  UserCheck,
-  UserPlus,
-  UserMinus,
-  CalendarCheck,
-  CalendarX,
-  Cake,
-  Gift,
   Eye,
   Edit,
   Trash2,
-  Smartphone,
-  Bell,
-  Send
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,7 +43,6 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { MemberForm } from "@/features/members/MemberForm"
-import { MemberDetails } from "@/features/members/MemberDetails"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -70,15 +53,11 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 
-export const MembersPage: React.FC = () => {
+export const MemberDirectoryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [showMemberForm, setShowMemberForm] = useState(false)
-  const [showMemberDetails, setShowMemberDetails] = useState(false)
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null)
-  
-  // Filter States
-  const [statusFilter, setStatusFilter] = useState<string>("all")
   
   // Selection State
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
@@ -101,9 +80,9 @@ export const MembersPage: React.FC = () => {
 
   // Fetch members
   const { data: members, isLoading } = useQuery({
-    queryKey: ["members", searchQuery, statusFilter],
+    queryKey: ["members", searchQuery],
     queryFn: async () => {
-      const response = await membersApi.list(user?.tenant_id || "", searchQuery, statusFilter)
+      const response = await membersApi.list(user?.tenant_id || "", searchQuery)
       if (response.error) throw response.error
       return response.data as Member[]
     },
@@ -184,8 +163,7 @@ export const MembersPage: React.FC = () => {
 
   const handleViewMember = (member: Member) => {
     if (!member) return
-    setSelectedMember(member)
-    setShowMemberDetails(true)
+    navigate(`/members/${member.id}`)
   }
 
   const handleDeleteMember = (member: Member) => {
@@ -475,26 +453,6 @@ export const MembersPage: React.FC = () => {
               setSelectedMember(null)
             }}
           />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showMemberDetails} onOpenChange={setShowMemberDetails}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border-none shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-slate-900">Member Details</DialogTitle>
-            <DialogDescription className="font-bold text-slate-400">
-              View complete member information, attendance history, and progress
-            </DialogDescription>
-          </DialogHeader>
-          {selectedMember && (
-            <MemberDetails
-              member={selectedMember}
-              onClose={() => {
-                setShowMemberDetails(false)
-                setSelectedMember(null)
-              }}
-            />
-          )}
         </DialogContent>
       </Dialog>
 

@@ -15,18 +15,25 @@ import { ContactPage } from "@/pages/ContactPage"
 import { SignInPage } from "@/pages/auth/SignInPage"
 import { SignUpPage } from "@/pages/auth/SignUpPage"
 import { DashboardPage } from "@/pages/app/DashboardPage"
-import { MembersPage } from "@/pages/app/MembersPage"
+
+// Members Section
+import { MemberDirectoryPage } from "@/pages/app/members/MemberDirectoryPage"
+import { MembershipPackagesPage } from "@/pages/app/members/MembershipPackagesPage"
+import { MemberSubscriptionsPage } from "@/pages/app/members/MemberSubscriptionsPage"
+import { MemberProfilePage } from "@/pages/app/members/MemberProfilePage"
+import { MemberWorkoutsPage } from "@/pages/app/members/MemberWorkoutsPage"
+import { MemberAnalyticsPage } from "@/pages/app/members/MemberAnalyticsPage"
+import { MemberAttendancePage } from "@/pages/app/members/MemberAttendancePage"
+import { MemberRenewalsPage } from "@/pages/app/members/MemberRenewalsPage"
+import { AddMemberPage } from "@/pages/app/AddMemberPage"
+
 import { TrainersPage } from "@/pages/app/TrainersPage"
-import { AttendancePage } from "@/pages/app/AttendancePage"
 import { SchedulePage } from "@/pages/app/SchedulePage"
 import { BillingPage } from "@/pages/app/BillingPage"
-import { WorkoutsPage } from "@/pages/app/WorkoutsPage"
 import { DietPlansPage } from "@/pages/app/DietPlansPage"
-import { AnalyticsPage } from "@/pages/app/AnalyticsPage"
 import { ReportsPage } from "@/pages/app/ReportsPage"
 import { SettingsPage } from "@/pages/app/SettingsPage"
 import { ProfilePage } from "@/pages/app/ProfilePage"
-import { PlansPage } from "@/pages/app/PlansPage"
 import { InvoicesPage } from "@/pages/app/InvoicesPage"
 import { SaasBillingPage } from "@/pages/app/SaasBillingPage"
 import { UnauthorizedPage } from "@/pages/auth/UnauthorizedPage"
@@ -41,7 +48,6 @@ import { BranchesPage } from "@/pages/app/BranchesPage"
 import { ServicesPage } from "@/pages/app/ServicesPage"
 import { FrontDeskPage } from "@/pages/app/FrontDeskPage"
 import { LeadsPage } from "@/features/leads/LeadsPage"
-import { RenewalsPage } from "@/features/renewals/RenewalsPage"
 import { POSPage } from "@/features/pos/POSPage"
 import { LockersPage } from "@/features/lockers/LockersPage"
 import { OperationsPage } from "@/pages/app/OperationsPage"
@@ -52,6 +58,9 @@ import { MemberProfile } from "@/features/member-portal/MemberProfile"
 import { MemberSchedule } from "@/features/member-portal/MemberSchedule"
 import { MemberWorkouts } from "@/features/member-portal/MemberWorkouts"
 import { MemberDiets } from "@/features/member-portal/MemberDiets"
+import { FeedbackPage } from "@/pages/app/FeedbackPage"
+import { AddEnquiryPage } from "@/pages/app/AddEnquiryPage"
+import { FollowUpsPage } from "@/features/follow-ups/FollowUpsPage"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -109,29 +118,46 @@ function App() {
                         <Route path="/super-admin/payments" element={<SuperAdminPayments />} />
                         <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
                         <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/members" element={<MembersPage />} />
+                        
+                        {/* Members Group */}
+                        <Route path="/members" element={<MemberDirectoryPage />} />
+                        <Route path="/members/:id" element={<MemberProfilePage />} />
+                        <Route path="/members/packages" element={<MembershipPackagesPage />} />
+                        <Route path="/members/subscriptions" element={<MemberSubscriptionsPage />} />
+                        <Route path="/members/workouts" element={<MemberWorkoutsPage />} />
+                        <Route path="/members/analytics" element={<MemberAnalyticsPage />} />
+                        <Route path="/members/attendance" element={<MemberAttendancePage />} />
+                        <Route path="/members/renewals" element={<MemberRenewalsPage />} />
+                        <Route path="/members/add" element={<AddMemberPage />} />
+
                         <Route path="/trainers" element={<TrainersPage />} />
                         <Route path="/front-desk" element={<FrontDeskPage />} />
                         <Route path="/staff" element={<StaffPage />} />
                         <Route path="/leads" element={<LeadsPage />} />
-                        <Route path="/renewals" element={<RenewalsPage />} />
                         <Route path="/pos" element={<POSPage />} />
                         <Route path="/lockers" element={<LockersPage />} />
                         <Route path="/operations" element={<OperationsPage />} />
                         <Route path="/branches" element={<BranchesPage />} />
                         <Route path="/services" element={<ServicesPage />} />
-                        <Route path="/attendance" element={<AttendancePage />} />
                         <Route path="/schedule" element={<SchedulePage />} />
                         <Route path="/billing" element={<BillingPage />} />
-                        <Route path="/workouts" element={<WorkoutsPage />} />
-                        <Route path="/plans" element={<PlansPage />} />
                         <Route path="/diet-plans" element={<DietPlansPage />} />
-                        <Route path="/analytics" element={<AnalyticsPage />} />
+                        <Route path="/feedback" element={<FeedbackPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
                         <Route path="/invoices" element={<InvoicesPage />} />
-              <Route path="/billing/saas" element={<SaasBillingPage />} />
+                        <Route path="/billing/saas" element={<SaasBillingPage />} />
+                        <Route path="/enquiries/new" element={<AddEnquiryPage />} />
+                        <Route path="/follow-ups" element={<FollowUpsPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
+                        
+                        {/* Legacy Redirects for stability */}
+                        <Route path="/plans" element={<Navigate to="/members/packages" replace />} />
+                        <Route path="/workouts" element={<Navigate to="/members/workouts" replace />} />
+                        <Route path="/attendance" element={<Navigate to="/members/attendance" replace />} />
+                        <Route path="/analytics" element={<Navigate to="/members/analytics" replace />} />
+                        <Route path="/renewals" element={<Navigate to="/members/renewals" replace />} />
+
                         <Route path="*" element={<NotFoundPage />} />
                       </Routes>
                     </DashboardLayout>

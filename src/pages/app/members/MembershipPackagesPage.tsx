@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export const PlansPage: React.FC = () => {
+export const MembershipPackagesPage: React.FC = () => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [showPlanForm, setShowPlanForm] = useState(false)

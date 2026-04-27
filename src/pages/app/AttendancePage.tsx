@@ -1,6 +1,7 @@
 import React from "react"
 import { ManualCheckin } from "@/features/attendance/ManualCheckin"
 import { AttendanceLog } from "@/features/attendance/AttendanceLog"
+import { AttendanceHistory } from "@/features/attendance/AttendanceHistory"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { QrCode, List, ArrowLeft } from "lucide-react"
 import { useNavigate } from "react-router-dom"
@@ -47,13 +48,17 @@ export const AttendancePage: React.FC = () => {
                 <List className="h-4 w-4 mr-2" />
                 Today's Log
               </TabsTrigger>
-              <TabsTrigger value="history" disabled>
-                History (Coming Soon)
+              <TabsTrigger value="history">
+                <Calendar className="h-4 w-4 mr-2" />
+                History
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="today">
               <AttendanceLog />
+            </TabsContent>
+            <TabsContent value="history" className="space-y-4">
+              <AttendanceHistory />
             </TabsContent>
           </Tabs>
         </div>

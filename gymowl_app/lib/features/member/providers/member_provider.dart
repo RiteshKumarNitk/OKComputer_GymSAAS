@@ -17,6 +17,10 @@ final upcomingSessionsProvider = FutureProvider<List<Map<String, dynamic>>>((ref
   return ref.watch(memberApiServiceProvider).getUpcomingSessions();
 });
 
+final weeklyScheduleProvider = FutureProvider<List<Map<String, dynamic>>>((ref) {
+  return ref.watch(memberApiServiceProvider).getWeeklySchedule();
+});
+
 class WorkoutLogNotifier extends StateNotifier<AsyncValue<void>> {
   final MemberApiService _api;
   WorkoutLogNotifier(this._api) : super(const AsyncValue.data(null));

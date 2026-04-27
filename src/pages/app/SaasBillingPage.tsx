@@ -30,6 +30,10 @@ export const SaasBillingPage: React.FC = () => {
     const { user } = useAuth()
     const tenantId = user?.tenant_id
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = React.useState(1)
+    const [rowsPerPage, setRowsPerPage] = React.useState(10)
+
     const { data: tenant, isLoading: isLoadingTenant } = useQuery({
         queryKey: ["tenant", tenantId],
         queryFn: async () => {
@@ -49,6 +53,14 @@ export const SaasBillingPage: React.FC = () => {
         },
         enabled: !!tenantId
     })
+
+    // Pagination Logic
+    const filteredInvoices = invoices || []
+    const totalEntries = filteredInvoices.length
+    const totalPages = Math.ceil(totalEntries / rowsPerPage)
+    const paginatedInvoices = filteredInvoices.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+    const showingFrom = totalEntries === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1
+    const showingTo = Math.min(currentPage * rowsPerPage, totalEntries)
 
     const handleDownloadInvoice = (invoice: any) => {
         generateInvoicePDF({
@@ -154,14 +166,14 @@ export const SaasBillingPage: React.FC = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {invoices?.length === 0 ? (
+                            {paginatedInvoices?.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
                                         No invoices found.
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                invoices?.map((invoice: any) => (
+                                paginatedInvoices?.map((invoice: any) => (
                                     <TableRow key={invoice.id}>
                                         <TableCell className="font-medium">
                                             <div className="flex items-center gap-2">
@@ -193,6 +205,43 @@ export const SaasBillingPage: React.FC = () => {
                             )}
                         </TableBody>
                     </Table>
+
+                    {/* Pagination Integration */}
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2 py-4 text-slate-500 font-bold border-t border-slate-100 mt-4">
+                        <div className="text-xs">
+                            Showing <span className="text-slate-900">{showingFrom}</span> to <span className="text-slate-900">{showingTo}</span> of <span className="text-slate-900">{totalEntries}</span> entries
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                                Rows:
+                                <select className="bg-transparent font-bold text-slate-900 focus:outline-none" value={rowsPerPage} onChange={(e) => {setRowsPerPage(Number(e.target.value)); setCurrentPage(1);}}>
+                                    {[10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="text-xs font-bold"
+                                >
+                                    Prev
+                                </Button>
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages || totalPages === 0}
+                                    className="text-xs font-bold"
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 

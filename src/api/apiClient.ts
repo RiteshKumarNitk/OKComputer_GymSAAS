@@ -151,6 +151,15 @@ export const leadsApi = {
     delete: (id: string) => request<void>(`/leads?id=${id}`, { method: "DELETE" }),
 }
 
+// ========== FOLLOW UPS ==========
+export const followUpsApi = {
+    list: (tenantId: string, status?: string) =>
+        request<any[]>(`/follow-ups?tenantId=${tenantId}${status ? `&status=${status}` : ""}`),
+    create: (data: any) => request<any>("/follow-ups", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<any>(`/follow-ups?id=${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/follow-ups?id=${id}`, { method: "DELETE" }),
+}
+
 // ========== OPERATIONS (Visitors & Complaints) ==========
 export const visitorsApi = {
     list: (tenantId: string) => request<any[]>(`/visitors?tenantId=${tenantId}`),

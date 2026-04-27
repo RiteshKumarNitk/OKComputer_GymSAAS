@@ -16,6 +16,7 @@ class MemberHomeScreen extends ConsumerWidget {
     
     final statsAsync = ref.watch(memberStatsProvider);
     final sessionsAsync = ref.watch(upcomingSessionsProvider);
+    final scheduleAsync = ref.watch(weeklyScheduleProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
@@ -23,6 +24,7 @@ class MemberHomeScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(memberStatsProvider);
           ref.invalidate(upcomingSessionsProvider);
+          ref.invalidate(weeklyScheduleProvider);
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -66,9 +68,30 @@ class MemberHomeScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    _buildClassItem('Advanced Hatha Yoga', '18:30 • Studio A', 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?fit=crop&w=100&q=80'),
-                    const SizedBox(height: 12),
-                    _buildClassItem('Metabolic Burn', '20:00 • Performance Lab', 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?fit=crop&w=100&q=80'),
+                    scheduleAsync.when(
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (err, _) => const SizedBox.shrink(),
+                      data: (slots) {
+                        // Filter for today's classes
+                        final today = DateTime.now().weekday;
+                        // Dart weekday is 1-7 (Mon-Sun), our DB might be 0-6 or 1-7.
+                        // Schedules use day_of_week.
+                        final todaySlots = slots.where((s) => s['dayOfWeek'] == today || s['day_of_week'] == today).take(2).toList();
+                        
+                        if (todaySlots.isEmpty) return const Text('No classes today', style: TextStyle(color: Colors.grey));
+
+                        return Column(
+                          children: todaySlots.map((s) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildClassItem(
+                              s['service']?['name'] ?? 'Class', 
+                              '${s['startTime']?.toString().substring(0,5) ?? 'TBD'} • ${s['durationMinutes']}m', 
+                              'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?fit=crop&w=100&q=80'
+                            ),
+                          )).toList(),
+                        );
+                      }
+                    ),
                     const SizedBox(height: 40),
                   ],
                 ),
