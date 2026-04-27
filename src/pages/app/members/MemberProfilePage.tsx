@@ -50,7 +50,7 @@ const MembershipList: React.FC<{ memberId: string; tenantId: string }> = ({ memb
                                     <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Primary Plan</p>
                                 </td>
                                 <td className="py-5 px-6">
-                                    <p className="text-xs font-bold text-slate-500">{formatDate(member.plan_started_at)} - {formatDate(member.plan_expires_at)}</p>
+                                    <p className="text-xs font-bold text-slate-500">{formatDate(member.planStartedAt)} - {formatDate(member.planExpiresAt)}</p>
                                 </td>
                                 <td className="py-5 px-6">
                                     <Badge className="bg-emerald-500 text-white border-none rounded-lg text-[9px] font-black uppercase px-2 py-1 italic">Active</Badge>
@@ -81,7 +81,7 @@ const MemberPayments: React.FC<{ memberId: string }> = ({ memberId }) => {
     const { user } = useAuth()
     const { data: invoices } = useQuery({
         queryKey: ["member-invoices", memberId],
-        queryFn: () => invoicesApi.list(user?.tenant_id || "", memberId).then(res => res.data || [])
+        queryFn: () => invoicesApi.list(user?.tenantId || "", memberId).then(res => res.data || [])
     })
 
     return (
@@ -159,6 +159,16 @@ export const MemberProfilePage: React.FC = () => {
         enabled: !!id
     })
 
+    const { data: memberships } = useQuery({
+        queryKey: ["memberships", user?.tenantId],
+        queryFn: async () => {
+            const response = await membershipsApi.list(user?.tenantId || "")
+            if (response.error) throw response.error
+            return response.data || []
+        },
+        enabled: !!user?.tenantId
+    })
+
     if (isLoading) return (
         <div className="flex items-center justify-center h-[60vh]">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6B3D]"></div>
@@ -181,13 +191,13 @@ export const MemberProfilePage: React.FC = () => {
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                 <div>
                     <h1 className="text-3xl font-black text-slate-800 dark:text-white flex items-center gap-4">
-                        {member.fullName || member.full_name}
+                        {member.fullName}
                         <Badge className="bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 border-none rounded-xl text-[10px] font-black uppercase px-3 py-1.5 italic tracking-widest">Active</Badge>
                     </h1>
                     <p className="text-sm font-bold text-slate-400 mt-2 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <span className="text-slate-800 dark:text-white font-black">#{member.memberCode || member.member_code}</span> 
+                        <span className="text-slate-800 dark:text-white font-black">#{member.memberCode}</span> 
                         <span className="opacity-30">•</span> 
-                        Joined {formatDate(member.joined_at)}
+                        Joined {formatDate(member.joinedAt)}
                     </p>
                 </div>
                 
@@ -235,9 +245,10 @@ export const MemberProfilePage: React.FC = () => {
                             <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Basic Profile Information</h3>
                         </div>
                         <MemberForm 
-                            mode="edit" 
-                            initialData={member}
+                            member={member} 
+                            memberships={memberships || []}
                             onSuccess={() => {}}
+                            onCancel={() => {}}
                         />
                     </div>
                 )}
@@ -251,7 +262,7 @@ export const MemberProfilePage: React.FC = () => {
                             </div>
                             <Button className="h-11 rounded-2xl bg-[#FF6B3D] text-white font-black px-8 shadow-lg shadow-orange-500/20">Extend Validity</Button>
                         </div>
-                        <MembershipList memberId={member.id} tenantId={user?.tenant_id || ""} />
+                        <MembershipList memberId={member.id} tenantId={user?.tenantId || ""} />
                     </div>
                 )}
 

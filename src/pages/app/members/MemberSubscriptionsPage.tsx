@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { membersApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatDate } from "@/lib/utils"
-import { Search, Filter, Download, CreditCard, Clock, CheckCircle2, AlertCircle } from "lucide-react"
+import { Search, Filter, Download, CreditCard, Clock, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -23,13 +23,13 @@ export const MemberSubscriptionsPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState("")
 
     const { data: members, isLoading } = useQuery({
-        queryKey: ["subscriptions", user?.tenant_id, searchQuery],
+        queryKey: ["subscriptions", user?.tenantId, searchQuery],
         queryFn: async () => {
-            const res = await membersApi.list(user?.tenant_id || "", searchQuery)
+            const res = await membersApi.list(user?.tenantId || "", searchQuery)
             if (res.error) throw res.error
             return res.data || []
         },
-        enabled: !!user?.tenant_id
+        enabled: !!user?.tenantId
     })
 
     const activeSubscriptions = members?.filter(m => m.status === 'active') || []
@@ -127,10 +127,10 @@ export const MemberSubscriptionsPage: React.FC = () => {
                         ) : (
                             activeSubscriptions.map((member) => (
                                 <TableRow key={member.id} className="border-slate-100 hover:bg-slate-50/50 transition-colors">
-                                    <TableCell className="py-6 px-4 font-bold text-slate-700">{member.fullName || member.full_name}</TableCell>
+                                    <TableCell className="py-6 px-4 font-bold text-slate-700">{member.fullName}</TableCell>
                                     <TableCell className="py-6 px-4 font-medium text-slate-600">{member.currentPlan?.name || "No Active Plan"}</TableCell>
                                     <TableCell className="py-6 px-4 text-xs font-bold text-slate-500">
-                                        {formatDate(member.plan_started_at || member.joined_at)} - {formatDate(member.plan_expires_at || member.joined_at)}
+                                        {formatDate(member.planStartedAt || member.joinedAt)} - {formatDate(member.planExpiresAt || member.joinedAt)}
                                     </TableCell>
                                     <TableCell className="py-6 px-4">
                                         <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 rounded-lg uppercase text-[10px] font-black px-3 py-1">Active</Badge>

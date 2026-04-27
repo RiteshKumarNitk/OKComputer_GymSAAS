@@ -4,11 +4,10 @@ import { expensesApi, paymentsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import {
-  Download,
-  Filter,
-  MoreVertical,
   Printer,
-  FileText
+  FileText,
+  ArrowLeft,
+  TrendingDown
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -121,13 +120,13 @@ export const BillingPage: React.FC = () => {
 
   // Fetch Invoices
   const { data: invoices, isLoading: isInvoicesLoading } = useQuery({
-    queryKey: ["all-invoices", user?.tenant_id],
+    queryKey: ["all-invoices", user?.tenantId],
     queryFn: async () => {
-      const response = await paymentsApi.list(user?.tenant_id || "")
+      const response = await paymentsApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data || []
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Invoices Pagination Logic

@@ -4,19 +4,16 @@ import { leadsApi, followUpsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { useNavigate } from "react-router-dom"
 import {
-    ArrowLeft,
     Search,
     Plus,
     MoreVertical,
     Phone,
     Mail,
-    MessageCircle,
     Calendar,
     Download,
-    FileSpreadsheet,
     Users,
     X,
-    Filter,
+
     CheckCircle2,
     Clock,
     PhoneOff,
@@ -27,9 +24,6 @@ import {
     Target,
     DollarSign,
     Layers,
-    MessageSquare,
-    ChevronDown,
-    Save,
     RotateCcw,
     Smartphone,
     UserPlus,
@@ -37,7 +31,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -46,13 +40,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
     Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+    DialogContent
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+
 import { Badge } from "@/components/ui/badge"
 import {
     Select,
@@ -62,7 +52,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/components/ui/use-toast"
+
 import {
     Table,
     TableBody,
@@ -103,7 +93,6 @@ export interface Lead {
 
 export const LeadsPage: React.FC = () => {
     const { user } = useAuth()
-    const { toast } = useToast()
     const queryClient = useQueryClient()
     const navigate = useNavigate()
     // UI State
@@ -120,8 +109,8 @@ export const LeadsPage: React.FC = () => {
     const [dateFilter, setDateFilter] = useState("")
 
     // Pagination State
-    const [currentPage, setCurrentPage] = useState(1)
-    const [rowsPerPage, setRowsPerPage] = useState(10)
+    const [currentPage] = useState(1)
+    const [rowsPerPage] = useState(10)
 
     // Selection state for batch actions
     const [selectedLeads, setSelectedLeads] = useState<string[]>([])
@@ -241,27 +230,13 @@ export const LeadsPage: React.FC = () => {
         }))
     }
 
-    // Delete Mutation
-    const deleteLeadMutation = useMutation({
-        mutationFn: async (id: string) => {
-            const response = await leadsApi.delete(id)
-            if (response.error) throw response.error
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["leads"] })
-            toast({ title: "Success", description: "Lead deleted successfully" })
-        },
-    })
 
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault()
-        const formData = new FormData(e.currentTarget)
-        saveLeadMutation.mutate(formData)
-    }
+
+
 
     const filteredLeads = leads?.filter(lead => {
-        const matchesSearch = (lead.fullName || lead.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        const matchesSearch = (lead.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
             (lead.phone || "").includes(searchQuery)
         const matchesType = leadType === "All" || lead.priority?.toLowerCase() === leadType.toLowerCase()
         const matchesGender = gender === "All" || lead.gender?.toLowerCase() === gender.toLowerCase()
@@ -270,20 +245,10 @@ export const LeadsPage: React.FC = () => {
     }) || []
 
     // Pagination Logic
-    const totalEntries = filteredLeads.length
-    const totalPages = Math.ceil(totalEntries / rowsPerPage)
     const paginatedLeads = filteredLeads.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-    const showingFrom = totalEntries === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1
-    const showingTo = Math.min(currentPage * rowsPerPage, totalEntries)
 
 
-    const statusColors: any = {
-        new: "bg-blue-100 text-blue-800",
-        contacted: "bg-yellow-100 text-yellow-800",
-        trial: "bg-purple-100 text-purple-800",
-        converted: "bg-green-100 text-green-800",
-        lost: "bg-red-100 text-red-800"
-    }
+
 
     const priorityColors: any = {
         hot: "bg-red-600 text-white hover:bg-red-700 h-6 px-2 rounded-lg text-[10px] font-black",
@@ -554,11 +519,11 @@ export const LeadsPage: React.FC = () => {
                             </TableCell>
                             <TableCell className="font-mono text-sm text-slate-500 py-6 px-4">{lead.id.split('-')[0].toUpperCase()}</TableCell>
                             <TableCell className="text-sm font-medium text-slate-600 dark:text-slate-300 py-6 px-4">
-                                {formatDate(lead.createdAt || lead.created_at)}
+                                {formatDate(lead.createdAt)}
                             </TableCell>
                             <TableCell className="py-6 px-4">
                                 <div className="flex flex-col">
-                                    <span className="font-bold text-slate-800 dark:text-white uppercase tracking-tight">{lead.fullName || lead.full_name}</span>
+                                    <span className="font-bold text-slate-800 dark:text-white uppercase tracking-tight">{lead.fullName}</span>
                                     <span className="text-xs text-slate-500 font-medium">+91 {lead.phone}</span>
                                 </div>
                             </TableCell>

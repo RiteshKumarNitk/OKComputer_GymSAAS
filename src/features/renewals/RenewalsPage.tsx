@@ -8,8 +8,7 @@ import {
     Search,
     MessageCircle,
     Phone,
-    AlertCircle,
-    CheckCircle2
+    AlertCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -99,7 +98,7 @@ export const RenewalsPage: React.FC = () => {
 
             return allMembers.filter((m: any) => {
                 if (m.status === "inactive") return false
-                const expiry = m.planExpiresAt || m.planExpiresAt
+                const expiry = m.planExpiresAt || m.plan_expires_at
                 if (!expiry) return false
                 return new Date(expiry) <= thirtyDaysFromNow
             })
@@ -108,7 +107,7 @@ export const RenewalsPage: React.FC = () => {
     })
 
     const filteredMembers = members?.filter((member: any) =>
-        (member.fullName || member.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (member.fullName || member.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (member.phone && member.phone.includes(searchQuery))
     ) || []
 
@@ -203,7 +202,7 @@ export const RenewalsPage: React.FC = () => {
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                <div className="font-medium">{member.fullName || member.fullName}</div>
+                                                <div className="font-medium">{member.fullName || member.full_name}</div>
                                                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                                                     <Phone className="h-3 w-3" /> {member.phone}
                                                 </div>
@@ -222,7 +221,8 @@ export const RenewalsPage: React.FC = () => {
                                                         size="sm"
                                                         className="h-8 w-8 p-0"
                                                         onClick={() => {
-                                                            const dateStr = member.planExpiresAt ? formatDate(member.planExpiresAt) : 'Unknown Date';
+                                                            const actualExpiry = member.planExpiresAt || member.plan_expires_at;
+                                                            const dateStr = actualExpiry ? formatDate(actualExpiry) : 'Unknown Date';
                                                             const text = isExpired
                                                                 ? `Hi ${member.fullName}, your gym membership expired on ${dateStr}. Please renew to continue your workouts!`
                                                                 : `Hi ${member.fullName}, your gym membership is expiring in ${daysLeft} days. Renew now to avoid interruption!`;
@@ -233,7 +233,7 @@ export const RenewalsPage: React.FC = () => {
                                                     </Button>
                                                     <Button size="sm" onClick={() => {
                                                         setSelectedMember(member)
-                                                        setSelectedPlanId(member.currentPlanId || member.currentPlanId || "")
+                                                        setSelectedPlanId(member.currentPlanId || member.current_plan_id || "")
                                                         setIsRenewOpen(true)
                                                     }}>
                                                         <RefreshCw className="mr-2 h-3 w-3" /> Renew
@@ -242,67 +242,6 @@ export const RenewalsPage: React.FC = () => {
                                             </TableCell>
                                         </TableRow>
                                     )
-                                })}
-                            {!isLoading && filteredMembers?.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                        <CheckCircle2 className="mx-auto h-8 w-8 text-green-500 mb-2" />
-                                        No renewals needed in the next 30 days!
-                                    </TableCell>
-                                </TableRow>
-                                    return (
-                            <TableRow key={member.id} className={isExpired ? "bg-red-50 dark:bg-red-950/10" : ""}>
-                                <TableCell>
-                                    {isExpired ? (
-                                        <Badge variant="destructive" className="flex w-fit items-center gap-1">
-                                            <AlertCircle className="h-3 w-3" /> Expired
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 flex w-fit items-center gap-1">
-                                            <AlertCircle className="h-3 w-3" /> Expiring
-                                        </Badge>
-                                    )}
-                                </TableCell>
-                                <TableCell>
-                                    <div className="font-medium">{member.fullName || member.full_name}</div>
-                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                        <Phone className="h-3 w-3" /> {member.phone}
-                                    </div>
-                                </TableCell>
-                                <TableCell>{planName}</TableCell>
-                                <TableCell>{expiryDate ? formatDate(expiryDate) : 'N/A'}</TableCell>
-                                <TableCell>
-                                    <span className={isExpired ? "text-red-600 font-bold" : "text-yellow-600 font-bold"}>
-                                        {isExpired ? `${Math.abs(daysLeft)} days ago` : `${daysLeft} days`}
-                                    </span>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 w-8 p-0"
-                                            onClick={() => {
-                                                const dateStr = member.plan_expires_at ? formatDate(member.plan_expires_at) : 'Unknown Date';
-                                                const text = isExpired
-                                                    ? `Hi ${member.full_name}, your gym membership expired on ${dateStr}. Please renew to continue your workouts!`
-                                                    : `Hi ${member.full_name}, your gym membership is expiring in ${daysLeft} days. Renew now to avoid interruption!`;
-                                                window.open(`https://wa.me/${member.phone?.replace(/\D/g, '') || ''}?text=${encodeURIComponent(text)}`, '_blank')
-                                            }}
-                                        >
-                                            <MessageCircle className="h-4 w-4 text-green-600" />
-                                        </Button>
-                                        <Button size="sm" onClick={() => {
-                                            setSelectedMember(member)
-                                            setSelectedPlanId(member.currentPlanId || member.current_plan_id || "")
-                                            setIsRenewOpen(true)
-                                        }}>
-                                            <RefreshCw className="mr-2 h-3 w-3" /> Renew
-                                        </Button>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                            )
                                 })
                             )}
                         </TableBody>
@@ -374,7 +313,7 @@ export const RenewalsPage: React.FC = () => {
                     <DialogHeader>
                         <DialogTitle>Renew Membership</DialogTitle>
                         <DialogDescription>
-                            Renewing membership for <b>{(selectedMember?.fullName ?? selectedMember?.fullName)}</b>
+                            Renewing membership for <b>{(selectedMember?.fullName || selectedMember?.full_name)}</b>
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -387,7 +326,7 @@ export const RenewalsPage: React.FC = () => {
                                 <SelectContent>
                                     {memberships?.map((plan: any) => (
                                         <SelectItem key={plan.id} value={plan.id}>
-                                            {plan.name} ({plan.durationDays || plan.durationDays} days)
+                                            {plan.name} ({plan.durationDays || plan.duration_days} days)
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

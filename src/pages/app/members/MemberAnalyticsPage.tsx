@@ -1,6 +1,6 @@
 import React from "react"
 import { useQuery } from "@tanstack/react-query"
-import { membersApi, dashboardApi } from "@/api/apiClient"
+import { dashboardApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
@@ -20,13 +20,13 @@ export const MemberAnalyticsPage: React.FC = () => {
   
   // Real stats from API
   const { data: stats } = useQuery({
-    queryKey: ["dashboard-stats", user?.tenant_id],
+    queryKey: ["dashboard-stats", user?.tenantId],
     queryFn: async () => {
-      const response = await dashboardApi.getStats(user?.tenant_id || "")
+      const response = await dashboardApi.getStats()
       if (response.error) throw response.error
       return response.data
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   const metrics = [

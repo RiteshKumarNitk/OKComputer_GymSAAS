@@ -18,13 +18,13 @@ export const AddMemberPage: React.FC = () => {
 
   // Fetch memberships for the form
   const { data: memberships, isLoading } = useQuery({
-    queryKey: ["memberships", user?.tenant_id],
+    queryKey: ["memberships", user?.tenantId],
     queryFn: async () => {
-      const response = await membershipsApi.list(user?.tenant_id || "")
+      const response = await membershipsApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data || []
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   return (

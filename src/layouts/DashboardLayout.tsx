@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/features/auth/AuthContext"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { tenantsApi, membersApi } from "@/api/apiClient"
 import type { UserRole } from "@/types"
 import {
@@ -20,10 +20,8 @@ import {
   Shield,
   Bell,
   Search,
-  Building,
   CreditCard,
   Banknote,
-  Settings,
   Dumbbell,
   Fingerprint,
   Info,
@@ -44,8 +42,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
@@ -207,7 +203,6 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   const { user, signOut, hasRole, hasPermission, tenantFeatures } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
 
   // Detect Member Context
   const memberMatch = location.pathname.match(/^\/members\/([^\/]+)/)
@@ -226,17 +221,17 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Member Sidebar Items (adapted from MemberProfilePage)
   const memberNavItems = [
-    { id: "edit", title: "Edit Profile", icon: <Edit className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
-    { id: "memberships", title: "Memberships", icon: <Users className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
-    { id: "followups", title: "Follow Ups", icon: <History className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
-    { id: "payments", title: "Payment History", icon: <CreditCard className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
-    { id: "reportcard", title: "Report Card", icon: <FileText className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
-    { id: "workouts", title: "Workout History", icon: <Dumbbell className="h-5 w-5" />, roles: ["gym_owner", "trainer"] },
-    { id: "diet", title: "Diet History", icon: <Utensils className="h-5 w-5" />, roles: ["gym_owner", "trainer"] },
-    { id: "documents", title: "Upload Documents", icon: <Upload className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
-    { id: "attendance", title: "Attendance", icon: <CalendarRange className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
-    { id: "biometric", title: "Biometric", icon: <Fingerprint className="h-5 w-5" />, roles: ["gym_owner"] },
-    { id: "health", title: "Health Assessment", icon: <Activity className="h-5 w-5" />, roles: ["gym_owner", "manager"] },
+    { id: "edit", title: "Edit Profile", icon: <Edit className="h-5 w-5" />, roles: ["gym_owner", "manager"] as UserRole[] },
+    { id: "memberships", title: "Memberships", icon: <Users className="h-5 w-5" />, roles: ["gym_owner", "manager"] as UserRole[] },
+    { id: "followups", title: "Follow Ups", icon: <History className="h-5 w-5" />, roles: ["gym_owner", "manager"] as UserRole[] },
+    { id: "payments", title: "Payment History", icon: <CreditCard className="h-5 w-5" />, roles: ["gym_owner", "manager"] as UserRole[] },
+    { id: "reportcard", title: "Report Card", icon: <FileText className="h-5 w-5" />, roles: ["gym_owner", "manager"] as UserRole[] },
+    { id: "workouts", title: "Workout History", icon: <Dumbbell className="h-5 w-5" />, roles: ["gym_owner", "trainer"] as UserRole[] },
+    { id: "diet", title: "Diet History", icon: <Utensils className="h-5 w-5" />, roles: ["gym_owner", "trainer"] as UserRole[] },
+    { id: "documents", title: "Upload Documents", icon: <Upload className="h-5 w-5" />, roles: ["gym_owner", "manager"] as UserRole[] },
+    { id: "attendance", title: "Attendance", icon: <CalendarRange className="h-5 w-5" />, roles: ["gym_owner", "manager"] as UserRole[] },
+    { id: "biometric", title: "Biometric", icon: <Fingerprint className="h-5 w-5" />, roles: ["gym_owner"] as UserRole[] },
+    { id: "health", title: "Health Assessment", icon: <Activity className="h-5 w-5" />, roles: ["gym_owner", "manager"] as UserRole[] },
   ]
 
   const { data: tenant } = useQuery({
@@ -298,11 +293,6 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
     setOpenMenus(prev =>
       prev.includes(title) ? prev.filter(t => t !== title) : [...prev, title]
     )
-  }
-
-  const getInitials = (name: string | null) => {
-    if (!name) return "U"
-    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
   }
 
   return (
@@ -549,7 +539,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 rounded-2xl shadow-2xl border-slate-200 dark:border-slate-800 p-2 dark:bg-slate-900 mt-2">
                 <div className="px-3 py-2 border-b dark:border-slate-800 mb-2">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white capitalize leading-tight">{user?.full_name || "sonu verma"}</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white capitalize leading-tight">{user?.fullName || "sonu verma"}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email || "vsonu26@gmail.com"}</p>
                 </div>
                 

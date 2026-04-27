@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { 
-  Search, 
   ChevronLeft, 
   ChevronRight, 
   Download, 
@@ -112,7 +111,6 @@ const dummySales: SalesRecord[] = [
 
 export const SalesReportPage: React.FC = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10)
-    const [currentPage, setCurrentPage] = useState(1)
 
     return (
         <div className="p-6 space-y-8 animate-in fade-in duration-500">

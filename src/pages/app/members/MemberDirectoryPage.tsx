@@ -82,33 +82,33 @@ export const MemberDirectoryPage: React.FC = () => {
   const { data: members, isLoading } = useQuery({
     queryKey: ["members", searchQuery],
     queryFn: async () => {
-      const response = await membersApi.list(user?.tenant_id || "", searchQuery)
+      const response = await membersApi.list(user?.tenantId || "", searchQuery)
       if (response.error) throw response.error
       return response.data as Member[]
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Full Members list for Stats Calculation
   const { data: allMembers } = useQuery({
-    queryKey: ["all-members-stats", user?.tenant_id],
+    queryKey: ["all-members-stats", user?.tenantId],
     queryFn: async () => {
-      const response = await membersApi.list(user?.tenant_id || "")
+      const response = await membersApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as Member[]
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Fetch trainers for lookup
   const { data: trainers } = useQuery({
-    queryKey: ["trainers", user?.tenant_id],
+    queryKey: ["trainers", user?.tenantId],
     queryFn: async () => {
-        const response = await trainersApi.list(user?.tenant_id || "")
+        const response = await trainersApi.list(user?.tenantId || "")
         if (response.error) throw response.error
         return response.data || []
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Calculate Real-time Stats by plan keyword (mocking categories from screenshot)
@@ -135,13 +135,13 @@ export const MemberDirectoryPage: React.FC = () => {
 
   // Fetch memberships for form
   const { data: memberships } = useQuery({
-    queryKey: ["memberships", user?.tenant_id],
+    queryKey: ["memberships", user?.tenantId],
     queryFn: async () => {
-      const response = await membershipsApi.list(user?.tenant_id || "")
+      const response = await membershipsApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as Membership[]
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Delete member mutation
@@ -182,13 +182,13 @@ export const MemberDirectoryPage: React.FC = () => {
     const csvContent = [
       ["Member Code", "Name", "Email", "Phone", "Status", "Membership", "Joined Date"],
       ...members.map((member) => [
-        member.memberCode ?? member.member_code,
-        member.fullName ?? member.full_name,
+        member.memberCode || "",
+        member.fullName || "",
         member.email || "",
         member.phone || "",
         member.status,
         member.currentPlan?.name || "No Plan",
-        formatDate(member.joinedAt ?? member.joined_at),
+        formatDate(member.joinedAt || ""),
       ]),
     ]
       .map((row) => row.join(","))
@@ -301,8 +301,8 @@ export const MemberDirectoryPage: React.FC = () => {
                 ) : (
                     paginatedMembers.map((member) => {
                         const plan = member.currentPlan
-                        const durationMonths = plan ? Math.ceil(plan.duration_days / 30) : 0
-                        const trainer = trainers?.find((t: any) => t.id === member.assigned_trainer_id)
+                        const durationMonths = plan ? Math.ceil(plan.durationDays / 30) : 0
+                        const trainer = trainers?.find((t: any) => t.id === member.assignedTrainerId)
                         
                         return (
                           <TableRow key={member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors border-slate-100 dark:border-slate-800">
@@ -315,21 +315,21 @@ export const MemberDirectoryPage: React.FC = () => {
                                       }}
                                   />
                               </TableCell>
-                              <TableCell className="font-mono text-sm text-slate-500 py-6 px-4">{member.memberCode ?? member.member_code}</TableCell>
+                              <TableCell className="font-mono text-sm text-slate-500 py-6 px-4">{member.memberCode}</TableCell>
                               <TableCell className="py-6 px-4">
                                   <span 
                                       className="font-bold text-blue-600 cursor-pointer hover:underline uppercase tracking-tight text-xs"
                                       onClick={() => handleViewMember(member)}
                                   >
-                                      {member.fullName || member.full_name}
+                                      {member.fullName}
                                   </span>
                               </TableCell>
                               <TableCell className="text-xs text-slate-500 font-bold py-6 px-4">+91 {member.phone}</TableCell>
                               <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{durationMonths} Month</TableCell>
                               <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{durationMonths * 30}</TableCell>
-                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{formatDate(member.plan_started_at || member.joined_at)}</TableCell>
-                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{formatDate(member.plan_expires_at || member.joined_at)}</TableCell>
-                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{trainer?.fullName || trainer?.full_name || 'unassigned'}</TableCell>
+                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{formatDate(member.planStartedAt || member.joinedAt)}</TableCell>
+                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{formatDate(member.planExpiresAt || member.joinedAt)}</TableCell>
+                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{trainer?.fullName || 'unassigned'}</TableCell>
                               <TableCell className="text-xs font-bold text-slate-700 py-6 px-4 text-center">0</TableCell>
                               <TableCell className="py-6 px-4">
                                   <Badge className="bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30 font-bold text-[10px] uppercase px-3 py-1 rounded-lg">
@@ -461,7 +461,7 @@ export const MemberDirectoryPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-rose-600">Confirm Deletion</DialogTitle>
             <DialogDescription className="font-bold text-slate-400">
-              Are you sure you want to delete {memberToDelete?.full_name}? This action cannot be undone.
+              Are you sure you want to delete {memberToDelete?.fullName}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0 mt-4">

@@ -1,35 +1,19 @@
 import React, { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { membersApi, membershipsApi, attendanceApi, trainersApi } from "@/api/apiClient"
+import { membersApi, membershipsApi, trainersApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import type { Member, Membership } from "@/types"
 import { formatDate } from "@/lib/utils"
 import {
   Search,
-  RefreshCcw,
   Plus,
-  MoreVertical,
-  ChevronDown,
   Download,
-  Phone,
-  User,
-  Calendar,
-  CreditCard,
   Users,
-  UserCheck,
-  UserPlus,
-  UserMinus,
-  CalendarCheck,
-  CalendarX,
-  Cake,
-  Gift,
   Eye,
   Edit,
   Trash2,
-  Smartphone,
-  Bell,
-  Send
+  MoreVertical
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -78,11 +62,11 @@ export const MembersPage: React.FC = () => {
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null)
   
   // Filter States
-  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [statusFilter] = useState<string>("all")
   
   // Selection State
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
-
+  
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -204,13 +188,13 @@ export const MembersPage: React.FC = () => {
     const csvContent = [
       ["Member Code", "Name", "Email", "Phone", "Status", "Membership", "Joined Date"],
       ...members.map((member) => [
-        member.memberCode ?? member.memberCode,
-        member.fullName ?? member.fullName,
+        member.memberCode || "",
+        member.fullName || "",
         member.email || "",
         member.phone || "",
         member.status,
         member.currentPlan?.name || "No Plan",
-        formatDate(member.joinedAt ?? member.joinedAt),
+        formatDate(member.joinedAt || ""),
       ]),
     ]
       .map((row) => row.join(","))
@@ -323,7 +307,7 @@ export const MembersPage: React.FC = () => {
                 ) : (
                     paginatedMembers.map((member) => {
                         const plan = member.currentPlan
-                        const durationMonths = plan ? Math.ceil(plan.duration_days / 30) : 0
+                        const durationMonths = plan ? Math.ceil(plan.durationDays / 30) : 0
                         const trainer = trainers?.find((t: any) => t.id === member.assignedTrainerId)
                         
                         return (
@@ -337,21 +321,21 @@ export const MembersPage: React.FC = () => {
                                       }}
                                   />
                               </TableCell>
-                              <TableCell className="font-mono text-sm text-slate-500 py-6 px-4">{member.memberCode ?? member.memberCode}</TableCell>
+                               <TableCell className="font-mono text-sm text-slate-500 py-6 px-4">{member.memberCode}</TableCell>
                               <TableCell className="py-6 px-4">
                                   <span 
                                       className="font-bold text-blue-600 cursor-pointer hover:underline uppercase tracking-tight text-xs"
                                       onClick={() => handleViewMember(member)}
                                   >
-                                      {member.fullName || member.fullName}
+                                      {member.fullName}
                                   </span>
                               </TableCell>
                               <TableCell className="text-xs text-slate-500 font-bold py-6 px-4">+91 {member.phone}</TableCell>
                               <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{durationMonths} Month</TableCell>
                               <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{durationMonths * 30}</TableCell>
-                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{formatDate(member.planStartedAt || member.joined_at)}</TableCell>
-                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{formatDate(member.planExpiresAt || member.joined_at)}</TableCell>
-                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{trainer?.fullName || trainer?.fullName || 'unassigned'}</TableCell>
+                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{formatDate(member.planStartedAt || member.joinedAt)}</TableCell>
+                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{formatDate(member.planExpiresAt || member.joinedAt)}</TableCell>
+                              <TableCell className="text-xs font-bold text-slate-700 py-6 px-4">{trainer?.fullName || 'unassigned'}</TableCell>
                               <TableCell className="text-xs font-bold text-slate-700 py-6 px-4 text-center">0</TableCell>
                               <TableCell className="py-6 px-4">
                                   <Badge className="bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30 font-bold text-[10px] uppercase px-3 py-1 rounded-lg">

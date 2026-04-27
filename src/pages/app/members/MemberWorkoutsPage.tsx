@@ -43,20 +43,20 @@ export const MemberWorkoutsPage: React.FC = () => {
 
   // Fetch Workouts
   const { data: workouts } = useQuery({
-    queryKey: ["workouts", user?.tenant_id],
+    queryKey: ["workouts", user?.tenantId],
     queryFn: async () => {
-      const response = await workoutsApi.list(user?.tenant_id || "")
+      const response = await workoutsApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as Workout[]
     },
-    enabled: !!user?.tenant_id
+    enabled: !!user?.tenantId
   })
 
   // Fetch Members (for assignment)
   const { data: members } = useQuery({
-    queryKey: ["members-basic", user?.tenant_id],
+    queryKey: ["members-basic", user?.tenantId],
     queryFn: async () => {
-      const response = await membersApi.list(user?.tenant_id || "", "", "active")
+      const response = await membersApi.list(user?.tenantId || "", "", "active")
       if (response.error) throw response.error
       return response.data as Member[]
     },
@@ -114,8 +114,8 @@ export const MemberWorkoutsPage: React.FC = () => {
     mutationFn: async (memberId: string) => {
       if (!selectedWorkout) return
       const response = await memberWorkoutsApi.assign({
-        member_id: memberId,
-        workout_id: selectedWorkout.id
+        memberId: memberId,
+        workoutId: selectedWorkout.id
       })
       if (response.error) throw response.error
     },
@@ -280,8 +280,8 @@ export const MemberWorkoutsPage: React.FC = () => {
             {members?.map((member) => (
               <div key={member.id} className="flex items-center justify-between p-2 border rounded hover:bg-gray-50">
                 <div>
-                  <p className="font-medium">{member.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{member.member_code}</p>
+                  <p className="font-medium">{member.fullName}</p>
+                  <p className="text-xs text-muted-foreground">{member.memberCode}</p>
                 </div>
                 <Button size="sm" onClick={() => assignMutation.mutate(member.id)}>Assign</Button>
               </div>

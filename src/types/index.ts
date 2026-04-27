@@ -15,6 +15,69 @@ export type UserRole = "super_admin" | "gym_owner" | "manager" | "trainer" | "fr
 
 export type Gender = "male" | "female" | "other" | "prefer_not_to_say"
 
+export interface ApiResponse<T> {
+  data: T | null
+  error: Error | null
+}
+
+export interface AuthUser {
+  id: string
+  email: string
+  role: UserRole
+  tenantId: string | null
+  fullName: string | null
+}
+
+export interface PaginationParams {
+  page?: number
+  limit?: number
+  search?: string
+  sortBy?: string
+  sortOrder?: "asc" | "desc"
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface RegisterCredentials {
+  email: string
+  password: string
+  fullName: string
+  role?: UserRole
+  tenantId?: string
+}
+
+export interface QRCodeData {
+  memberId: string
+  tenantId: string
+  timestamp: number
+}
+
+export interface DashboardStats {
+  totalMembers: number
+  activeMembers: number
+  totalTrainers: number
+  totalFrontdesk: number
+  totalManagers: number
+  totalRevenue: number
+  monthlyRevenue: number
+  attendanceToday: number
+  newMembersThisMonth: number
+  membershipDistribution: { [key: string]: number }
+  revenueTrend: { month: string; revenue: number }[]
+  attendanceTrend: { date: string; count: number }[]
+}
+
 export interface Tenant {
   id: string
   name: string
@@ -240,144 +303,6 @@ export interface MemberDiet {
   dietPlan?: DietPlan
 }
 
-export interface Notification {
-  id: string
-  tenantId: string
-  userId: string | null
-  notificationType: string
-  title: string
-  message: string
-  data: any
-  isRead: boolean
-  createdAt: string
-}
-
-export interface DashboardStats {
-  totalMembers: number
-  activeMembers: number
-  totalTrainers: number
-  totalFrontdesk: number
-  totalManagers: number
-  totalRevenue: number
-  monthlyRevenue: number
-  attendanceToday: number
-  newMembersThisMonth: number
-  membershipDistribution: { [key: string]: number }
-  revenueTrend: { month: string; revenue: number }[]
-  attendanceTrend: { date: string; count: number }[]
-}
-
-export interface ApiResponse<T> {
-  data: T | null
-  error: Error | null
-}
-
-export interface PaginationParams {
-  page?: number
-  limit?: number
-  search?: string
-  sortBy?: string
-  sortOrder?: "asc" | "desc"
-}
-
-export interface PaginatedResponse<T> {
-  data: T[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
-}
-
-export interface AuthUser {
-  id: string
-  email: string
-  role: UserRole
-  tenantId: string | null
-  fullName: string | null
-}
-
-export interface LoginCredentials {
-  email: string
-  password: string
-}
-
-export interface RegisterCredentials {
-  email: string
-  password: string
-  fullName: string
-  role?: UserRole
-  tenantId?: string
-}
-
-export interface QRCodeData {
-  memberId: string
-  tenantId: string
-  timestamp: number
-}
-
-export interface DashboardStats {
-  totalMembers: number
-  activeMembers: number
-  totalTrainers: number
-  totalFrontdesk: number
-  totalManagers: number
-  totalRevenue: number
-  monthlyRevenue: number
-  attendanceToday: number
-  newMembersThisMonth: number
-  membershipDistribution: { [key: string]: number }
-  revenueTrend: { month: string; revenue: number }[]
-  attendanceTrend: { date: string; count: number }[]
-}
-
-export interface ApiResponse<T> {
-  data: T | null
-  error: Error | null
-}
-
-export interface PaginationParams {
-  page?: number
-  limit?: number
-  search?: string
-  sortBy?: string
-  sortOrder?: "asc" | "desc"
-}
-
-export interface PaginatedResponse<T> {
-  data: T[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
-}
-
-export interface AuthUser {
-  id: string
-  email: string
-  role: UserRole
-  tenantId: string | null
-  fullName: string | null
-}
-
-export interface LoginCredentials {
-  email: string
-  password: string
-}
-
-export interface RegisterCredentials {
-  email: string
-  password: string
-  fullName: string
-  role?: UserRole
-  tenantId?: string
-}
-
-export interface QRCodeData {
-  memberId: string
-  tenantId: string
-  timestamp: number
-}
-
 export interface Branch {
   id: string
   tenantId: string
@@ -389,6 +314,19 @@ export interface Branch {
   updatedAt: string
 }
 
+export interface Notification {
+  id: string
+  tenantId: string
+  userId: string | null
+  notificationType: string
+  title: string
+  message: string
+  description: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Service {
   id: string
   tenantId: string
@@ -396,6 +334,7 @@ export interface Service {
   description: string | null
   type: "class" | "facility" | "training"
   capacity: number | null
+  isActive: boolean
   createdAt: string
   updatedAt: string
 }

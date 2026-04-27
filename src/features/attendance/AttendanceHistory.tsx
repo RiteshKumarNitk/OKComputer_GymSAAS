@@ -29,11 +29,11 @@ export const AttendanceHistory: React.FC = () => {
     const { data: logs, isLoading } = useQuery({
         queryKey: ["attendance-history", selectedDate],
         queryFn: async () => {
-            const response = await attendanceApi.list(user?.tenant_id || "", undefined, selectedDate)
+            const response = await attendanceApi.list(user?.tenantId || "", undefined, selectedDate)
             if (response.error) throw response.error
             return response.data || []
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     const filteredLogs = (logs || []).filter((log: any) => 

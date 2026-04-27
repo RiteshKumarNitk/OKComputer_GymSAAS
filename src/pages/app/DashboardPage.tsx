@@ -5,7 +5,6 @@ import { tenantsApi, usersApi, billingApi, dashboardApi, followUpsApi, membersAp
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import {
-  Users,
   Search,
   RefreshCcw,
   Calendar,
@@ -19,8 +18,7 @@ import {
   ChevronLeft,
   Filter,
   User,
-  Download,
-  FileText
+  Download
 } from "lucide-react"
 import {
   Card,
@@ -39,7 +37,7 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useToast } from "@/components/ui/use-toast"
 import {
   BarChart,
   Bar,
@@ -55,33 +53,7 @@ import {
   Cell
 } from "recharts"
 
-const leadData = [
-  { name: 'Jan 2026', hot: 12, warm: 8, cold: 2 },
-  { name: 'Feb 2026', hot: 18, warm: 10, cold: 4 },
-  { name: 'Mar 2026', hot: 25, warm: 15, cold: 6 },
-  { name: 'Apr 2026', hot: 30, warm: 20, cold: 8 },
-  { name: 'May 2026', hot: 35, warm: 25, cold: 10 },
-  { name: 'Jun 2026', hot: 40, warm: 30, cold: 12 },
-  { name: 'Jul 2026', hot: 45, warm: 35, cold: 14 },
-  { name: 'Aug 2026', hot: 50, warm: 40, cold: 16 },
-  { name: 'Sep 2026', hot: 55, warm: 45, cold: 18 },
-  { name: 'Oct 2026', hot: 60, warm: 50, cold: 20 },
-  { name: 'Nov 2026', hot: 65, warm: 55, cold: 22 },
-  { name: 'Dec 2026', hot: 70, warm: 60, cold: 24 },
-]
 
-const financialData = [
-  { name: 'April W1', paid: 160000, balance: 10000, pending: 40000, expense: 50000, profit: 110000 },
-  { name: 'April W2', paid: 80000, balance: 5000, pending: 20000, expense: 30000, profit: 50000 },
-  { name: 'April W3', paid: 120000, balance: 15000, pending: 30000, expense: 40000, profit: 80000 },
-  { name: 'April W4', paid: 100000, balance: 10000, pending: 30000, expense: 30000, profit: 70000 },
-]
-
-const followUps = [
-  { name: "test test", phone: "9898765489", type: "Membership Renewal", date: "14 Apr, 2026 11:50 PM", status: "Hot", comment: "gym work out, 12 months, renewal due on 28-04-2026." },
-  { name: "JAYDEEP KUMAR", phone: "8527649106", type: "Membership Renewal", date: "14 Apr, 2026 11:50 PM", status: "Hot", comment: "DOUTFULL FULL PACKAGE, 12 months, renewal due on 28-04-2026." },
-  { name: "Iswar singh", phone: "9818097000", type: "Membership Renewal", date: "14 Apr, 2026 11:50 PM", status: "Hot", comment: "Monthly, 1 month, renewal due on 16-04-2026." },
-]
 
 export const DashboardPage: React.FC = () => {
   const { user, hasRole } = useAuth()
@@ -90,47 +62,48 @@ export const DashboardPage: React.FC = () => {
   const [followUpSearch, setFollowUpSearch] = useState("")
   const [priorityFilter, setPriorityFilter] = useState("All")
   const queryClient = useQueryClient()
+  const { toast } = useToast()
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["dashboard-stats", user?.tenant_id],
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-stats", user?.tenantId],
     queryFn: async () => {
       const response = await dashboardApi.getStats()
       if (response.error) throw response.error
       return response.data
     },
-    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+    enabled: !!user?.tenantId && user?.role !== "super_admin",
   })
 
   const { data: realFollowUps, isLoading: followUpsLoading, refetch: refetchFollowUps } = useQuery({
-    queryKey: ["follow-ups", user?.tenant_id],
+    queryKey: ["follow-ups", user?.tenantId],
     queryFn: async () => {
-      const response = await followUpsApi.list(user?.tenant_id || "")
+      const response = await followUpsApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data
     },
-    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+    enabled: !!user?.tenantId && user?.role !== "super_admin",
   })
 
   // Global Members Query for precise stats
   const { data: allMembers } = useQuery({
-    queryKey: ["all-members-stats", user?.tenant_id],
+    queryKey: ["all-members-stats", user?.tenantId],
     queryFn: async () => {
-      const response = await membersApi.list({ tenantId: user?.tenant_id || "" })
+      const response = await membersApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data || []
     },
-    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+    enabled: !!user?.tenantId && user?.role !== "super_admin",
   })
 
   // Attendance Today Query
   const { data: attendanceToday } = useQuery({
-    queryKey: ["attendance-today", user?.tenant_id],
+    queryKey: ["attendance-today", user?.tenantId],
     queryFn: async () => {
-      const response = await attendanceApi.list(user?.tenant_id || "")
+      const response = await attendanceApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data || []
     },
-    enabled: !!user?.tenant_id && user?.role !== "super_admin",
+    enabled: !!user?.tenantId && user?.role !== "super_admin",
   })
 
   const statsCalculated = React.useMemo(() => {
@@ -141,10 +114,10 @@ export const DashboardPage: React.FC = () => {
 
     return {
       active: allMembers.filter(m => m.status === 'active').length,
-      upcoming: allMembers.filter(m => m.plan_expires_at && m.plan_expires_at >= today && m.plan_expires_at <= next7Days).length,
+      upcoming: allMembers.filter(m => m.planExpiresAt && formatDate(m.planExpiresAt) >= today && formatDate(m.planExpiresAt) <= next7Days).length,
       past: allMembers.filter(m => m.status === 'expired' || m.status === 'inactive').length,
-      birthday: allMembers.filter(m => m.dob && m.dob.split('-').slice(1).join('-') === today.split('-').slice(1).join('-')).length,
-      anniversary: allMembers.filter(m => m.joined_at && m.joined_at.split('-').slice(1).join('-') === today.split('-').slice(1).join('-')).length
+      birthday: allMembers.filter(m => m.dob?.split('-').slice(1).join('-') === today.split('-').slice(1).join('-')).length,
+      anniversary: allMembers.filter(m => m.joinedAt && m.joinedAt.split('-').slice(1).join('-') === today.split('-').slice(1).join('-')).length
     }
   }, [allMembers])
 
@@ -183,14 +156,14 @@ export const DashboardPage: React.FC = () => {
     return matchesSearch && matchesPriority
   }) || []
 
-  const { data: superStats, isLoading: superLoading } = useQuery({
+  const { data: superStats } = useQuery({
     queryKey: ["super-admin-stats"],
     queryFn: async () => {
       const tenantsRes = await tenantsApi.list()
       const usersRes = await usersApi.list()
       const invoicesRes = await billingApi.getInvoices("all")
-      const activeTenants = tenantsRes.data?.filter((t: any) => t.subscription_status === "active") || []
-      const totalRevenue = invoicesRes.data?.reduce((acc: number, curr: any) => acc + (curr.amount_cents || 0), 0) || 0
+      const activeTenants = tenantsRes.data?.filter((t: any) => t.status === "active") || []
+      const totalRevenue = invoicesRes.data?.reduce((acc: number, curr: any) => acc + (curr.totalPaise || 0), 0) || 0
       return {
         totalTenants: tenantsRes.data?.length || 0,
         activeTenants: activeTenants.length,
@@ -202,18 +175,7 @@ export const DashboardPage: React.FC = () => {
     enabled: user?.role === "super_admin"
   })
 
-  // Basic Stat Card Component
-  const StatCard: React.FC<{ title: string; value: string | number; icon: React.ReactNode; color: string }> = ({ title, value, icon, color }) => (
-    <Card className="border-none shadow-sm h-32 relative overflow-hidden group transition-all hover:shadow-md" style={{ backgroundColor: color }}>
-      <div className="p-4 h-full flex flex-col justify-between text-white">
-        <div className="flex justify-between items-start">
-          <h3 className="text-sm font-bold opacity-90">{title}</h3>
-          <div className="opacity-20 group-hover:scale-110 transition-transform">{icon}</div>
-        </div>
-        <div className="text-2xl font-bold">{value}</div>
-      </div>
-    </Card>
-  )
+
 
   if (user?.role === "super_admin") {
     return (
@@ -237,8 +199,8 @@ export const DashboardPage: React.FC = () => {
             <CardContent className="space-y-4">
               {superStats?.recentTenants.map((t: any) => (
                 <div key={t.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                  <div><p className="font-bold">{t.name}</p><p className="text-xs text-slate-500">{t.owner_email}</p></div>
-                  <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">{t.subscription_status}</Badge>
+                  <div><p className="font-bold">{t.name}</p><p className="text-xs text-slate-500">{t.email}</p></div>
+                  <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">{t.status}</Badge>
                 </div>
               ))}
             </CardContent>
@@ -353,7 +315,7 @@ export const DashboardPage: React.FC = () => {
                   <TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-400">Loading follow ups...</TableCell></TableRow>
                 ) : filteredFollowUps.length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-400">No matching follow ups found.</TableCell></TableRow>
-                ) : filteredFollowUps.map((item: any, i: number) => (
+                ) : filteredFollowUps.map((item: any) => (
                   <TableRow key={item.id} className="hover:bg-slate-50/30 border-b dark:border-slate-800">
                     <TableCell className="py-4">
                       <p className="text-xs font-bold text-blue-600">{item.lead?.fullName || item.lead?.firstName || item.member?.fullName || "N/A"}</p>

@@ -29,13 +29,13 @@ export const MembershipPackagesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("")
 
   const { data: plans, isLoading } = useQuery({
-    queryKey: ["memberships", user?.tenant_id],
+    queryKey: ["memberships", user?.tenantId],
     queryFn: async () => {
-      const response = await membershipsApi.list(user?.tenant_id || "")
+      const response = await membershipsApi.list(user?.tenantId || "")
       if (response.error) throw response.error
       return response.data as Membership[]
     },
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenantId,
   })
 
   // Delete plan mutation
@@ -53,7 +53,7 @@ export const MembershipPackagesPage: React.FC = () => {
   // Toggle activation mutation
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      const response = await membershipsApi.update(id, { is_active: !isActive })
+      const response = await membershipsApi.update(id, { isActive: !isActive })
       if (response.error) throw response.error
       return response.data
     },
@@ -175,19 +175,19 @@ export const MembershipPackagesPage: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm font-bold text-slate-700 dark:text-slate-300 py-6 px-4 uppercase tracking-tighter">
-                      {Math.ceil((plan.durationDays ?? plan.duration_days ?? 0) / 30)} Months
+                      {Math.ceil((plan.durationDays ?? 0) / 30)} Months
                     </TableCell>
                     <TableCell className="text-sm font-bold text-slate-700 dark:text-slate-300 py-6 px-4 uppercase tracking-tighter">
                       {/* Placeholder for sessions: we use a multiple of months for now to match screenshot style */}
-                      {Math.ceil((plan.durationDays ?? plan.duration_days ?? 0) / 30) * 30}
+                      {Math.ceil((plan.durationDays ?? 0) / 30) * 30}
                     </TableCell>
                     <TableCell className="text-sm font-bold text-slate-700 dark:text-slate-300 py-6 px-4 uppercase tracking-tighter">
-                      ₹{(plan.priceCents ?? plan.price_cents ?? 0) / 100}
+                      ₹{(plan.priceCents ?? 0) / 100}
                     </TableCell>
                     <TableCell className="py-6 px-4">
                       <Switch 
-                        checked={plan.isActive ?? plan.is_active} 
-                        onCheckedChange={() => toggleStatusMutation.mutate({ id: plan.id, isActive: plan.isActive ?? plan.is_active })}
+                        checked={plan.isActive} 
+                        onCheckedChange={() => toggleStatusMutation.mutate({ id: plan.id, isActive: plan.isActive })}
                         className="data-[state=checked]:bg-emerald-500"
                       />
                     </TableCell>

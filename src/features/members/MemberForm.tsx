@@ -13,12 +13,29 @@ import { Camera } from "lucide-react"
 import { format } from "date-fns"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
+interface MemberFormData {
+  fullName: string
+  email: string
+  phone: string
+  dob: Date | undefined
+  gender: string
+  address: string
+  emergencyContact_name: string
+  emergencyContact_phone: string
+  emergencyContact_relationship: string
+  currentPlanId: string
+  assigned_trainerId: string
+  status: MemberStatus
+  notes: string
+  avatarUrl: string
+}
+
 interface MemberFormProps {
   member?: Member | null
   memberships: Membership[]
   onSuccess: () => void
   onCancel: () => void
-  prefillData?: Partial<typeof formData>
+  prefillData?: Partial<MemberFormData>
 }
 
 export const MemberForm: React.FC<MemberFormProps> = ({
@@ -30,11 +47,11 @@ export const MemberForm: React.FC<MemberFormProps> = ({
 }) => {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<MemberFormData>({
     fullName: "",
     email: "",
     phone: "",
-    dob: undefined as Date | undefined,
+    dob: undefined,
     gender: "",
     address: "",
     emergencyContact_name: "",
@@ -84,7 +101,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
   }, [member, prefillData])
 
   const memberMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
+    mutationFn: async (data: MemberFormData) => {
       if (!user?.tenantId) {
         throw new Error("Tenant ID is missing. Please refresh the page or contact support.")
       }
@@ -157,7 +174,7 @@ export const MemberForm: React.FC<MemberFormProps> = ({
     await memberMutation.mutateAsync(formData)
   }
 
-  const handleInputChange = (field: keyof typeof formData, value: any) => {
+  const handleInputChange = (field: keyof MemberFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 

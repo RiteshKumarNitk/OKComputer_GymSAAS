@@ -1,13 +1,12 @@
 import React, { useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { followUpsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import {
     Search,
     Calendar,
     Download,
-    MoreVertical,
-    RotateCcw
+    MoreVertical
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,7 +36,6 @@ import {
 
 export const FollowUpsPage: React.FC = () => {
     const { user } = useAuth()
-    const queryClient = useQueryClient()
 
     // Filter State
     const [followType, setFollowType] = useState("All")
@@ -55,11 +53,11 @@ export const FollowUpsPage: React.FC = () => {
     const { data: followUps, isLoading } = useQuery({
         queryKey: ["follow-ups", user?.id],
         queryFn: async () => {
-            const response = await followUpsApi.list(user?.tenant_id || "")
+            const response = await followUpsApi.list(user?.tenantId || "")
             if (response.error) throw response.error
             return response.data
         },
-        enabled: !!user?.tenant_id,
+        enabled: !!user?.tenantId,
     })
 
     // Filter Logic
@@ -100,11 +98,11 @@ export const FollowUpsPage: React.FC = () => {
         }
     }
 
-    const typeBadgeStyles = (type: string) => {
+    const typeBadgeStyles = (_type: string) => {
         return "bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 rounded-xl px-4 py-1 font-bold text-[10px] capitalize";
     }
 
-    const convertibilityStyles = (status: string) => {
+    const convertibilityStyles = (_status: string) => {
         return "bg-rose-600 text-white hover:bg-rose-700 rounded-lg px-2 py-1 font-black text-[10px] uppercase";
     }
 

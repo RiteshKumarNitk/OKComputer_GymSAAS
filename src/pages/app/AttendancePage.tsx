@@ -3,7 +3,7 @@ import { ManualCheckin } from "@/features/attendance/ManualCheckin"
 import { AttendanceLog } from "@/features/attendance/AttendanceLog"
 import { AttendanceHistory } from "@/features/attendance/AttendanceHistory"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { QrCode, List, ArrowLeft } from "lucide-react"
+import { QrCode, List, ArrowLeft, Calendar } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 
