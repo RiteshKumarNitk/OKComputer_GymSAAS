@@ -14,6 +14,7 @@ import {
     ChevronDown
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/common"
 
 export const MemberAnalyticsPage: React.FC = () => {
   const { user } = useAuth()
@@ -62,19 +63,19 @@ export const MemberAnalyticsPage: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <div>
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Membership Analytics</h1>
-            <p className="text-sm text-slate-500 font-medium mt-1">Real-time insights and business performance metrics</p>
-        </div>
-        <Button variant="outline" className="h-11 rounded-xl border-slate-200 bg-white font-bold flex items-center gap-2">
+      <PageHeader
+        title="Membership Analytics"
+        subtitle="Real-time insights and business performance metrics"
+        actions={
+          <Button variant="outline" className="h-10 rounded-xl border-slate-200 bg-white font-bold flex items-center gap-2">
             Last 30 Days <ChevronDown className="h-4 w-4" />
-        </Button>
-      </div>
+          </Button>
+        }
+      />
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((metric) => (
-            <Card key={metric.title} className="border-none shadow-sm rounded-3xl bg-white dark:bg-slate-900 overflow-hidden">
+            <Card key={metric.title} className="border-none shadow-sm rounded-xl bg-white dark:bg-slate-900 overflow-hidden">
                 <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                         <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
@@ -86,7 +87,7 @@ export const MemberAnalyticsPage: React.FC = () => {
                         </div>
                     </div>
                     <div>
-                        <p className="text-2xl font-black text-slate-900 dark:text-white">{metric.value}</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{metric.value}</p>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">{metric.title}</p>
                     </div>
                 </CardContent>
@@ -94,10 +95,10 @@ export const MemberAnalyticsPage: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
          <Card className="border-none shadow-sm rounded-3xl bg-white dark:bg-slate-900 h-96">
-            <CardHeader className="p-8">
-                <CardTitle className="text-lg font-black text-slate-800 flex items-center gap-2">
+            <CardHeader className="p-6">
+                <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-orange-500" />
                     Revenue Trend
                 </CardTitle>
@@ -109,8 +110,8 @@ export const MemberAnalyticsPage: React.FC = () => {
          </Card>
 
          <Card className="border-none shadow-sm rounded-3xl bg-white dark:bg-slate-900 h-96">
-            <CardHeader className="p-8">
-                <CardTitle className="text-lg font-black text-slate-800 flex items-center gap-2">
+            <CardHeader className="p-6">
+                <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
                     <PieChart className="h-5 w-5 text-blue-500" />
                     Membership Distribution
                 </CardTitle>
@@ -118,20 +119,20 @@ export const MemberAnalyticsPage: React.FC = () => {
             <CardContent className="flex flex-col items-center justify-center h-64">
                 <div className="relative h-48 w-48 rounded-full border-[16px] border-slate-50 flex items-center justify-center">
                     <div className="text-center">
-                        <p className="text-3xl font-black text-slate-800">{stats?.activeMembers || '0'}</p>
-                        <p className="text-[9px] font-black uppercase text-slate-400">Total Active</p>
+                        <p className="text-3xl font-bold text-slate-800">{stats?.activeMembers || '0'}</p>
+                        <p className="text-[9px] font-bold uppercase text-slate-400">Total Active</p>
                     </div>
                 </div>
             </CardContent>
          </Card>
       </div>
 
-       <Card className="border-none shadow-sm rounded-3xl bg-white dark:bg-slate-900 overflow-hidden">
-        <CardHeader className="p-8 border-b border-slate-50">
-          <CardTitle className="text-lg font-black text-slate-800">Top Performing Plans</CardTitle>
+       <Card className="border-none shadow-sm rounded-xl bg-white dark:bg-slate-900 overflow-hidden">
+        <CardHeader className="p-6 border-b border-slate-50">
+          <CardTitle className="text-lg font-bold text-slate-800">Top Performing Plans</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="text-center py-20">
+          <div className="text-center py-12">
              <p className="text-sm font-bold text-slate-400 italic">Advanced Plan Analytics Coming Soon</p>
           </div>
         </CardContent>

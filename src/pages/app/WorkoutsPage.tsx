@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, UserPlus, Pencil } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Member } from "@/types"
+import { PageHeader } from "@/components/common"
 
 interface Exercise {
   name: string
@@ -66,46 +67,43 @@ export const WorkoutsPage: React.FC = () => {
 
   // Mutations
   const createMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      if (!formData.get("name")) throw new Error("Workout name is required")
-
-      const data = {
-        name: formData.get("name"),
-        description: formData.get("description"),
+    mutationFn: async (data: { name: string; description: string }) => {
+      const payload = {
+        name: data.name,
+        description: data.description,
         difficulty: difficulty,
         exercises: exercises
       }
-      const response = await workoutsApi.create(data)
+      const response = await workoutsApi.create(payload)
       if (response.error) throw response.error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] })
       setIsCreateOpen(false)
-      setExercises([{ name: "", sets: "3", reps: "10" }]) // Reset
+      setExercises([{ name: "", sets: "3", reps: "10" }])
       toast({ title: "Success", description: "Workout template created" })
     },
     onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to create workout", variant: "destructive" })
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
+    mutationFn: async (data: { name: string; description: string }) => {
       if (!selectedWorkout) throw new Error("No workout selected")
-      if (!formData.get("name")) throw new Error("Workout name is required")
 
-      const data = {
-        name: formData.get("name"),
-        description: formData.get("description"),
+      const payload = {
+        name: data.name,
+        description: data.description,
         difficulty: difficulty,
         exercises: exercises
       }
-      const response = await workoutsApi.update(selectedWorkout.id, data)
+      const response = await workoutsApi.update(selectedWorkout.id, payload)
       if (response.error) throw response.error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] })
       setIsCreateOpen(false)
       setSelectedWorkout(null)
-      setExercises([{ name: "", sets: "3", reps: "10" }]) // Reset
+      setExercises([{ name: "", sets: "3", reps: "10" }])
       toast({ title: "Updated", description: "Workout template updated" })
     },
     onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to update workout", variant: "destructive" })
@@ -156,15 +154,16 @@ export const WorkoutsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Workouts</h1>
-          <p className="text-muted-foreground">Create training templates and assign them to members.</p>
-        </div>
-        <Button onClick={openCreateDialog}>
-          <Plus className="mr-2 h-4 w-4" /> Create Template
-        </Button>
-      </div>
+      <PageHeader
+        title="Workouts"
+        subtitle="Create training templates and assign them to members."
+        titleClassName="text-3xl font-bold tracking-tight"
+        actions={
+          <Button onClick={openCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" /> Create Template
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {workouts?.map((workout) => (
@@ -214,10 +213,12 @@ export const WorkoutsPage: React.FC = () => {
           </DialogHeader>
           <form onSubmit={(e) => {
             e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            const data = { name: fd.get("name") as string, description: (fd.get("description") as string) || "" };
             if (selectedWorkout) {
-              updateMutation.mutate(new FormData(e.currentTarget))
+              updateMutation.mutate(data)
             } else {
-              createMutation.mutate(new FormData(e.currentTarget));
+              createMutation.mutate(data);
             }
           }} className="space-y-6">
             <div className="space-y-2">

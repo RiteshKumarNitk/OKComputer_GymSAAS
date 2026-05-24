@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
+import { PageHeader } from "@/components/common"
 
 const GYM_SERVICES = [
   "General", "Massage", "Kick Boxing", "Fitness Workout", 
@@ -109,25 +110,24 @@ export const AddEnquiryPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="rounded-full h-10 w-10 p-0">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">New Lead Enquiry</h1>
-            <p className="text-sm text-slate-500">Add a visitor for follow-up and trial booking</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => navigate(-1)} className="rounded-xl font-bold">
-            <X className="h-4 w-4 mr-2" /> Cancel
-          </Button>
-          <Button onClick={handleSubmit} className="bg-orange-500 hover:bg-orange-600 text-white px-8 rounded-xl font-bold shadow-lg shadow-orange-500/20">
-            <Save className="h-4 w-4 mr-2" /> Submit Enquiry
-          </Button>
-        </div>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="rounded-full h-10 w-10 p-0">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <PageHeader
+          title="New Lead Enquiry"
+          subtitle="Add a visitor for follow-up and trial booking"
+          actions={
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={() => navigate(-1)} className="rounded-xl font-bold">
+                <X className="h-4 w-4 mr-2" /> Cancel
+              </Button>
+              <Button variant="brand" onClick={handleSubmit} className="px-8 rounded-xl font-bold shadow-lg shadow-orange-500/20">
+                <Save className="h-4 w-4 mr-2" /> Submit Enquiry
+              </Button>
+            </div>
+          }
+        />
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -440,7 +440,7 @@ export const AddEnquiryPage: React.FC = () => {
                        />
                     </div>
 
-                    <Button type="button" className="w-full h-9 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold uppercase rounded-lg shadow-md shadow-orange-500/10">
+                    <Button type="button" variant="brand" className="w-full h-9 text-[10px] font-bold uppercase rounded-lg shadow-md shadow-orange-500/10">
                        <Save className="h-3 w-3 mr-2" /> Save Follow-up
                     </Button>
                   </div>

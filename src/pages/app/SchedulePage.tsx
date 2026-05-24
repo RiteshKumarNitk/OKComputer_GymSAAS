@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Clock, User, Trash2, Plus } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Service, Trainer } from "@/types"
+import { PageHeader } from "@/components/common"
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
@@ -72,17 +73,17 @@ export const SchedulePage: React.FC = () => {
 
   // Add Mutation
   const addMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
+    mutationFn: async (data: { time: string; duration: string }) => {
       if (!formService) throw new Error("Please select a class/service")
 
-      const data = {
+      const payload = {
         dayOfWeek: parseInt(formDay),
-        startTime: formData.get("time") as string,
-        duration_minutes: parseInt(formData.get("duration") as string),
+        startTime: data.time,
+        duration_minutes: parseInt(data.duration),
         service_id: formService,
         trainerId: formTrainer === "none" ? null : formTrainer
       }
-      const response = await schedulesApi.create(data)
+      const response = await schedulesApi.create(payload)
       if (response.error) throw response.error
     },
     onSuccess: () => {
@@ -107,7 +108,8 @@ export const SchedulePage: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    addMutation.mutate(new FormData(e.currentTarget))
+    const fd = new FormData(e.currentTarget)
+    addMutation.mutate({ time: fd.get("time") as string, duration: fd.get("duration") as string })
   }
 
   // Filter slots for current view
@@ -115,23 +117,24 @@ export const SchedulePage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Class Schedule</h1>
-          <p className="text-muted-foreground">Manage weekly class timings and trainers.</p>
-        </div>
-        <div className="flex space-x-2">
-          <Button variant={viewMode === 'daily' ? 'default' : 'outline'} onClick={() => setViewMode('daily')}>
-            Daily
-          </Button>
-          <Button variant={viewMode === 'weekly' ? 'default' : 'outline'} onClick={() => setViewMode('weekly')}>
-            Weekly
-          </Button>
-          <Button onClick={() => setIsAddOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Add Class
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Class Schedule"
+        subtitle="Manage weekly class timings and trainers."
+        titleClassName="text-3xl font-bold tracking-tight"
+        actions={
+          <div className="flex space-x-2">
+            <Button variant={viewMode === 'daily' ? 'default' : 'outline'} onClick={() => setViewMode('daily')}>
+              Daily
+            </Button>
+            <Button variant={viewMode === 'weekly' ? 'default' : 'outline'} onClick={() => setViewMode('weekly')}>
+              Weekly
+            </Button>
+            <Button onClick={() => setIsAddOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add Class
+            </Button>
+          </div>
+        }
+      />
 
       {/* Day Selector - Only show in Daily Mode */}
       {viewMode === 'daily' && (

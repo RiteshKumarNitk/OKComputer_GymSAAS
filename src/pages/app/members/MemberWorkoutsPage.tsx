@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, UserPlus, Pencil } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Member } from "@/types"
+import { PageHeader } from "@/components/common"
 
 interface Exercise {
   name: string
@@ -153,15 +154,16 @@ export const MemberWorkoutsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Workouts</h1>
-          <p className="text-muted-foreground">Create training templates and assign them to members.</p>
-        </div>
-        <Button onClick={openCreateDialog}>
-          <Plus className="mr-2 h-4 w-4" /> Create Template
-        </Button>
-      </div>
+      <PageHeader
+        title="Workouts"
+        subtitle="Create training templates and assign them to members."
+        titleClassName="text-3xl font-bold tracking-tight"
+        actions={
+          <Button onClick={openCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" /> Create Template
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {workouts?.map((workout) => (

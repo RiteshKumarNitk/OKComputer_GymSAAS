@@ -306,3 +306,44 @@ Plans show in the "Available Plans" tab
 
 Comment
 Ctrl+Alt+M
+
+
+
+
+SuperAdmin
+
+innovatex@gmail.com
+
+SuparAdmin123
+
+tenent login 
+
+tenent gmail riteshkumar.nitk21@gmail.com
+
+Tenent password admin123
+
+Frontdesk
+
+tenent gmail Komal@gmail.com
+
+Tenent password 123456
+
+Manager
+
+gmail test@gmail.com
+
+password 123456
+
+trainer
+
+tanu@gmail.com
+
+123456
+
+member can login through mobile number 
+
+8949491687 
+123456
+
+[]()
+https://ok-computer-gym-saas-x6qe.vercel.app/

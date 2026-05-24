@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MemberForm } from "@/features/members/MemberForm"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageHeader } from "@/components/common"
 
 export const AddMemberPage: React.FC = () => {
   const navigate = useNavigate()
@@ -29,17 +30,14 @@ export const AddMemberPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="rounded-full h-10 w-10 p-0">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Member Onboarding</h1>
-            <p className="text-sm text-slate-500">Register new member and activate membership</p>
-          </div>
-        </div>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="rounded-full h-10 w-10 p-0">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <PageHeader
+          title="Member Onboarding"
+          subtitle="Register new member and activate membership"
+        />
       </div>
 
       <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl overflow-hidden">

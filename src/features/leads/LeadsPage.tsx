@@ -4,9 +4,7 @@ import { leadsApi, followUpsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { useNavigate } from "react-router-dom"
 import {
-    Search,
     Plus,
-    MoreVertical,
     Phone,
     Mail,
     Calendar,
@@ -15,7 +13,6 @@ import {
     X,
 
     CheckCircle2,
-    Clock,
     PhoneOff,
     Percent,
     Send,
@@ -30,14 +27,7 @@ import {
     Ban
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
     Dialog,
     DialogContent
@@ -52,17 +42,12 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { SearchBar, ActionMenu, CategoryStatsGrid, DataTable } from "@/components/common"
+import type { Column } from "@/components/common"
+import { exportToCSV } from "@/lib/utils"
 
 const GYM_SERVICES = [
     "General", "Massage", "Kick Boxing", "Fitness Workout",
@@ -107,10 +92,6 @@ export const LeadsPage: React.FC = () => {
     const [gender, setGender] = useState("All")
     const [followUp, setFollowUp] = useState("All")
     const [dateFilter, setDateFilter] = useState("")
-
-    // Pagination State
-    const [currentPage] = useState(1)
-    const [rowsPerPage] = useState(10)
 
     // Selection state for batch actions
     const [selectedLeads, setSelectedLeads] = useState<string[]>([])
@@ -230,11 +211,6 @@ export const LeadsPage: React.FC = () => {
         }))
     }
 
-
-
-
-
-
     const filteredLeads = leads?.filter(lead => {
         const matchesSearch = (lead.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
             (lead.phone || "").includes(searchQuery)
@@ -244,16 +220,10 @@ export const LeadsPage: React.FC = () => {
         return matchesSearch && matchesType && matchesGender
     }) || []
 
-    // Pagination Logic
-    const paginatedLeads = filteredLeads.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-
-
-
-
     const priorityColors: any = {
-        hot: "bg-red-600 text-white hover:bg-red-700 h-6 px-2 rounded-lg text-[10px] font-black",
-        warm: "bg-orange-500 text-white hover:bg-orange-600 h-6 px-2 rounded-lg text-[10px] font-black",
-        cold: "bg-blue-500 text-white hover:bg-blue-600 h-6 px-2 rounded-lg text-[10px] font-black"
+        hot: "bg-red-600 text-white hover:bg-red-700 h-6 px-2 rounded-lg text-[10px] font-bold",
+        warm: "bg-orange-500 text-white hover:bg-orange-600 h-6 px-2 rounded-lg text-[10px] font-bold",
+        cold: "bg-blue-500 text-white hover:bg-blue-600 h-6 px-2 rounded-lg text-[10px] font-bold"
     }
 
     const trialBadgeStyles = (booked: boolean) => booked
@@ -267,6 +237,135 @@ export const LeadsPage: React.FC = () => {
     const contactedCount = leads?.filter(l => l.status === 'contacted').length || 0
     const notConnectedCount = leads?.filter(l => l.status === 'new').length || 0 // Assuming 'new' is not yet connected
 
+    const statCategories = [
+        { label: 'Open Enquiry', count: openEnquiries, icon: <Users className="h-6 w-6" /> },
+        { label: 'Close Enquiry', count: closedEnquiries, icon: <CheckCircle2 className="h-6 w-6" /> },
+        { label: 'Not Interested', count: notInterested, icon: <X className="h-6 w-6" /> },
+        { label: 'Call Done', count: contactedCount, icon: <Phone className="h-6 w-6" /> },
+        { label: 'Call Not Connected', count: notConnectedCount, icon: <PhoneOff className="h-6 w-6" /> },
+    ]
+
+    const exportSelected = () => {
+        const csvData = selectedLeads.map(id => {
+            const lead = filteredLeads.find((l: Lead) => l.id === id)
+            return {
+                "Name": lead?.fullName || "",
+                "Phone": lead?.phone || "",
+                "Email": lead?.email || "",
+                "Status": lead?.status || "",
+                "Source": lead?.source || ""
+            }
+        })
+        exportToCSV(csvData, "selected-leads")
+    }
+
+    const exportAll = () => {
+        if (!filteredLeads || filteredLeads.length === 0) return
+        const csvData = filteredLeads.map((lead: Lead) => ({
+            "Name": lead.fullName || "",
+            "Phone": lead.phone || "",
+            "Email": lead.email || "",
+            "Status": lead.status || "",
+            "Source": lead.source || "",
+            "Notes": (lead.notes || "").replace(/"/g, '""'),
+            "Date": lead.createdAt ? formatDate(lead.createdAt) : ""
+        }))
+        exportToCSV(csvData, `leads-${new Date().toISOString().split("T")[0]}`)
+    }
+
+    const columns: Column<Lead>[] = [
+        {
+            key: "select",
+            label: "",
+            render: (lead) => (
+                <Checkbox
+                    checked={selectedLeads.includes(lead.id)}
+                    onCheckedChange={(checked) => {
+                        if (checked) setSelectedLeads([...selectedLeads, lead.id])
+                        else setSelectedLeads(selectedLeads.filter(id => id !== lead.id))
+                    }}
+                />
+            ),
+            className: "w-12 text-center",
+            headClassName: "w-12 text-center",
+        },
+        {
+            key: "enquiryNo",
+            label: "Enquiry No.",
+            render: (lead) => <span className="font-mono text-sm text-slate-500">{lead.id.split('-')[0].toUpperCase()}</span>,
+        },
+        {
+            key: "enquiryDate",
+            label: "Enquiry Date",
+            render: (lead) => <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{formatDate(lead.createdAt)}</span>,
+        },
+        {
+            key: "nameMobile",
+            label: "Name & Mob. No.",
+            render: (lead) => (
+                <div className="flex flex-col">
+                    <span className="font-bold text-slate-800 dark:text-white uppercase tracking-tight">{lead.fullName}</span>
+                    <span className="text-xs text-slate-500 font-medium">+91 {lead.phone}</span>
+                </div>
+            ),
+        },
+        {
+            key: "trialBooked",
+            label: "Trial Booked",
+            render: (lead) => (
+                <Badge className={trialBadgeStyles(lead.status === 'trial')}>
+                    {lead.status === 'trial' ? "Yes" : "No"}
+                </Badge>
+            ),
+            className: "text-center",
+            headClassName: "text-center",
+        },
+        {
+            key: "handleBy",
+            label: "Handle by",
+            render: (lead) => <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{lead.source === 'walk-in' ? 'Admin' : 'Online'}</span>,
+        },
+        {
+            key: "leadType",
+            label: "Lead Type",
+            render: (lead) => (
+                <Badge className={priorityColors[lead.priority || 'warm']}>
+                    {(lead.priority || 'warm').toUpperCase()}
+                </Badge>
+            ),
+            className: "text-center",
+            headClassName: "text-center",
+        },
+        {
+            key: "remark",
+            label: "Remark/Summary",
+            render: (lead) => <span className="text-xs text-slate-400 max-w-[200px] truncate">{lead.notes || "—"}</span>,
+        },
+        {
+            key: "createdBy",
+            label: "Created By",
+            render: (lead) => <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{lead.source === 'walk-in' ? 'Admin' : 'Online'}</span>,
+        },
+        {
+            key: "action",
+            label: "",
+            render: (lead) => (
+                <ActionMenu
+                    options={[
+                        { label: "Sale Enquiry", icon: <Smartphone className="h-4 w-4 mr-3 text-emerald-500" />, onClick: () => navigate('/members/add', { state: { prefill: lead } }) },
+                        { label: "Edit Enquiry", icon: <UserPlus className="h-4 w-4 mr-3 text-blue-500" />, onClick: () => { setSelectedLead(lead); setIsAddOpen(true); } },
+                        { label: "Not Interested", icon: <Ban className="h-4 w-4 mr-3 text-red-500" />, onClick: () => saveLeadMutation.mutate({ ...lead, status: 'lost' }) },
+                        { label: "Call Done", icon: <Phone className="h-4 w-4 mr-3 text-orange-500" />, onClick: () => saveLeadMutation.mutate({ ...lead, status: 'contacted' }) },
+                        { label: "Call Not Connected", icon: <PhoneOff className="h-4 w-4 mr-3 text-slate-400" />, onClick: () => saveLeadMutation.mutate({ ...lead, status: 'new' }) },
+                        { label: "Schedule Follow Up", icon: <RotateCcw className="h-4 w-4 mr-3" />, onClick: () => { setSelectedLead(lead); setFormData({ ...formData, addFollowUp: true }); setIsAddOpen(true); } },
+                    ]}
+                />
+            ),
+            headClassName: "text-right",
+            className: "text-right",
+        },
+    ]
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header Section */}
@@ -276,89 +375,17 @@ export const LeadsPage: React.FC = () => {
                 </div>
                 <Button
                     onClick={() => navigate("/enquiries/new")}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-6 rounded-xl font-bold h-11 shadow-lg shadow-orange-500/20"
+                    variant="brand"
+                    className="px-6 rounded-xl font-bold h-10 shadow-sm shadow-orange-500/20"
                 >
                     <Plus className="mr-2 h-5 w-5" /> Add Enquiry
                 </Button>
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <Card className="bg-blue-600 border-none text-white shadow-xl shadow-blue-500/20 rounded-2xl relative overflow-hidden group transition-all hover:scale-[1.02]">
-                    <div className="absolute right-[-10%] top-[-10%] opacity-10 group-hover:scale-110 transition-transform">
-                        <Users className="h-24 w-24" />
-                    </div>
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-white/20 rounded-xl">
-                                <Users className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black">{openEnquiries}</p>
-                                <p className="text-xs font-bold uppercase tracking-wider opacity-90">Open Enquiry</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+            <CategoryStatsGrid items={statCategories} />
 
-                <Card className="bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm rounded-2xl group hover:shadow-md transition-all">
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-4 text-emerald-500 group-hover:text-emerald-600 transition-colors">
-                            <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
-                                <CheckCircle2 className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black text-slate-700 dark:text-white">{closedEnquiries}</p>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Close Enquiry</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm rounded-2xl group hover:shadow-md transition-all">
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-4 text-rose-500 group-hover:text-rose-600 transition-colors">
-                            <div className="p-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl">
-                                <X className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black text-slate-700 dark:text-white">{notInterested}</p>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Not Interested</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm rounded-2xl group hover:shadow-md transition-all">
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-4 text-orange-500 group-hover:text-orange-600 transition-colors">
-                            <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
-                                <Phone className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black text-slate-700 dark:text-white">{contactedCount}</p>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Call Done</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm rounded-2xl group hover:shadow-md transition-all">
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-4 text-slate-500 group-hover:text-slate-700 transition-colors">
-                            <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                                <PhoneOff className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black text-slate-700 dark:text-white">{notConnectedCount}</p>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Call Not Connected</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <Card className="w-fit bg-white dark:bg-slate-900 border-none shadow-sm rounded-2xl">
+            <Card className="w-fit bg-white dark:bg-slate-900 border-none shadow-sm rounded-xl">
                 <CardContent className="p-4 flex items-center gap-4">
                     <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
                         <Percent className="h-4 w-4 text-slate-500" />
@@ -371,7 +398,7 @@ export const LeadsPage: React.FC = () => {
             <div className="space-y-4 pt-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                     <Select value={handleBy} onValueChange={setHandleBy}>
-                        <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800 h-11 font-medium bg-white dark:bg-slate-900">
+                        <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800 h-10 font-medium bg-white dark:bg-slate-900">
                             <SelectValue placeholder="Handle by" />
                         </SelectTrigger>
                         <SelectContent>
@@ -381,7 +408,7 @@ export const LeadsPage: React.FC = () => {
                     </Select>
 
                     <Select value={leadType} onValueChange={setLeadType}>
-                        <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800 h-11 font-medium bg-white dark:bg-slate-900">
+                        <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800 h-10 font-medium bg-white dark:bg-slate-900">
                             <SelectValue placeholder="Lead Type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -393,7 +420,7 @@ export const LeadsPage: React.FC = () => {
                     </Select>
 
                     <Select value={trialBooked} onValueChange={setTrialBooked}>
-                        <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800 h-11 font-medium bg-white dark:bg-slate-900">
+                        <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800 h-10 font-medium bg-white dark:bg-slate-900">
                             <SelectValue placeholder="Trial Booked" />
                         </SelectTrigger>
                         <SelectContent>
@@ -404,7 +431,7 @@ export const LeadsPage: React.FC = () => {
                     </Select>
 
                     <Select value={gender} onValueChange={setGender}>
-                        <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800 h-11 font-medium bg-white dark:bg-slate-900">
+                        <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800 h-10 font-medium bg-white dark:bg-slate-900">
                             <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
                         <SelectContent>
@@ -415,7 +442,7 @@ export const LeadsPage: React.FC = () => {
                     </Select>
 
                     <Select value={followUp} onValueChange={setFollowUp}>
-                        <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800 h-11 font-medium bg-white dark:bg-slate-900">
+                        <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800 h-10 font-medium bg-white dark:bg-slate-900">
                             <SelectValue placeholder="Follow up" />
                         </SelectTrigger>
                         <SelectContent>
@@ -437,8 +464,8 @@ export const LeadsPage: React.FC = () => {
                             onChange={(e) => setDateFilter(e.target.value)}
                         />
                     </div>
-                    <Button className="bg-orange-500 hover:bg-orange-600 rounded-xl px-8 font-bold h-11">Apply</Button>
-                    <Button variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50 rounded-xl px-8 font-bold h-11" onClick={() => {
+                    <Button variant="brand" className="rounded-xl px-5 font-bold h-10" onClick={() => {}}>Apply</Button>
+                    <Button variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50 rounded-xl px-5 font-bold h-10" onClick={() => {
                         setHandleBy("All"); setLeadType("All"); setTrialBooked("All"); setGender("All"); setFollowUp("All"); setDateFilter("");
                     }}>Clear</Button>
                 </div>
@@ -446,162 +473,45 @@ export const LeadsPage: React.FC = () => {
 
     {/* Action Bar */ }
     <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t dark:border-slate-800">
-        <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-12 rounded-xl bg-slate-100/50 dark:bg-slate-900 border-none shadow-inner"
-            />
-        </div>
+        <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search" />
         <div className="flex items-center gap-2">
             {selectedLeads.length > 0 && (
-                <Button className="h-12 bg-slate-900 text-white hover:bg-black rounded-xl font-bold px-6 shadow-xl animate-in zoom-in-95">
-                    <Send className="mr-2 h-4 w-4" /> Send SMS ({selectedLeads.length})
+                <Button className="h-10 bg-slate-900 text-white hover:bg-black rounded-xl font-bold px-6 shadow-md animate-in zoom-in-95" onClick={exportSelected}>
+                    <Send className="mr-2 h-4 w-4" /> Export ({selectedLeads.length})
                 </Button>
             )}
-            <Button variant="outline" className="h-12 px-6 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold text-slate-600">
+            <Button variant="outline" className="h-10 px-6 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold text-slate-600" onClick={exportAll}>
                 <Download className="mr-2 h-5 w-5" /> Generate XLS Report
             </Button>
         </div>
     </div>
 
     {/* List View Table */ }
-    <Card className="border-slate-100 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900">
-        <Table>
-            <TableHeader className="bg-slate-50/50 dark:bg-slate-800/50">
-                <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800">
-                    <TableHead className="w-12 text-center">
-                        <Checkbox
-                            checked={selectedLeads.length === filteredLeads?.length && filteredLeads?.length > 0}
-                            onCheckedChange={(checked) => {
-                                if (checked) setSelectedLeads(filteredLeads?.map(l => l.id) || [])
-                                else setSelectedLeads([])
-                            }}
-                        />
-                    </TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Enquiry No.</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Enquiry Date</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Name & Mob. No.</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4 text-center">Trial Booked</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Handle by</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4 text-center">Lead Type</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Remark/Summary</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Created By</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4 text-right">Action</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {isLoading ? (
-                    Array(5).fill(0).map((_, i) => (
-                        <TableRow key={i} className="animate-pulse">
-                            <TableCell colSpan={9} className="h-20 bg-slate-50/30 mb-2 rounded-xl" />
-                        </TableRow>
-                    ))
-                ) : paginatedLeads.length === 0 ? (
-                    <TableRow>
-                        <TableCell colSpan={9} className="h-32 text-center text-slate-400 font-medium font-bold">
-                            No enquiries found.
-                        </TableCell>
-                    </TableRow>
-                ) : (
-                    paginatedLeads.map((lead) => (
-                        <TableRow key={lead.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors border-slate-100 dark:border-slate-800">
-                            <TableCell className="text-center">
-                                <Checkbox
-                                    checked={selectedLeads.includes(lead.id)}
-                                    onCheckedChange={(checked) => {
-                                        if (checked) setSelectedLeads([...selectedLeads, lead.id])
-                                        else setSelectedLeads(selectedLeads.filter(id => id !== lead.id))
-                                    }}
-                                />
-                            </TableCell>
-                            <TableCell className="font-mono text-sm text-slate-500 py-6 px-4">{lead.id.split('-')[0].toUpperCase()}</TableCell>
-                            <TableCell className="text-sm font-medium text-slate-600 dark:text-slate-300 py-6 px-4">
-                                {formatDate(lead.createdAt)}
-                            </TableCell>
-                            <TableCell className="py-6 px-4">
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-slate-800 dark:text-white uppercase tracking-tight">{lead.fullName}</span>
-                                    <span className="text-xs text-slate-500 font-medium">+91 {lead.phone}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-center py-6 px-4">
-                                <Badge className={trialBadgeStyles(lead.status === 'trial')}>
-                                    {lead.status === 'trial' ? "Yes" : "No"}
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm font-bold text-slate-700 dark:text-slate-300 py-6 px-4">{lead.source === 'walk-in' ? 'Admin' : 'Online'}</TableCell>
-                            <TableCell className="text-center py-6 px-4">
-                                <Badge className={priorityColors[lead.priority || 'warm']}>
-                                    {(lead.priority || 'warm').toUpperCase()}
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="text-xs text-slate-400 max-w-[200px] truncate py-6 px-4">
-                                {lead.notes || "—"}
-                            </TableCell>
-                            <TableCell className="text-sm font-bold text-slate-700 dark:text-slate-300 py-6 px-4">{lead.source === 'walk-in' ? 'Admin' : 'Online'}</TableCell>
-                            <TableCell className="text-right py-6 px-4">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-full hover:bg-slate-100">
-                                            <MoreVertical className="h-5 w-5 text-slate-400" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="rounded-2xl shadow-xl border-slate-200 dark:border-slate-800 p-2 min-w-[200px]">
-                                        <DropdownMenuItem
-                                            className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
-                                            onClick={() => navigate('/members/add', { state: { prefill: lead } })}
-                                        >
-                                            <Smartphone className="h-4 w-4 mr-3 text-emerald-500" /> Sale Enquiry
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
-                                            onClick={() => { setSelectedLead(lead); setIsAddOpen(true); }}
-                                        >
-                                            <UserPlus className="h-4 w-4 mr-3 text-blue-500" /> Edit Enquiry
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
-                                            onClick={() => saveLeadMutation.mutate({ ...lead, status: 'lost' })}
-                                        >
-                                            <Ban className="h-4 w-4 mr-3 text-red-500" /> Not Interested
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
-                                            onClick={() => saveLeadMutation.mutate({ ...lead, status: 'contacted' })}
-                                        >
-                                            <Phone className="h-4 w-4 mr-3 text-orange-500" /> Call Done
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            className="rounded-xl px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200"
-                                            onClick={() => saveLeadMutation.mutate({ ...lead, status: 'new' })}
-                                        >
-                                            <PhoneOff className="h-4 w-4 mr-3 text-slate-400" /> Call Not Connected
-                                        </DropdownMenuItem>
-                                        <div className="h-px bg-slate-100 dark:bg-slate-800 my-1 mx-2" />
-                                        <DropdownMenuItem
-                                            className="rounded-xl px-4 py-2.5 font-bold text-orange-600"
-                                            onClick={() => { setSelectedLead(lead); setFormData({ ...formData, addFollowUp: true }); setIsAddOpen(true); }}
-                                        >
-                                            <RotateCcw className="h-4 w-4 mr-3" /> Schedule Follow Up
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                        ))
-            )}
-                    </TableBody>
-                </Table>
-            </Card>
+    <div className="pt-2">
+        <div className="flex items-center gap-3 pb-2">
+            <Checkbox 
+                checked={selectedLeads.length === filteredLeads?.length && (filteredLeads?.length ?? 0) > 0}
+                onCheckedChange={(checked) => {
+                    if (checked) setSelectedLeads(filteredLeads?.map(l => l.id) || [])
+                    else setSelectedLeads([])
+                }}
+            />
+            <span className="text-xs font-bold text-slate-500">Select all</span>
+        </div>
+        <DataTable
+            columns={columns}
+            data={filteredLeads}
+            loading={isLoading}
+            searchable={false}
+            emptyMessage="No enquiries found."
+        />
+    </div>
 
             {/* Bottom Sticky Action Bar */}
-            <div className="sticky bottom-6 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-2xl flex items-center justify-between z-30">
+            <div className="sticky bottom-6 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-2xl flex items-center justify-between z-30">
                 <div className="flex items-center gap-4">
                     <Select>
-                        <SelectTrigger className="w-48 rounded-xl border-slate-200 dark:border-slate-800 h-11 bg-white dark:bg-slate-900">
+                        <SelectTrigger className="w-48 rounded-xl border-slate-200 dark:border-slate-800 h-10 bg-white dark:bg-slate-900">
                             <SelectValue placeholder="Assign Trainer" />
                         </SelectTrigger>
                         <SelectContent>
@@ -611,7 +521,7 @@ export const LeadsPage: React.FC = () => {
                         </SelectContent>
                     </Select>
                     <Select>
-                        <SelectTrigger className="w-48 rounded-xl border-slate-200 dark:border-slate-800 h-11 bg-white dark:bg-slate-900">
+                        <SelectTrigger className="w-48 rounded-xl border-slate-200 dark:border-slate-800 h-10 bg-white dark:bg-slate-900">
                             <SelectValue placeholder="Select Option" />
                         </SelectTrigger>
                         <SelectContent>
@@ -625,18 +535,19 @@ export const LeadsPage: React.FC = () => {
                     <span className="text-sm font-bold text-slate-500">{selectedLeads.length} Selected</span>
                     <Button 
                         disabled={selectedLeads.length === 0}
-                        className="bg-slate-800 hover:bg-slate-900 text-white rounded-xl px-10 h-11 transition-all "
+                        className="bg-slate-800 hover:bg-slate-900 text-white rounded-xl px-5 h-10 transition-all "
+                        onClick={exportSelected}
                     >
-                        Submit
+                        Export Selected
                     </Button>
                 </div>
             </div>
 
             <Dialog open={isAddOpen} onOpenChange={(open) => { setIsAddOpen(open); if (!open) resetForm(); }}>
-                <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
-                    <div className="bg-slate-950 p-8 flex justify-between items-center">
+                <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-xl border-none shadow-2xl">
+                    <div className="bg-slate-950 p-6 flex justify-between items-center">
                         <div>
-                            <h2 className="text-2xl font-black text-white">Add New Enquiry</h2>
+                            <h2 className="text-2xl font-bold text-white">Add New Enquiry</h2>
                             <p className="text-slate-400 text-xs mt-1 uppercase tracking-widest font-bold">Registration & Lead Management</p>
                         </div>
                         <Button
@@ -649,21 +560,21 @@ export const LeadsPage: React.FC = () => {
                         </Button>
                     </div>
 
-                    <ScrollArea className="max-h-[85vh] p-8 bg-[#F8FAFC]">
+                    <ScrollArea className="max-h-[85vh] p-6 bg-[#F8FAFC]">
                         <form onSubmit={handleFormSubmit} className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 {/* LEFT COLUMN: Personal Info */}
                                 <div className="md:col-span-2 space-y-6">
-                                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-4">
                                         <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-50">
                                             <User className="h-4 w-4 text-orange-500" />
-                                            <span className="text-xs font-black uppercase tracking-widest text-slate-400">Personal Details</span>
+                                            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Personal Details</span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">First Name</label>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">First Name</label>
                                                 <Input
-                                                    className="rounded-xl h-11 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
+                                                    className="rounded-xl h-10 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
                                                     placeholder="Enter first name"
                                                     value={formData.firstName}
                                                     onChange={e => setFormData({ ...formData, firstName: e.target.value })}
@@ -671,9 +582,9 @@ export const LeadsPage: React.FC = () => {
                                                 />
                                             </div>
                                             <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Last Name</label>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Last Name</label>
                                                 <Input
-                                                    className="rounded-xl h-11 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
+                                                    className="rounded-xl h-10 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
                                                     placeholder="Enter last name"
                                                     value={formData.lastName}
                                                     onChange={e => setFormData({ ...formData, lastName: e.target.value })}
@@ -682,11 +593,11 @@ export const LeadsPage: React.FC = () => {
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Mobile Number</label>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mobile Number</label>
                                                 <div className="relative">
                                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                                                     <Input
-                                                        className="rounded-xl h-11 pl-10 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
+                                                        className="rounded-xl h-10 pl-10 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
                                                         placeholder="e.g. 9876543210"
                                                         value={formData.mobile}
                                                         onChange={e => setFormData({ ...formData, mobile: e.target.value })}
@@ -695,11 +606,11 @@ export const LeadsPage: React.FC = () => {
                                                 </div>
                                             </div>
                                             <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Email Address</label>
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
                                                 <div className="relative">
                                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                                                     <Input
-                                                        className="rounded-xl h-11 pl-10 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
+                                                        className="rounded-xl h-10 pl-10 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
                                                         placeholder="example@mail.com"
                                                         value={formData.email}
                                                         onChange={e => setFormData({ ...formData, email: e.target.value })}
@@ -708,7 +619,7 @@ export const LeadsPage: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Residential Address</label>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Residential Address</label>
                                             <div className="relative">
                                                 <MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
                                                 <Textarea
@@ -721,10 +632,10 @@ export const LeadsPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-4">
                                         <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-50">
                                             <Layers className="h-4 w-4 text-blue-500" />
-                                            <span className="text-xs font-black uppercase tracking-widest text-slate-400">Services & Interest</span>
+                                            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Services & Interest</span>
                                         </div>
                                         <div className="grid grid-cols-4 gap-2">
                                             {GYM_SERVICES.map(service => (
@@ -732,8 +643,8 @@ export const LeadsPage: React.FC = () => {
                                                     key={service}
                                                     type="button"
                                                     onClick={() => handleServiceToggle(service)}
-                                                    className={`py-2 px-3 rounded-xl text-[10px] font-black tracking-tight uppercase transition-all border ${formData.services.includes(service)
-                                                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                                    className={`py-2 px-3 rounded-xl text-[10px] font-bold tracking-tight uppercase transition-all border ${formData.services.includes(service)
+                                                            ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-500/20'
                                                             : 'bg-slate-50/50 border-transparent text-slate-500 hover:border-slate-200'
                                                         }`}
                                                 >
@@ -742,7 +653,7 @@ export const LeadsPage: React.FC = () => {
                                             ))}
                                         </div>
                                         <div className="space-y-1.5 pt-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Enquiry Summary</label>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Enquiry Summary</label>
                                             <Textarea
                                                 className="rounded-xl bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium min-h-[100px]"
                                                 placeholder="Add details about the conversation..."
@@ -755,9 +666,9 @@ export const LeadsPage: React.FC = () => {
 
                                 {/* RIGHT COLUMN: Status & Logic */}
                                 <div className="space-y-6">
-                                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-4">
                                         <div className="space-y-3 pb-4 border-b border-slate-50">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                 <Target className="h-3.5 w-3.5 text-rose-500" /> Lead Priority
                                             </label>
                                             <div className="grid grid-cols-3 gap-2">
@@ -766,7 +677,7 @@ export const LeadsPage: React.FC = () => {
                                                         key={type}
                                                         type="button"
                                                         onClick={() => setFormData({ ...formData, leadType: type as any })}
-                                                        className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${formData.leadType === type
+                                                        className={`py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${formData.leadType === type
                                                                 ? type === 'hot' ? 'bg-rose-600 border-rose-600 text-white' : type === 'warm' ? 'bg-orange-500 border-orange-500 text-white' : 'bg-blue-500 border-blue-500 text-white'
                                                                 : 'bg-slate-50 border-transparent text-slate-400'
                                                             }`}
@@ -778,7 +689,7 @@ export const LeadsPage: React.FC = () => {
                                         </div>
 
                                         <div className="space-y-3 pb-4 border-b border-slate-50">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                 <User className="h-3.5 w-3.5 text-blue-500" /> Gender
                                             </label>
                                             <div className="flex gap-2">
@@ -787,7 +698,7 @@ export const LeadsPage: React.FC = () => {
                                                         key={g}
                                                         type="button"
                                                         onClick={() => setFormData({ ...formData, gender: g })}
-                                                        className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${formData.gender === g ? 'bg-slate-900 text-white' : 'bg-slate-50 border-transparent text-slate-400'
+                                                        className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${formData.gender === g ? 'bg-slate-900 text-white' : 'bg-slate-50 border-transparent text-slate-400'
                                                             }`}
                                                     >
                                                         {g}
@@ -797,64 +708,35 @@ export const LeadsPage: React.FC = () => {
                                         </div>
 
                                         <div className="space-y-3">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                 <DollarSign className="h-3.5 w-3.5 text-emerald-500" /> Estimated Budget
                                             </label>
                                             <div className="relative">
                                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                                                 <Input
                                                     type="number"
-                                                    className="rounded-xl pl-8 h-11 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-black"
-                                                    placeholder="0.00"
+                                                    className="pl-10 rounded-xl h-10 bg-slate-50/50 border-none focus-visible:ring-2 focus-visible:ring-orange-500/20 font-medium"
+                                                    placeholder="0"
                                                     value={formData.budget}
                                                     onChange={e => setFormData({ ...formData, budget: e.target.value })}
                                                 />
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
-                                        <div
-                                            className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all border ${formData.bookTrial ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-50/50 border-transparent'
-                                                }`}
-                                            onClick={() => setFormData({ ...formData, bookTrial: !formData.bookTrial })}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-xl ${formData.bookTrial ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                                                    <Calendar className="h-4 w-4" />
-                                                </div>
-                                                <span className="text-xs font-black uppercase tracking-widest text-slate-800">Book Trial</span>
-                                            </div>
-                                            {formData.bookTrial && <CheckCircle2 className="h-5 w-5 text-amber-500" />}
-                                        </div>
-
-                                        <div
-                                            className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all border ${formData.addFollowUp ? 'bg-orange-50/50 border-orange-200' : 'bg-slate-50/50 border-transparent'
-                                                }`}
-                                            onClick={() => setFormData({ ...formData, addFollowUp: !formData.addFollowUp })}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-xl ${formData.addFollowUp ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                                                    <Clock className="h-4 w-4" />
-                                                </div>
-                                                <span className="text-xs font-black uppercase tracking-widest text-slate-800">Follow-Up</span>
-                                            </div>
-                                            {formData.addFollowUp && <CheckCircle2 className="h-5 w-5 text-orange-500" />}
-                                        </div>
-
-                                        <Button
-                                            className="w-full h-14 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-orange-500/20 mt-4"
-                                            disabled={saveLeadMutation.isPending}
-                                        >
-                                            {saveLeadMutation.isPending ? "Processing..." : "Save Enquiry"}
-                                        </Button>
-                                    </div>
                                 </div>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                                <Button type="button" variant="outline" onClick={() => { setIsAddOpen(false); resetForm(); }} className="rounded-xl h-11 px-6 border-slate-200 font-bold">
+                                    Cancel
+                                </Button>
+                                <Button type="submit" variant="brand" className="rounded-xl h-11 px-8 font-bold" disabled={saveLeadMutation.isPending}>
+                                    {saveLeadMutation.isPending ? "Saving..." : selectedLead ? "Update Enquiry" : "Save Enquiry"}
+                                </Button>
                             </div>
                         </form>
                     </ScrollArea>
                 </DialogContent>
             </Dialog>
         </div>
-        )
+    )
 }

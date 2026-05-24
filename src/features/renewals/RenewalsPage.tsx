@@ -5,22 +5,11 @@ import { useAuth } from "@/features/auth/AuthContext"
 import { formatDate } from "@/lib/utils"
 import {
     RefreshCw,
-    Search,
     MessageCircle,
     Phone,
     AlertCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/components/ui/use-toast"
@@ -40,16 +29,14 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { DataTable, SearchBar } from "@/components/common"
+import type { Column } from "@/components/common"
 
 export const RenewalsPage: React.FC = () => {
     const { user } = useAuth()
     const { toast } = useToast()
     const queryClient = useQueryClient()
     const [searchQuery, setSearchQuery] = useState("")
-
-    // Pagination State
-    const [currentPage, setCurrentPage] = useState(1)
-    const [rowsPerPage, setRowsPerPage] = useState(10)
 
     const [isRenewOpen, setIsRenewOpen] = useState(false)
     const [selectedMember, setSelectedMember] = useState<any>(null)
@@ -111,13 +98,6 @@ export const RenewalsPage: React.FC = () => {
         (member.phone && member.phone.includes(searchQuery))
     ) || []
 
-    // Pagination Logic
-    const totalEntries = filteredMembers.length
-    const totalPages = Math.ceil(totalEntries / rowsPerPage)
-    const paginatedMembers = filteredMembers.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-    const showingFrom = totalEntries === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1
-    const showingTo = Math.min(currentPage * rowsPerPage, totalEntries)
-
     const getDaysRemaining = (dateString: string | null) => {
         if (!dateString) return -999;
         const expiry = new Date(dateString);
@@ -126,6 +106,110 @@ export const RenewalsPage: React.FC = () => {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays;
     }
+
+    const handleWhatsApp = (member: any, isExpired: boolean, daysLeft: number) => {
+        const actualExpiry = member.planExpiresAt || member.plan_expires_at;
+        const dateStr = actualExpiry ? formatDate(actualExpiry) : 'Unknown Date';
+        const memberName = member.fullName || member.full_name || "Member";
+        const text = isExpired
+            ? `Hi ${memberName}, your gym membership expired on ${dateStr}. Please renew to continue your workouts!`
+            : `Hi ${memberName}, your gym membership is expiring in ${daysLeft} days. Renew now to avoid interruption!`;
+        window.open(`https://wa.me/${member.phone?.replace(/\D/g, '') || ''}?text=${encodeURIComponent(text)}`, '_blank')
+    }
+
+    const columns: Column<any>[] = [
+        {
+            key: "status",
+            label: "Status",
+            render: (member) => {
+                const expiryDate = member.planExpiresAt || member.plan_expires_at
+                const daysLeft = getDaysRemaining(expiryDate);
+                const isExpired = daysLeft < 0;
+                return isExpired ? (
+                    <Badge variant="destructive" className="flex w-fit items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> Expired
+                    </Badge>
+                ) : (
+                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 flex w-fit items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> Expiring
+                    </Badge>
+                );
+            },
+        },
+        {
+            key: "member",
+            label: "Member",
+            render: (member) => (
+                <div>
+                    <div className="font-medium">{member.fullName || member.full_name}</div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3 w-3" /> {member.phone}
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: "plan",
+            label: "Plan",
+            render: (member) => {
+                const plan = memberships?.find((m: any) => m.id === (member.currentPlanId || member.current_plan_id))
+                const planName = plan ? plan.name : "Unknown Plan"
+                return <span>{planName}</span>;
+            },
+        },
+        {
+            key: "expiresOn",
+            label: "Expires On",
+            render: (member) => {
+                const expiryDate = member.planExpiresAt || member.plan_expires_at
+                return <span>{expiryDate ? formatDate(expiryDate) : 'N/A'}</span>;
+            },
+        },
+        {
+            key: "daysLeft",
+            label: "Days Left",
+            render: (member) => {
+                const expiryDate = member.planExpiresAt || member.plan_expires_at
+                const daysLeft = getDaysRemaining(expiryDate);
+                const isExpired = daysLeft < 0;
+                return (
+                    <span className={isExpired ? "text-red-600 font-bold" : "text-yellow-600 font-bold"}>
+                        {isExpired ? `${Math.abs(daysLeft)} days ago` : `${daysLeft} days`}
+                    </span>
+                );
+            },
+        },
+        {
+            key: "actions",
+            label: "Actions",
+            render: (member) => {
+                const expiryDate = member.planExpiresAt || member.plan_expires_at
+                const daysLeft = getDaysRemaining(expiryDate);
+                const isExpired = daysLeft < 0;
+                return (
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleWhatsApp(member, isExpired, daysLeft)}
+                        >
+                            <MessageCircle className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button size="sm" onClick={() => {
+                            setSelectedMember(member)
+                            setSelectedPlanId(member.currentPlanId || member.current_plan_id || "")
+                            setIsRenewOpen(true)
+                        }}>
+                            <RefreshCw className="mr-2 h-3 w-3" /> Renew
+                        </Button>
+                    </div>
+                );
+            },
+            headClassName: "text-right",
+            className: "text-right",
+        },
+    ]
 
     return (
         <div className="space-y-6">
@@ -139,175 +223,20 @@ export const RenewalsPage: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-4">
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search members..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                    />
+                <div className="flex-1 max-w-sm">
+                    <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search members..." />
                 </div>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Expiring Members List</CardTitle>
-                    <CardDescription>Prioritize calls to members with negative days remaining (Expired).</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Member</TableHead>
-                                <TableHead>Plan</TableHead>
-                                <TableHead>Expires On</TableHead>
-                                <TableHead>Days Left</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading ? (
-                                Array(5).fill(0).map((_, i) => (
-                                    <TableRow key={i} className="animate-pulse">
-                                        <TableCell colSpan={6} className="h-16 bg-slate-50/50 mb-2 rounded-xl" />
-                                    </TableRow>
-                                ))
-                            ) : paginatedMembers.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-32 text-center text-slate-400 font-medium">
-                                        No renewals needed in the next 30 days!
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                paginatedMembers.map((member: any) => {
-                                    const expiryDate = member.planExpiresAt || member.plan_expires_at
-                                    const daysLeft = getDaysRemaining(expiryDate);
-                                    const isExpired = daysLeft < 0;
-                                    const plan = memberships?.find((m: any) => m.id === (member.currentPlanId || member.current_plan_id))
-                                    const planName = plan ? plan.name : "Unknown Plan"
+            <DataTable
+                columns={columns}
+                data={filteredMembers}
+                loading={isLoading}
+                searchable={false}
+                title="Expiring Members List"
+                emptyMessage="No renewals needed in the next 30 days!"
+            />
 
-                                    return (
-                                        <TableRow key={member.id} className={isExpired ? "bg-red-50 dark:bg-red-950/10" : ""}>
-                                            <TableCell>
-                                                {isExpired ? (
-                                                    <Badge variant="destructive" className="flex w-fit items-center gap-1">
-                                                        <AlertCircle className="h-3 w-3" /> Expired
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 flex w-fit items-center gap-1">
-                                                        <AlertCircle className="h-3 w-3" /> Expiring
-                                                    </Badge>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="font-medium">{member.fullName || member.full_name}</div>
-                                                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                                    <Phone className="h-3 w-3" /> {member.phone}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{planName}</TableCell>
-                                            <TableCell>{expiryDate ? formatDate(expiryDate) : 'N/A'}</TableCell>
-                                            <TableCell>
-                                                <span className={isExpired ? "text-red-600 font-bold" : "text-yellow-600 font-bold"}>
-                                                    {isExpired ? `${Math.abs(daysLeft)} days ago` : `${daysLeft} days`}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-8 w-8 p-0"
-                                                        onClick={() => {
-                                                            const actualExpiry = member.planExpiresAt || member.plan_expires_at;
-                                                            const dateStr = actualExpiry ? formatDate(actualExpiry) : 'Unknown Date';
-                                                            const text = isExpired
-                                                                ? `Hi ${member.fullName}, your gym membership expired on ${dateStr}. Please renew to continue your workouts!`
-                                                                : `Hi ${member.fullName}, your gym membership is expiring in ${daysLeft} days. Renew now to avoid interruption!`;
-                                                            window.open(`https://wa.me/${member.phone?.replace(/\D/g, '') || ''}?text=${encodeURIComponent(text)}`, '_blank')
-                                                        }}
-                                                    >
-                                                        <MessageCircle className="h-4 w-4 text-green-600" />
-                                                    </Button>
-                                                    <Button size="sm" onClick={() => {
-                                                        setSelectedMember(member)
-                                                        setSelectedPlanId(member.currentPlanId || member.current_plan_id || "")
-                                                        setIsRenewOpen(true)
-                                                    }}>
-                                                        <RefreshCw className="mr-2 h-3 w-3" /> Renew
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                })
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-
-            {/* Pagination Integration */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2 py-4 text-slate-500 font-bold border-t border-slate-100 mt-4">
-                <div className="text-xs">
-                    Showing <span className="text-slate-900">{showingFrom}</span> to <span className="text-slate-900">{showingTo}</span> of <span className="text-slate-900">{totalEntries}</span> entries
-                </div>
-
-                <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                        Rows per page:
-                        <Select value={rowsPerPage.toString()} onValueChange={(v) => { setRowsPerPage(parseInt(v)); setCurrentPage(1); }}>
-                            <SelectTrigger className="h-8 w-16 rounded-lg border-slate-200 font-bold">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {[10, 25, 50, 100].map(n => (
-                                    <SelectItem key={n} value={n.toString()}>{n}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                            className="text-xs font-bold rounded-lg px-3"
-                        >
-                            Previous
-                        </Button>
-                        <div className="flex items-center">
-                            {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                                const pageNum = i + 1;
-                                return (
-                                    <Button
-                                        key={pageNum}
-                                        variant={currentPage === pageNum ? "default" : "ghost"}
-                                        size="sm"
-                                        onClick={() => setCurrentPage(pageNum)}
-                                        className={`h-8 w-8 text-xs font-bold rounded-lg ${currentPage === pageNum ? 'bg-orange-500 text-white hover:bg-orange-600' : ''}`}
-                                    >
-                                        {pageNum}
-                                    </Button>
-                                )
-                            })}
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages || totalPages === 0}
-                            className="text-xs font-bold rounded-lg px-3"
-                        >
-                            Next
-                        </Button>
-                    </div>
-                </div>
-            </div>
             <Dialog open={isRenewOpen} onOpenChange={setIsRenewOpen}>
                 <DialogContent>
                     <DialogHeader>

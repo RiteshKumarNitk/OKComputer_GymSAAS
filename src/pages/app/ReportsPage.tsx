@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { reportsApi, dashboardApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { formatDate, formatCurrency, exportToCSV } from "@/lib/utils"
 import { Download, Users, AlertTriangle, TrendingUp, UserMinus } from "lucide-react"
+import { PageHeader, DataTable } from "@/components/common"
+import type { Column } from "@/components/common"
 
 export const ReportsPage: React.FC = () => {
     const { user } = useAuth()
@@ -42,10 +42,6 @@ export const ReportsPage: React.FC = () => {
     const expiringMembers = reportData?.expiring || []
     const inactiveMembers = reportData?.inactive || []
     const newMembers = reportData?.newJoiners || []
-
-    const isLoadingExpiring = isLoading
-    const isLoadingInactive = isLoading
-    const isLoadingNew = isLoading
 
     const handleExport = () => {
         let dataToExport: any[] = []
@@ -87,14 +83,40 @@ export const ReportsPage: React.FC = () => {
         }
     }
 
+    const expiringColumns: Column<any>[] = [
+        { key: "member", label: "Member", render: (m: any) => <div><div className="font-medium">{m.fullName ?? m.fullName}</div><div className="text-xs text-muted-foreground">{m.phone}</div></div> },
+        { key: "plan", label: "Plan", render: (m: any) => <>{m.currentPlan?.name ?? m.memberships?.name}</> },
+        { key: "expiresOn", label: "Expires On", render: (m: any) => <>{formatDate(m.planExpiresAt ?? m.planExpiresAt)}</> },
+        { key: "daysLeft", label: "Days Left", render: (m: any) => { const expiryDate = m.planExpiresAt ?? m.planExpiresAt; const daysLeft = expiryDate ? Math.ceil((new Date(expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0; return <Badge variant={daysLeft < 7 ? "destructive" : "secondary"}>{daysLeft} days</Badge> } },
+        { key: "action", label: "Action", className: "text-right", render: (m: any) => <Button size="sm" variant="outline" onClick={() => navigate(`/billing?member=${m.id}&action=renew`)}>Renew</Button> },
+    ]
+
+    const inactiveColumns: Column<any>[] = [
+        { key: "member", label: "Member", render: (m: any) => <span className="font-medium">{m.fullName ?? m.fullName}</span> },
+        { key: "lastCheckin", label: "Last Check-in", render: () => <span>Inactive</span> },
+        { key: "phone", label: "Phone", render: (m: any) => <>{m.phone}</> },
+        { key: "action", label: "Action", className: "text-right", render: (m: any) => <Button size="sm" variant="outline" onClick={() => window.open(`tel:${m.phone}`)}>Contact</Button> },
+    ]
+
+    const newMemberColumns: Column<any>[] = [
+        { key: "member", label: "Member", render: (m: any) => <div><div className="font-medium">{m.fullName ?? m.fullName}</div><div className="text-xs text-muted-foreground">{m.memberCode ?? m.memberCode}</div></div> },
+        { key: "joinedDate", label: "Joined Date", render: (m: any) => <>{formatDate(m.joinedAt ?? m.joinedAt)}</> },
+        { key: "plan", label: "Plan", render: (m: any) => <>{(m.currentPlan?.name ?? m.memberships?.name) || "-"}</> },
+        { key: "amount", label: "Amount", render: (m: any) => <>{m.currentPlan?.priceCents ? formatCurrency(m.currentPlan.priceCents) : "-"}</> },
+        { key: "action", label: "Action", className: "text-right", render: (m: any) => <Button size="sm" variant="ghost" onClick={() => navigate(`/members/${m.id}`)}>View</Button> },
+    ]
+
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Member Reports</h1>
-                <Button variant="outline" onClick={handleExport}>
-                    <Download className="mr-2 h-4 w-4" /> Export Report
-                </Button>
-            </div>
+            <PageHeader
+                title="Member Reports"
+                titleClassName="text-3xl font-bold tracking-tight"
+                actions={
+                    <Button variant="outline" onClick={handleExport}>
+                        <Download className="mr-2 h-4 w-4" /> Export Report
+                    </Button>
+                }
+            />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
@@ -103,7 +125,7 @@ export const ReportsPage: React.FC = () => {
                         <AlertTriangle className="h-4 w-4 text-amber-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{isLoadingExpiring ? "-" : expiringMembers?.length}</div>
+                        <div className="text-2xl font-bold">{isLoading ? "-" : expiringMembers?.length}</div>
                         <p className="text-xs text-muted-foreground">Memberships ending this month</p>
                     </CardContent>
                 </Card>
@@ -113,7 +135,7 @@ export const ReportsPage: React.FC = () => {
                         <UserMinus className="h-4 w-4 text-red-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{isLoadingInactive ? "-" : inactiveMembers?.length}</div>
+                        <div className="text-2xl font-bold">{isLoading ? "-" : inactiveMembers?.length}</div>
                         <p className="text-xs text-muted-foreground">No visit in last 7 days</p>
                     </CardContent>
                 </Card>
@@ -123,7 +145,7 @@ export const ReportsPage: React.FC = () => {
                         <TrendingUp className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{isLoadingNew ? "-" : newMembers?.length}</div>
+                        <div className="text-2xl font-bold">{isLoading ? "-" : newMembers?.length}</div>
                         <p className="text-xs text-muted-foreground">Joined in last 30 days</p>
                     </CardContent>
                 </Card>
@@ -148,127 +170,33 @@ export const ReportsPage: React.FC = () => {
                 </TabsList>
 
                 <TabsContent value="expiring" className="space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Expiring Memberships</CardTitle>
-                            <CardDescription>Members whose plans are expiring in the next 30 days. Recommend following up for renewal.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {isLoadingExpiring ? <Skeleton className="h-40 w-full" /> : (
-                                <div className="rounded-md border">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Member</TableHead>
-                                                <TableHead>Plan</TableHead>
-                                                <TableHead>Expires On</TableHead>
-                                                <TableHead>Days Left</TableHead>
-                                                <TableHead className="text-right">Action</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {expiringMembers?.map((m: any) => {
-                                                const expiryDate = m.planExpiresAt ?? m.planExpiresAt
-                                                const daysLeft = expiryDate ? Math.ceil((new Date(expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0
-                                                return (
-                                                    <TableRow key={m.id}>
-                                                        <TableCell className="font-medium">
-                                                            <div>{m.fullName ?? m.fullName}</div>
-                                                            <div className="text-xs text-muted-foreground">{m.phone}</div>
-                                                        </TableCell>
-                                                        <TableCell>{m.currentPlan?.name ?? m.memberships?.name}</TableCell>
-                                                        <TableCell>{formatDate(expiryDate)}</TableCell>
-                                                        <TableCell><Badge variant={daysLeft < 7 ? "destructive" : "secondary"}>{daysLeft} days</Badge></TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Button size="sm" variant="outline" onClick={() => navigate(`/billing?member=${m.id}&action=renew`)}>Renew</Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )
-                                            })}
-                                            {expiringMembers?.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-4">No expiring memberships found.</TableCell></TableRow>}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                    <DataTable
+                        columns={expiringColumns}
+                        data={expiringMembers}
+                        loading={isLoading}
+                        title="Expiring Memberships"
+                        emptyMessage="No expiring memberships found."
+                    />
                 </TabsContent>
 
                 <TabsContent value="inactive" className="space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Inactive / At-Risk Members</CardTitle>
-                            <CardDescription>Active members who haven't visited in the last 7 days.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {isLoadingInactive ? <Skeleton className="h-40 w-full" /> : (
-                                <div className="rounded-md border">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Member</TableHead>
-                                                <TableHead>Last Check-in</TableHead>
-                                                <TableHead>Phone</TableHead>
-                                                <TableHead className="text-right">Action</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {inactiveMembers?.map((m: any) => (
-                                                <TableRow key={m.id}>
-                                                    <TableCell className="font-medium">{m.fullName ?? m.fullName}</TableCell>
-                                                    <TableCell>{"Inactive"}</TableCell>
-                                                    <TableCell>{m.phone}</TableCell>
-                                                    <TableCell className="text-right"><Button size="sm" variant="outline">Contact</Button></TableCell>
-                                                </TableRow>
-                                            ))}
-                                            {inactiveMembers?.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-4">No inactive members found!</TableCell></TableRow>}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                    <DataTable
+                        columns={inactiveColumns}
+                        data={inactiveMembers}
+                        loading={isLoading}
+                        title="Inactive / At-Risk Members"
+                        emptyMessage="No inactive members found!"
+                    />
                 </TabsContent>
 
                 <TabsContent value="new" className="space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>New Joiners</CardTitle>
-                            <CardDescription>Members who joined in the last 30 days.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {isLoadingNew ? <Skeleton className="h-40 w-full" /> : (
-                                <div className="rounded-md border">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Member</TableHead>
-                                                <TableHead>Joined Date</TableHead>
-                                                <TableHead>Plan</TableHead>
-                                                <TableHead>Amount</TableHead>
-                                                <TableHead className="text-right">Action</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {newMembers?.map((m: any) => (
-                                                <TableRow key={m.id}>
-                                                    <TableCell className="font-medium">
-                                                        <div>{m.fullName ?? m.fullName}</div>
-                                                        <div className="text-xs text-muted-foreground">{m.memberCode ?? m.memberCode}</div>
-                                                    </TableCell>
-                                                    <TableCell>{formatDate(m.joinedAt ?? m.joinedAt)}</TableCell>
-                                                    <TableCell>{(m.currentPlan?.name ?? m.memberships?.name) || "-"}</TableCell>
-                                                    <TableCell>{m.currentPlan?.priceCents ? formatCurrency(m.currentPlan.priceCents) : "-"}</TableCell>
-                                                    <TableCell className="text-right"><Button size="sm" variant="ghost">View</Button></TableCell>
-                                                </TableRow>
-                                            ))}
-                                            {newMembers?.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-4">No new members recently.</TableCell></TableRow>}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                    <DataTable
+                        columns={newMemberColumns}
+                        data={newMembers}
+                        loading={isLoading}
+                        title="New Joiners"
+                        emptyMessage="No new members recently."
+                    />
                 </TabsContent>
             </Tabs>
         </div>

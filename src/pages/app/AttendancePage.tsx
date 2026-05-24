@@ -3,23 +3,19 @@ import { ManualCheckin } from "@/features/attendance/ManualCheckin"
 import { AttendanceLog } from "@/features/attendance/AttendanceLog"
 import { AttendanceHistory } from "@/features/attendance/AttendanceHistory"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { QrCode, List, ArrowLeft, Calendar } from "lucide-react"
+import { QrCode, List, Calendar } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/common"
 
 export const AttendancePage: React.FC = () => {
   const navigate = useNavigate()
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/front-desk")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
-             <ArrowLeft className="h-4 w-4" /> Back to Desk
-          </Button>
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
-          <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
-        </div>
-      </div>
+      <PageHeader
+        title="Attendance"
+        titleClassName="text-3xl font-bold tracking-tight"
+        onBack={() => navigate("/front-desk")}
+      />
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Left Column: Check-in Actions */}

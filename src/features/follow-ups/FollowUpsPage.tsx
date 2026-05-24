@@ -2,21 +2,8 @@ import React, { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { followUpsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
-import {
-    Search,
-    Calendar,
-    Download,
-    MoreVertical
-} from "lucide-react"
+import { Calendar, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
     Select,
     SelectContent,
@@ -25,14 +12,10 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { SearchBar, ActionMenu, DataTable } from "@/components/common"
+import type { Column } from "@/components/common"
+import { exportToCSV } from "@/lib/utils"
 
 export const FollowUpsPage: React.FC = () => {
     const { user } = useAuth()
@@ -44,10 +27,6 @@ export const FollowUpsPage: React.FC = () => {
     const [allocate, setAllocate] = useState("All")
     const [searchQuery, setSearchQuery] = useState("")
     const [dateFilter, setDateFilter] = useState("")
-
-    // Pagination State
-    const [currentPage, setCurrentPage] = useState(1)
-    const [rowsPerPage, setRowsPerPage] = useState(10)
 
     // Fetch Follow Ups
     const { data: followUps, isLoading } = useQuery({
@@ -68,13 +47,6 @@ export const FollowUpsPage: React.FC = () => {
         const matchesType = followType === "All" || fu.type?.toLowerCase() === followType.toLowerCase()
         return matchesSearch && matchesStatus && matchesType
     }) || []
-
-    // Pagination Logic
-    const totalEntries = filteredFollowUps.length
-    const totalPages = Math.ceil(totalEntries / rowsPerPage)
-    const paginatedFollowUps = filteredFollowUps.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-    const showingFrom = totalEntries === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1
-    const showingTo = Math.min(currentPage * rowsPerPage, totalEntries)
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return "—";
@@ -103,8 +75,94 @@ export const FollowUpsPage: React.FC = () => {
     }
 
     const convertibilityStyles = (_status: string) => {
-        return "bg-rose-600 text-white hover:bg-rose-700 rounded-lg px-2 py-1 font-black text-[10px] uppercase";
+        return "bg-rose-600 text-white hover:bg-rose-700 rounded-lg px-2 py-1 font-bold text-[10px] uppercase";
     }
+
+    const exportFollowUps = () => {
+        if (!followUps || followUps.length === 0) return
+        const csvData = followUps.map((item: any) => ({
+            "Name": item.lead?.fullName || item.lead?.firstName || item.member?.fullName || "N/A",
+            "Phone": item.lead?.phone || item.member?.phone || "N/A",
+            "Type": item.type || "",
+            "Date": item.followUpDate ? new Date(item.followUpDate).toLocaleString() : "",
+            "Priority": item.priority || "warm",
+            "Notes": (item.notes || item.todo || "").replace(/"/g, '""')
+        }))
+        exportToCSV(csvData, `follow-ups-${new Date().toISOString().split("T")[0]}`)
+    }
+
+    const columns: Column<any>[] = [
+        {
+            key: "followUpDate",
+            label: "Follow Up Date & Time",
+            render: (fu) => <span className="text-sm font-bold text-slate-600">{formatDate(fu.followUpDate)}</span>,
+        },
+        {
+            key: "status",
+            label: "Status",
+            render: (fu) => <Badge className={statusBadgeStyles(fu.status)}>{fu.status}</Badge>,
+            className: "text-center",
+            headClassName: "text-center",
+        },
+        {
+            key: "type",
+            label: "Follow Up Type",
+            render: (fu) => <Badge className={typeBadgeStyles(fu.type)}>{fu.type}</Badge>,
+            className: "text-center",
+            headClassName: "text-center",
+        },
+        {
+            key: "nameNumber",
+            label: "Name & Number",
+            render: (fu) => (
+                <div className="flex flex-col">
+                    <span className="font-bold text-slate-800 uppercase tracking-tight">{fu.lead?.fullName || "ARUN KUMAR"}</span>
+                    <span className="text-xs text-slate-500 font-medium">{fu.lead?.phone || "8107800370"}</span>
+                </div>
+            ),
+        },
+        {
+            key: "allocate",
+            label: "Allocate",
+            render: () => <span className="text-sm font-bold text-slate-700">sonu verma</span>,
+        },
+        {
+            key: "scheduledBy",
+            label: "Scheduled By",
+            render: () => <span className="text-sm font-bold text-slate-700">sonu verma</span>,
+        },
+        {
+            key: "scheduledBy",
+            label: "Scheduled By",
+            render: () => <span className="text-sm font-bold text-slate-700">sonu verma</span>,
+        },
+        {
+            key: "convertibility",
+            label: "Convertibility Status",
+            render: () => <Badge className={convertibilityStyles('hot')}>HOT</Badge>,
+            className: "text-center",
+            headClassName: "text-center",
+        },
+        {
+            key: "comment",
+            label: "Comment",
+            render: (fu) => <span className="text-xs text-slate-400 max-w-[150px] truncate">{fu.notes || "—"}</span>,
+        },
+        {
+            key: "action",
+            label: "",
+            render: (_fu) => (
+                <ActionMenu
+                    options={[
+                        { label: "View Details", onClick: () => {} },
+                        { label: "Complete Follow Up", onClick: () => {} }
+                    ]}
+                />
+            ),
+            headClassName: "text-right",
+            className: "text-right",
+        },
+    ]
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -113,7 +171,7 @@ export const FollowUpsPage: React.FC = () => {
             {/* Filters Row 1 */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <Select value={followType} onValueChange={setFollowType}>
-                    <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-white font-bold text-slate-500">
+                    <SelectTrigger className="rounded-xl border-slate-200 h-10 bg-white font-bold text-slate-500">
                         <SelectValue placeholder="Follow Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -124,7 +182,7 @@ export const FollowUpsPage: React.FC = () => {
                 </Select>
 
                 <Select value={convertibleType} onValueChange={setConvertibleType}>
-                    <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-white font-bold text-slate-500">
+                    <SelectTrigger className="rounded-xl border-slate-200 h-10 bg-white font-bold text-slate-500">
                         <SelectValue placeholder="Convertible Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -134,7 +192,7 @@ export const FollowUpsPage: React.FC = () => {
                 </Select>
 
                 <Select value={status} disabled>
-                    <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-white font-bold text-slate-500">
+                    <SelectTrigger className="rounded-xl border-slate-200 h-10 bg-white font-bold text-slate-500">
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -143,7 +201,7 @@ export const FollowUpsPage: React.FC = () => {
                 </Select>
 
                 <Select value={allocate} onValueChange={setAllocate}>
-                    <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-white font-bold text-slate-500">
+                    <SelectTrigger className="rounded-xl border-slate-200 h-10 bg-white font-bold text-slate-500">
                         <SelectValue placeholder="Select Allocate" />
                     </SelectTrigger>
                     <SelectContent>
@@ -158,16 +216,16 @@ export const FollowUpsPage: React.FC = () => {
                         placeholder="dd/mm/yyyy" 
                         value={dateFilter}
                         onChange={(e) => setDateFilter(e.target.value)}
-                        className="pl-10 h-11 rounded-xl border-slate-200"
+                        className="pl-10 h-10 rounded-xl border-slate-200"
                     />
                 </div>
 
-                <Button className="h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold px-8 shadow-lg shadow-orange-500/20">
+                <Button variant="brand" className="h-10 rounded-xl font-bold px-5 shadow-sm shadow-orange-500/20" onClick={() => {}}>
                     Apply
                 </Button>
             </div>
 
-            <Button variant="outline" className="bg-orange-500/10 text-orange-600 border-none hover:bg-orange-500/20 rounded-xl px-8 font-bold h-11" onClick={() => {
+            <Button variant="outline" className="bg-orange-500/10 text-orange-600 border-none hover:bg-orange-500/20 rounded-xl px-5 font-bold h-10" onClick={() => {
                 setFollowType("All"); setConvertibleType("All"); setAllocate("All"); setDateFilter("");
             }}>
                 Clear
@@ -175,161 +233,25 @@ export const FollowUpsPage: React.FC = () => {
 
             {/* Action Bar */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
-                <div className="relative w-full md:w-80">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                        placeholder="Search"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 h-12 rounded-xl bg-slate-50 border-none"
-                    />
-                </div>
-                <Button variant="outline" className="h-12 px-6 rounded-xl border-slate-200 bg-white font-bold text-slate-500" onClick={() => {}}>
+                <SearchBar 
+                    value={searchQuery} 
+                    onChange={setSearchQuery} 
+                    placeholder="Search" 
+                />
+                <Button variant="outline" className="h-10 px-6 rounded-xl border-slate-200 bg-white font-bold text-slate-500" onClick={exportFollowUps}>
                     <Download className="mr-2 h-5 w-5" /> Generate XLS Report
                 </Button>
             </div>
 
             <p className="text-xs font-bold text-slate-400">Total Follow Ups ({followUps?.length || 0})</p>
 
-            <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden bg-white">
-                <Table>
-                    <TableHeader className="bg-slate-50/50">
-                        <TableRow className="hover:bg-transparent border-slate-100">
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Follow Up Date & Time</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Status</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Follow Up Type</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Name & Number</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Allocate</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Scheduled By</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Convertibility Status</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4">Comment</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-wider text-slate-400 py-6 px-4 text-right">Action</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                             Array(5).fill(0).map((_, i) => (
-                                <TableRow key={i} className="animate-pulse">
-                                    <TableCell colSpan={9} className="h-16 bg-slate-50/30 mb-2 rounded-xl" />
-                                </TableRow>
-                             ))
-                        ) : paginatedFollowUps.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={9} className="h-32 text-center text-slate-400 font-medium">
-                                    No follow-ups found.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            paginatedFollowUps.map((fu: any) => (
-                                <TableRow key={fu.id} className="hover:bg-slate-50/80 transition-colors border-slate-100">
-                                    <TableCell className="text-sm font-bold text-slate-600 py-6 px-4">
-                                        {formatDate(fu.followUpDate)}
-                                    </TableCell>
-                                    <TableCell className="py-6 px-4 text-center">
-                                        <Badge className={statusBadgeStyles(fu.status)}>
-                                            {fu.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="py-6 px-4 text-center">
-                                        <Badge className={typeBadgeStyles(fu.type)}>
-                                            {fu.type}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="py-6 px-4">
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-slate-800 uppercase tracking-tight">{fu.lead?.fullName || "ARUN KUMAR"}</span>
-                                            <span className="text-xs text-slate-500 font-medium">{fu.lead?.phone || "8107800370"}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-sm font-bold text-slate-700 py-6 px-4">sonu verma</TableCell>
-                                    <TableCell className="text-sm font-bold text-slate-700 py-6 px-4">sonu verma</TableCell>
-                                    <TableCell className="py-6 px-4 text-center">
-                                        <Badge className={convertibilityStyles('hot')}>
-                                            HOT
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-slate-400 max-w-[150px] truncate py-6 px-4">
-                                        {fu.notes || "—"}
-                                    </TableCell>
-                                    <TableCell className="text-right py-6 px-4">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-full hover:bg-slate-100">
-                                                    <MoreVertical className="h-5 w-5 text-slate-400" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="rounded-2xl shaodw-xl border-slate-200 p-2">
-                                                <DropdownMenuItem className="rounded-xl px-4 py-2 font-bold text-slate-700">View Details</DropdownMenuItem>
-                                                <DropdownMenuItem className="rounded-xl px-4 py-2 font-bold text-emerald-600">Complete Follow Up</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </Card>
-
-            {/* Pagination Integration */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2 py-4 text-slate-500 font-bold border-t border-slate-100 mt-4">
-                <div className="text-xs">
-                    Showing <span className="text-slate-900">{showingFrom}</span> to <span className="text-slate-900">{showingTo}</span> of <span className="text-slate-900">{totalEntries}</span> entries
-                </div>
-
-                <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                        Rows per page:
-                        <Select value={rowsPerPage.toString()} onValueChange={(v) => {setRowsPerPage(parseInt(v)); setCurrentPage(1);}}>
-                            <SelectTrigger className="h-8 w-16 rounded-lg border-slate-200 font-bold">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {[10, 25, 50, 100].map(n => (
-                                    <SelectItem key={n} value={n.toString()}>{n}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                            className="text-xs font-bold rounded-lg px-3"
-                        >
-                            Previous
-                        </Button>
-                        <div className="flex items-center">
-                            {Array.from({length: Math.min(3, totalPages)}, (_, i) => {
-                                const pageNum = i + 1;
-                                return (
-                                    <Button
-                                        key={pageNum}
-                                        variant={currentPage === pageNum ? "default" : "ghost"}
-                                        size="sm"
-                                        onClick={() => setCurrentPage(pageNum)}
-                                        className={`h-8 w-8 text-xs font-bold rounded-lg ${currentPage === pageNum ? 'bg-orange-500 text-white hover:bg-orange-600' : ''}`}
-                                    >
-                                        {pageNum}
-                                    </Button>
-                                )
-                            })}
-                        </div>
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages || totalPages === 0}
-                            className="text-xs font-bold rounded-lg px-3"
-                        >
-                            Next
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            <DataTable
+                columns={columns}
+                data={filteredFollowUps}
+                loading={isLoading}
+                searchable={false}
+                emptyMessage="No follow-ups found."
+            />
         </div>
     )
 }

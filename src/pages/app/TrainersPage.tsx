@@ -5,30 +5,12 @@ import { useAuth } from "@/features/auth/AuthContext"
 import { Trainer, UserRole } from "@/types"
 import { formatCurrency } from "@/lib/utils"
 import {
-  Search,
-  Edit,
-  Trash2,
-  MoreVertical,
   Mail,
   Phone,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -40,6 +22,8 @@ import {
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageHeader, DataTable, ActionMenu, ConfirmDialog } from "@/components/common"
+import type { Column } from "@/components/common"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -49,9 +33,6 @@ export const TrainersPage: React.FC = () => {
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null)
   const [trainerToDelete, setTrainerToDelete] = useState<Trainer | null>(null)
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1)
-  const [rowsPerPage, setRowsPerPage] = useState(10)
   const { user, hasRole } = useAuth()
   const { toast } = useToast()
   const queryClient = useQueryClient()
@@ -59,31 +40,88 @@ export const TrainersPage: React.FC = () => {
 
   // Fetch Trainers
   const { data: trainers, isLoading } = useQuery({
-    queryKey: ["trainers", searchQuery],
+    queryKey: ["trainers", user?.tenantId],
     queryFn: async () => {
        const response = await trainersApi.list(user?.tenantId || "")
        if (response.error) throw response.error
-       const list = (response.data || []) as Trainer[]
-       if (searchQuery) {
-         const q = searchQuery.toLowerCase()
-         return list.filter((t: any) => 
-            (t.fullName ?? t.fullName ?? "").toLowerCase().includes(q) || 
-            (t.email ?? "").toLowerCase().includes(q) ||
-            (t.phone ?? "").toLowerCase().includes(q)
-         )
-       }
-       return list
+       return (response.data || []) as Trainer[]
     },
     enabled: !!user?.tenantId,
   })
 
-  // Pagination Logic
-  const filteredTrainers = trainers || []
-  const totalEntries = filteredTrainers.length
-  const totalPages = Math.ceil(totalEntries / rowsPerPage)
-  const paginatedTrainers = filteredTrainers.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-  const showingFrom = totalEntries === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1
-  const showingTo = Math.min(currentPage * rowsPerPage, totalEntries)
+  const filteredTrainers = (trainers || []).filter(t => {
+    if (!searchQuery) return true
+    const q = searchQuery.toLowerCase()
+    return (t.fullName ?? "").toLowerCase().includes(q) ||
+      (t.email ?? "").toLowerCase().includes(q) ||
+      (t.phone ?? "").toLowerCase().includes(q)
+  })
+
+  const columns: Column<Trainer>[] = [
+    {
+      key: "name",
+      label: "Name",
+      render: (trainer) => (
+        <span className="font-medium">{trainer.fullName ?? trainer.fullName}</span>
+      ),
+    },
+    {
+      key: "contact",
+      label: "Contact",
+      render: (trainer) => (
+        <div className="flex flex-col space-y-1 text-sm">
+          <div className="flex items-center">
+            <Mail className="mr-2 h-3 w-3 text-muted-foreground" />
+            {trainer.email}
+          </div>
+          <div className="flex items-center">
+            <Phone className="mr-2 h-3 w-3 text-muted-foreground" />
+            {trainer.phone}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "specialties",
+      label: "Specialties",
+      render: (trainer) => (
+        <div className="flex flex-wrap gap-1">
+          {trainer.specialties?.map((specialty, index) => (
+            <Badge key={index} variant="secondary" className="text-xs">
+              {specialty}
+            </Badge>
+          ))}
+        </div>
+      ),
+    },
+    {
+      key: "rate",
+      label: "Hourly Rate",
+      render: (trainer) => (
+        <span>{formatCurrency(trainer.hourlyRateCents ?? trainer.hourlyRateCents ?? 0)}/hr</span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (trainer) => (
+        <Badge variant={(trainer.isActive ?? trainer.isActive) ? "default" : "secondary"}>
+          {(trainer.isActive ?? trainer.isActive) ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (trainer) => canManageTrainers ? (
+        <ActionMenu
+          onEdit={() => { setSelectedTrainer(trainer); setIsDialogOpen(true); }}
+          onDelete={() => setTrainerToDelete(trainer)}
+        />
+      ) : null,
+      className: "text-right",
+    },
+  ]
 
   // Create/Update Mutation
   const saveTrainerMutation = useMutation({
@@ -147,10 +185,7 @@ export const TrainersPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Trainers</h1>
-          <Skeleton className="h-10 w-32" />
-        </div>
+        <PageHeader title="Trainers" titleClassName="text-3xl font-bold tracking-tight" />
         <Card>
           <CardContent className="p-6">
             <Skeleton className="h-96 w-full" />
@@ -162,149 +197,28 @@ export const TrainersPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Trainers</h1>
-        {canManageTrainers && (
+      <PageHeader
+        title="Trainers"
+        titleClassName="text-3xl font-bold tracking-tight"
+        actions={canManageTrainers ? (
           <Button onClick={() => { setSelectedTrainer(null); setIsDialogOpen(true); }}>
             Add Trainer
           </Button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search trainers..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Trainers List</CardTitle>
-          <CardDescription>Manage your gym trainers and their details</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Specialties</TableHead>
-                <TableHead>Hourly Rate</TableHead>
-                <TableHead>Status</TableHead>
-                {canManageTrainers && <TableHead className="text-right">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedTrainers?.map((trainer) => (
-                <TableRow key={trainer.id}>
-                  <TableCell className="font-medium">{trainer.fullName ?? trainer.fullName}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col space-y-1 text-sm">
-                      <div className="flex items-center">
-                        <Mail className="mr-2 h-3 w-3 text-muted-foreground" />
-                        {trainer.email}
-                      </div>
-                      <div className="flex items-center">
-                        <Phone className="mr-2 h-3 w-3 text-muted-foreground" />
-                        {trainer.phone}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {trainer.specialties?.map((specialty, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {specialty}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>{formatCurrency(trainer.hourlyRateCents ?? trainer.hourlyRateCents ?? 0)}/hr</TableCell>
-                  <TableCell>
-                    <Badge variant={(trainer.isActive ?? trainer.isActive) ? "default" : "secondary"}>
-                      {(trainer.isActive ?? trainer.isActive) ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  {canManageTrainers && (
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setSelectedTrainer(trainer); setIsDialogOpen(true); }}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setTrainerToDelete(trainer)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-              {paginatedTrainers?.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No trainers found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-
-          {/* Pagination Integration */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2 py-4 text-slate-500 font-bold border-t border-slate-100 mt-4">
-              <div className="text-xs">
-                  Showing <span className="text-slate-900">{showingFrom}</span> to <span className="text-slate-900">{showingTo}</span> of <span className="text-slate-900">{totalEntries}</span> entries
-              </div>
-
-              <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                      Rows:
-                      <select className="bg-transparent font-bold text-slate-900 focus:outline-none" value={rowsPerPage} onChange={(e) => {setRowsPerPage(Number(e.target.value)); setCurrentPage(1);}}>
-                          {[10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                      <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                          disabled={currentPage === 1}
-                          className="text-xs font-bold"
-                      >
-                          Prev
-                      </Button>
-                      <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                          disabled={currentPage === totalPages || totalPages === 0}
-                          className="text-xs font-bold"
-                      >
-                          Next
-                      </Button>
-                  </div>
-              </div>
-          </div>
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={filteredTrainers}
+        loading={isLoading}
+        searchable
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search trainers..."
+        title="Trainers List"
+        emptyMessage="No trainers found."
+        defaultRowsPerPage={10}
+      />
 
       {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -385,29 +299,14 @@ export const TrainersPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
-      <Dialog open={!!trainerToDelete} onOpenChange={(open) => !open && setTrainerToDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {trainerToDelete?.fullName}? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTrainerToDelete(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => trainerToDelete && deleteTrainerMutation.mutate(trainerToDelete.id)}
-              disabled={deleteTrainerMutation.isPending}
-            >
-              {deleteTrainerMutation.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!trainerToDelete}
+        onOpenChange={(open) => !open && setTrainerToDelete(null)}
+        title="Confirm Deletion"
+        description={`Are you sure you want to delete ${trainerToDelete?.fullName}? This action cannot be undone.`}
+        onConfirm={() => trainerToDelete && deleteTrainerMutation.mutate(trainerToDelete.id)}
+        loading={deleteTrainerMutation.isPending}
+      />
     </div>
   )
 }

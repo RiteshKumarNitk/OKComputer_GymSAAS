@@ -166,6 +166,22 @@ export interface Member {
   updatedAt: string
   // Optional relation for backward compatibility
   currentPlan?: Membership
+  assignedTrainer?: { id: string; fullName: string; email: string } | null
+  healthProfile?: {
+    id: string
+    weight: number | null
+    height: number | null
+    bmi: number | null
+    bloodGroup: string | null
+    fitnessGoal: string | null
+  } | null
+  fitnessStats?: {
+    id: string
+    totalCheckIns: number
+    currentStreak: number
+    longestStreak: number
+    totalWorkoutsCompleted: number
+  } | null
 }
 
 export type MemberStatus = "active" | "inactive" | "suspended" | "expired"

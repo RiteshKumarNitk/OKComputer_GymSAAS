@@ -9,6 +9,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/features/auth/AuthContext"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Settings, Globe, CreditCard } from "lucide-react"
+import { tenantsApi } from "@/api/apiClient"
+import { PageHeader } from "@/components/common"
 
 export const SettingsPage: React.FC = () => {
     const { user } = useAuth()
@@ -31,12 +33,9 @@ export const SettingsPage: React.FC = () => {
     const { data: tenant, isLoading } = useQuery({
         queryKey: ["tenant", user?.tenantId],
         queryFn: async () => {
-             const token = localStorage.getItem("gym_token")
-             const res = await fetch(`/api/tenants/${user?.tenantId}`, {
-                 headers: { "Authorization": `Bearer ${token}` }
-             })
-             if (!res.ok) throw new Error("Failed to fetch tenant settings")
-             return res.json()
+            const { data, error } = await tenantsApi.get(user!.tenantId!)
+            if (error) throw error
+            return data
         },
         enabled: !!user?.tenantId
     })
@@ -58,14 +57,9 @@ export const SettingsPage: React.FC = () => {
 
     const updateSettingsMutation = useMutation({
         mutationFn: async (updates: any) => {
-             const token = localStorage.getItem("gym_token")
-             const res = await fetch(`/api/tenants/${user?.tenantId}`, {
-                 method: "PATCH",
-                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                 body: JSON.stringify(updates)
-             })
-             if (!res.ok) throw new Error("Failed to update settings")
-             return res.json()
+            const { data, error } = await tenantsApi.update(user!.tenantId!, updates)
+            if (error) throw error
+            return data
         },
         onSuccess: () => {
              queryClient.invalidateQueries({ queryKey: ["tenant"] })
@@ -94,15 +88,16 @@ export const SettingsPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                     <h1 className="text-3xl font-bold tracking-tight">Business Settings</h1>
-                     <p className="text-muted-foreground">Manage branding, location, and payment keys securely Node.</p>
-                </div>
-                <Button onClick={handleSave} disabled={updateSettingsMutation.isPending}>
-                       {updateSettingsMutation.isPending ? "Saving..." : "Save All Changes"}
-                </Button>
-            </div>
+            <PageHeader
+                title="Business Settings"
+                subtitle="Manage branding, location, and payment keys securely Node."
+                titleClassName="text-3xl font-bold tracking-tight"
+                actions={
+                    <Button onClick={handleSave} disabled={updateSettingsMutation.isPending}>
+                        {updateSettingsMutation.isPending ? "Saving..." : "Save All Changes"}
+                    </Button>
+                }
+            />
 
             <Tabs defaultValue="branding" className="w-full">
                 <TabsList className="grid w-full max-w-md grid-cols-3">

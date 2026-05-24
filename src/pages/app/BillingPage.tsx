@@ -6,11 +6,10 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import {
   Printer,
   FileText,
-  ArrowLeft,
   TrendingDown
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -42,6 +41,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
+import { PageHeader, DataTable } from "@/components/common"
+import type { Column } from "@/components/common"
 
 
 interface Expense {
@@ -61,14 +62,7 @@ export const BillingPage: React.FC = () => {
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false)
-
-  // Pagination State (Invoices)
-  const [invoicePage, setInvoicePage] = useState(1)
-  const [invoiceRowsPerPage, setInvoiceRowsPerPage] = useState(10)
-
-  // Pagination State (Expenses)
-  const [expensePage, setExpensePage] = useState(1)
-  const [expenseRowsPerPage, setExpenseRowsPerPage] = useState(10)
+  const [expenseCategory, setExpenseCategory] = useState("other")
 
   // Fetch Expenses
   const { data: expenses } = useQuery({
@@ -83,17 +77,7 @@ export const BillingPage: React.FC = () => {
 
   // Add Expense Mutation
   const addExpenseMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const amount = parseFloat(formData.get("amount") as string) * 100 // Convert to cents
-
-      const data = {
-        title: formData.get("title") as string,
-        amount_cents: Math.round(amount),
-        category: formData.get("category") as string,
-        expense_date: formData.get("date") as string,
-        notes: formData.get("notes") as string,
-      }
-
+    mutationFn: async (data: { title: string; amount_cents: number; category: string; expense_date: string; notes: string }) => {
       const response = await expensesApi.create(data)
       if (response.error) throw response.error
     },
@@ -129,100 +113,107 @@ export const BillingPage: React.FC = () => {
     enabled: !!user?.tenantId,
   })
 
-  // Invoices Pagination Logic
-  const filteredInvoices = invoices || []
-  const totalInvoices = filteredInvoices.length
-  const invoiceTotalPages = Math.ceil(totalInvoices / invoiceRowsPerPage)
-  const paginatedInvoices = filteredInvoices.slice((invoicePage - 1) * invoiceRowsPerPage, invoicePage * invoiceRowsPerPage)
-  const invoiceShowingFrom = totalInvoices === 0 ? 0 : (invoicePage - 1) * invoiceRowsPerPage + 1
-  const invoiceShowingTo = Math.min(invoicePage * invoiceRowsPerPage, totalInvoices)
-
-  // Expenses Pagination Logic
-  const filteredExpenses = expenses || []
-  const totalExpensesCount = filteredExpenses.length
-  const expenseTotalPages = Math.ceil(totalExpensesCount / expenseRowsPerPage)
-  const paginatedExpensesList = filteredExpenses.slice((expensePage - 1) * expenseRowsPerPage, expensePage * expenseRowsPerPage)
-  const expenseShowingFrom = totalExpensesCount === 0 ? 0 : (expensePage - 1) * expenseRowsPerPage + 1
-  const expenseShowingTo = Math.min(expensePage * expenseRowsPerPage, totalExpensesCount)
-
   const handleAddExpense = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    addExpenseMutation.mutate(formData)
+    const fd = new FormData(e.currentTarget)
+    const amount = parseFloat(fd.get("amount") as string) * 100
+    addExpenseMutation.mutate({
+      title: fd.get("title") as string,
+      amount_cents: Math.round(amount),
+      category: expenseCategory,
+      expense_date: fd.get("date") as string,
+      notes: (fd.get("notes") as string) || "",
+    })
   }
 
   const handlePrintInvoice = () => {
     window.print()
   }
 
+  const invoiceColumns: Column<any>[] = [
+    { key: "invoiceId", label: "Invoice ID", render: (inv: any) => <span className="font-mono text-xs">{inv.id.split('-')[0].toUpperCase()}</span> },
+    { key: "member", label: "Member", render: (inv: any) => <span className="font-medium">{inv.member?.fullName || "Unassigned"}</span> },
+    { key: "date", label: "Date", render: (inv: any) => <>{formatDate(inv.paidAt || inv.createdAt)}</> },
+    { key: "amount", label: "Amount", render: (inv: any) => <>{formatCurrency(inv.amount_cents)}</> },
+    { key: "status", label: "Status", render: (inv: any) => <Badge variant={inv.status === 'paid' ? 'default' : 'secondary'}>{inv.status?.toUpperCase()}</Badge> },
+    { key: "action", label: "Action", className: "text-right", render: (inv: any) => (
+      <Button variant="ghost" size="sm" onClick={() => { setSelectedInvoice(inv); setIsInvoiceOpen(true); }}>
+        <FileText className="h-4 w-4 mr-2" /> View
+      </Button>
+    )},
+  ]
 
+  const expenseColumns: Column<Expense>[] = [
+    { key: "date", label: "Date", render: (expense) => <>{formatDate(expense.expense_date)}</> },
+    { key: "title", label: "Title", render: (expense) => <span className="font-medium">{expense.title}</span> },
+    { key: "category", label: "Category", render: (expense) => <span className="capitalize">{expense.category}</span> },
+    { key: "amount", label: "Amount", className: "text-right font-medium text-red-600", render: (expense) => <>{formatCurrency(expense.amount_cents)}</> },
+  ]
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/front-desk")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
-             <ArrowLeft className="h-4 w-4" /> Back to Desk
-          </Button>
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
-          <h1 className="text-3xl font-bold tracking-tight">Billing & Finance</h1>
-        </div>
-        <Dialog open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
-          <DialogTrigger asChild>
-            <Button variant="destructive">
-              <TrendingDown className="mr-2 h-4 w-4" /> Record Expense
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Record New Expense</DialogTitle>
-              <DialogDescription>Track operational costs like rent, salary, etc.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddExpense} className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="title">Expense Title</Label>
-                <Input id="title" name="title" placeholder="e.g., Monthly Rent" required />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+      <PageHeader
+        title="Billing & Finance"
+        titleClassName="text-3xl font-bold tracking-tight"
+        onBack={() => navigate("/front-desk")}
+        actions={
+          <Dialog open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive">
+                <TrendingDown className="mr-2 h-4 w-4" /> Record Expense
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Record New Expense</DialogTitle>
+                <DialogDescription>Track operational costs like rent, salary, etc.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddExpense} className="space-y-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input id="amount" name="amount" type="number" step="0.01" placeholder="0.00" required />
+                  <Label htmlFor="title">Expense Title</Label>
+                  <Input id="title" name="title" placeholder="e.g., Monthly Rent" required />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="amount">Amount</Label>
+                    <Input id="amount" name="amount" type="number" step="0.01" placeholder="0.00" required />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="rent">Rent</SelectItem>
+                        <SelectItem value="utilities">Utilities (Electric/Water)</SelectItem>
+                        <SelectItem value="salary">Staff Salary</SelectItem>
+                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="equipment">New Equipment</SelectItem>
+                        <SelectItem value="marketing">Marketing</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select name="category" defaultValue="other">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="rent">Rent</SelectItem>
-                      <SelectItem value="utilities">Utilities (Electric/Water)</SelectItem>
-                      <SelectItem value="salary">Staff Salary</SelectItem>
-                      <SelectItem value="maintenance">Maintenance</SelectItem>
-                      <SelectItem value="equipment">New Equipment</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="date">Date</Label>
+                  <Input id="date" name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="date">Date</Label>
-                <Input id="date" name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Textarea id="notes" name="notes" />
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={addExpenseMutation.isPending}>
-                  {addExpenseMutation.isPending ? "Saving..." : "Save Expense"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="notes">Notes (Optional)</Label>
+                  <Textarea id="notes" name="notes" />
+                </div>
+                <DialogFooter>
+                  <Button type="submit" disabled={addExpenseMutation.isPending}>
+                    {addExpenseMutation.isPending ? "Saving..." : "Save Expense"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       <Tabs defaultValue="transactions" className="space-y-4">
         <TabsList>
@@ -282,172 +273,22 @@ export const BillingPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="invoices" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Member Billing History</CardTitle>
-              <CardDescription>View and generate invoices for members.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice ID</TableHead>
-                    <TableHead>Member</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isInvoicesLoading ? (
-                    Array(5).fill(0).map((_, i) => (
-                      <TableRow key={i} className="animate-pulse">
-                        <TableCell colSpan={6} className="h-12 bg-slate-50" />
-                      </TableRow>
-                    ))
-                  ) : paginatedInvoices.map((inv: any) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="font-mono text-xs">{inv.id.split('-')[0].toUpperCase()}</TableCell>
-                      <TableCell className="font-medium">{inv.member?.fullName || "Unassigned"}</TableCell>
-                      <TableCell>{formatDate(inv.paidAt || inv.createdAt)}</TableCell>
-                      <TableCell>{formatCurrency(inv.amount_cents)}</TableCell>
-                      <TableCell>
-                        <Badge variant={inv.status === 'paid' ? 'default' : 'secondary'}>
-                          {inv.status?.toUpperCase()}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => { setSelectedInvoice(inv); setIsInvoiceOpen(true); }}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {!isInvoicesLoading && invoices?.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        No invoices found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-
-              {/* Invoices Pagination */}
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2 py-4 text-slate-500 font-bold border-t border-slate-100 mt-4">
-                  <div className="text-xs">
-                      Showing <span className="text-slate-900">{invoiceShowingFrom}</span> to <span className="text-slate-900">{invoiceShowingTo}</span> of <span className="text-slate-900">{totalInvoices}</span> entries
-                  </div>
-
-                  <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                          Rows per page:
-                          <select className="bg-transparent font-bold text-slate-900 focus:outline-none" value={invoiceRowsPerPage} onChange={(e) => {setInvoiceRowsPerPage(Number(e.target.value)); setInvoicePage(1);}}>
-                              {[10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
-                          </select>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                          <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => setInvoicePage(prev => Math.max(1, prev - 1))}
-                              disabled={invoicePage === 1}
-                              className="text-xs font-bold"
-                          >
-                              Prev
-                          </Button>
-                          <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => setInvoicePage(prev => Math.min(invoiceTotalPages, prev + 1))}
-                              disabled={invoicePage === invoiceTotalPages || invoiceTotalPages === 0}
-                              className="text-xs font-bold"
-                          >
-                              Next
-                          </Button>
-                      </div>
-                  </div>
-              </div>
-            </CardContent>
-          </Card>
+          <DataTable
+            columns={invoiceColumns}
+            data={invoices || []}
+            loading={isInvoicesLoading}
+            title="Member Billing History"
+            emptyMessage="No invoices found."
+          />
         </TabsContent>
 
         <TabsContent value="expenses" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Expense Register</CardTitle>
-              <CardDescription>Full history of gym operational costs.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedExpensesList.map((expense) => (
-                    <TableRow key={expense.id}>
-                      <TableCell>{formatDate(expense.expense_date)}</TableCell>
-                      <TableCell className="font-medium">{expense.title}</TableCell>
-                      <TableCell className="capitalize">{expense.category}</TableCell>
-                      <TableCell className="text-right font-medium text-red-600">
-                        {formatCurrency(expense.amount_cents)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {totalExpensesCount === 0 && <TableRow><TableCell colSpan={4} className="text-center py-8">No expenses recorded.</TableCell></TableRow>}
-                </TableBody>
-              </Table>
-
-              {/* Expenses Pagination */}
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2 py-4 text-slate-500 font-bold border-t border-slate-100 mt-4">
-                  <div className="text-xs">
-                      Showing <span className="text-slate-900">{expenseShowingFrom}</span> to <span className="text-slate-900">{expenseShowingTo}</span> of <span className="text-slate-900">{totalExpensesCount}</span> entries
-                  </div>
-
-                  <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                          Rows:
-                          <select className="bg-transparent font-bold text-slate-900 focus:outline-none" value={expenseRowsPerPage} onChange={(e) => {setExpenseRowsPerPage(Number(e.target.value)); setExpensePage(1);}}>
-                              {[10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
-                          </select>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                          <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => setExpensePage(prev => Math.max(1, prev - 1))}
-                              disabled={expensePage === 1}
-                              className="text-xs font-bold"
-                          >
-                              Prev
-                          </Button>
-                          <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => setExpensePage(prev => Math.min(expenseTotalPages, prev + 1))}
-                              disabled={expensePage === expenseTotalPages || expenseTotalPages === 0}
-                              className="text-xs font-bold"
-                          >
-                              Next
-                          </Button>
-                      </div>
-                  </div>
-              </div>
-            </CardContent>
-          </Card>
+          <DataTable
+            columns={expenseColumns}
+            data={expenses || []}
+            title="Expense Register"
+            emptyMessage="No expenses recorded."
+          />
         </TabsContent>
       </Tabs>
 
@@ -514,8 +355,8 @@ export const BillingPage: React.FC = () => {
                   <TableCell className="text-right pt-6">{formatCurrency(selectedInvoice?.amount_cents)}</TableCell>
                 </TableRow>
                 <TableRow className="border-t-2 border-slate-900 dark:border-white">
-                  <TableCell className="text-right font-black text-lg">TOTAL PAID</TableCell>
-                  <TableCell className="text-right font-black text-lg">
+                  <TableCell className="text-right font-bold text-lg">TOTAL PAID</TableCell>
+                  <TableCell className="text-right font-bold text-lg">
                     {formatCurrency(selectedInvoice?.amount_cents)}
                   </TableCell>
                 </TableRow>

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { PageHeader } from "@/components/common"
 
 interface Product {
     id: string
@@ -98,7 +99,7 @@ export const POSPage: React.FC = () => {
                 if (updateResponse.error) console.error("Stock update failed", updateResponse.error)
 
                 await paymentsApi.create({
-                    amountCents: (item.priceCents || item.priceCents || 0) * item.quantity,
+                    amountCents: (item.priceCents ?? 0) * item.quantity,
                     currency: "INR",
                     status: "paid",
                     provider: "cash",
@@ -116,34 +117,36 @@ export const POSPage: React.FC = () => {
         onError: (err: any) => toast({ title: "Checkout Failed", description: err.message, variant: "destructive" })
     })
 
-    const cartTotal = cart.reduce((sum, item) => sum + ((item.priceCents || item.priceCents || 0) * item.quantity), 0)
+    const cartTotal = cart.reduce((sum, item) => sum + ((item.priceCents ?? 0) * item.quantity), 0)
 
     return (
         <div className="flex h-[calc(100vh-2rem)] gap-4 flex-col md:flex-row">
             {/* Products Grid */}
             <div className="flex-1 space-y-4 overflow-auto">
-                <div className="flex justify-between items-center">
-                    <h1 className="text-3xl font-bold tracking-tight">Point of Sale</h1>
-                    <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
-                        <DialogTrigger asChild>
-                            <Button><Plus className="mr-2 h-4 w-4" /> Add Product</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Add New Product</DialogTitle>
-                            </DialogHeader>
-                            <form onSubmit={(e) => { e.preventDefault(); addProductMutation.mutate(new FormData(e.currentTarget)); }} className="space-y-4">
-                                <Input name="name" placeholder="Product Name (e.g. Whey Protein)" required />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Input name="price" type="number" placeholder="Price (₹)" required />
-                                    <Input name="stock" type="number" placeholder="Initial Stock" required />
-                                </div>
-                                <Input name="category" placeholder="Category (e.g. Supplements)" />
-                                <DialogFooter><Button type="submit">Add Product</Button></DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
-                </div>
+                <PageHeader
+                    title="Point of Sale"
+                    actions={
+                        <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
+                            <DialogTrigger asChild>
+                                <Button><Plus className="mr-2 h-4 w-4" /> Add Product</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Add New Product</DialogTitle>
+                                </DialogHeader>
+                                <form onSubmit={(e) => { e.preventDefault(); addProductMutation.mutate(new FormData(e.currentTarget)); }} className="space-y-4">
+                                    <Input name="name" placeholder="Product Name (e.g. Whey Protein)" required />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Input name="price" type="number" placeholder="Price (₹)" required />
+                                        <Input name="stock" type="number" placeholder="Initial Stock" required />
+                                    </div>
+                                    <Input name="category" placeholder="Category (e.g. Supplements)" />
+                                    <DialogFooter><Button type="submit">Add Product</Button></DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    }
+                />
 
                 <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
                     {products?.map(product => (
@@ -154,7 +157,7 @@ export const POSPage: React.FC = () => {
                             </CardHeader>
                             <CardContent className="p-4 pt-0">
                                 <div className="flex justify-between items-center mt-2">
-                                    <span className="font-bold text-lg">{formatCurrency(product.priceCents || product.priceCents || 0)}</span>
+                                    <span className="font-bold text-lg">{formatCurrency(product.priceCents ?? 0)}</span>
                                     <Badge variant={(product.stockQuantity ?? 0) > 0 ? "outline" : "destructive"}>
                                         {product.stockQuantity ? `${product.stockQuantity} left` : "Out of Stock"}
                                     </Badge>
@@ -180,7 +183,7 @@ export const POSPage: React.FC = () => {
                             <div key={item.id} className="flex justify-between items-center bg-muted/50 p-2 rounded-lg">
                                 <div className="flex-1 min-w-0 mr-2">
                                     <p className="font-medium text-sm truncate">{item.name}</p>
-                                    <p className="text-xs text-muted-foreground">{formatCurrency(item.priceCents || item.priceCents || 0)} x {item.quantity}</p>
+                                    <p className="text-xs text-muted-foreground">{formatCurrency(item.priceCents ?? 0)} x {item.quantity}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.id, -1)}><Minus className="h-3 w-3" /></Button>

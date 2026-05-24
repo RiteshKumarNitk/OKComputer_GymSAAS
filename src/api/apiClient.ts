@@ -41,6 +41,7 @@ export const membersApi = {
     update: (id: string, data: any) => request<any>(`/members?id=${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/members?id=${id}`, { method: "DELETE" }),
     renew: (data: { id: string; planId?: string }) => request<any>("/members/renew", { method: "POST", body: JSON.stringify(data) }),
+    healthAssessment: (memberId: string, data: any) => request<any>(`/members/${memberId}/health-assessment`, { method: "POST", body: JSON.stringify(data) }),
 }
 
 // ========== MEMBERSHIPS ==========
@@ -244,7 +245,9 @@ export const tenantsApi = {
 export const usersApi = {
     list: (tenantId?: string) => request<any[]>(`/users${tenantId ? `?tenantId=${tenantId}` : ""}`),
     get: (id: string) => request<any>(`/users/${id}`),
+    create: (data: any) => request<any>("/users", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/users/${id}`, { method: "DELETE" }),
 }
 
 // ========== BILLING (SaaS) ==========
@@ -286,4 +289,18 @@ export const reportsApi = {
 export const razorpayApi = {
     createOrder: (data: { memberId: string, amountInr: number, membershipId?: string }) => 
         request<any>("/payments/razorpay-order", { method: "POST", body: JSON.stringify(data) })
+}
+
+// ========== ACCESS CONTROL ==========
+export const accessControlApi = {
+    get: (role?: string) => request<any>(`/access-controls${role ? `?role=${role}` : ""}`),
+    save: (role: string, permissions: string[]) => 
+        request<any>("/access-controls", { method: "POST", body: JSON.stringify({ role, permissions }) }),
+}
+
+// ========== FEEDBACKS (wraps complaints as feedbacks) ==========
+export const feedbacksApi = {
+    list: (tenantId: string) => request<any[]>(`/complaints?tenantId=${tenantId}`),
+    create: (data: any) => request<any>("/complaints", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<any>(`/complaints?id=${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 }

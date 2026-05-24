@@ -1,12 +1,11 @@
 import React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { PageHeader } from "@/components/common"
 
 export const AnalyticsPage: React.FC = () => {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-      </div>
+      <PageHeader title="Analytics" titleClassName="text-3xl font-bold tracking-tight" />
       
       <Card>
         <CardHeader>

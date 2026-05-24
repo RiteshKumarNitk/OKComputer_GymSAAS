@@ -911,7 +911,7 @@ app.post("/api/workouts/assign", authenticate, async (req: any, res) => {
 createCrudRoutes("members", "member", {
     searchFields: ["fullName", "email", "memberCode"],
     filterFields: ["status"],
-    include: { currentPlan: true, assignedTrainer: true },
+    include: { currentPlan: true, assignedTrainer: true, healthProfile: true, fitnessStats: true },
     roles: {
         list: ["gym_owner", "manager", "frontdesk", "member"],
         create: ["gym_owner", "manager", "frontdesk"],
@@ -1309,6 +1309,47 @@ app.patch("/api/members/me/health-profile", authenticate, async (req: any, res) 
     }
 });
 
+app.post("/api/members/:memberId/health-assessment", authenticate, async (req: any, res) => {
+    try {
+        const { memberId } = req.params;
+        const member = await prisma.member.findFirst({
+            where: { id: memberId, tenantId: req.tenantId }
+        });
+        if (!member) return res.status(404).json({ error: "Member not found" });
+
+        let hp = await prisma.memberHealthProfile.findUnique({ where: { memberId } });
+        if (!hp) {
+            hp = await prisma.memberHealthProfile.create({ data: { memberId, tenantId: req.tenantId } });
+        }
+
+        const { bloodPressure, heartRate, bmi, bodyFat, muscleMass, metabolicAge, weight } = req.body;
+
+        if (weight || bmi) {
+            await prisma.memberHealthProfile.update({
+                where: { id: hp.id },
+                data: { ...(weight ? { weight: parseFloat(weight) } : {}), ...(bmi ? { bmi: parseFloat(bmi) } : {}) }
+            });
+        }
+
+        const measurements: { type: string; value: number; unit: string }[] = []
+        if (bloodPressure) measurements.push({ type: "blood_pressure", value: 0, unit: bloodPressure })
+        if (heartRate) measurements.push({ type: "heart_rate", value: parseFloat(heartRate), unit: "bpm" })
+        if (bodyFat) measurements.push({ type: "body_fat", value: parseFloat(bodyFat), unit: "%" })
+        if (muscleMass) measurements.push({ type: "muscle_mass", value: parseFloat(muscleMass), unit: "kg" })
+        if (metabolicAge) measurements.push({ type: "metabolic_age", value: parseFloat(metabolicAge), unit: "years" })
+
+        for (const m of measurements) {
+            await prisma.bodyMeasurement.create({
+                data: { tenantId: req.tenantId, memberId, healthProfileId: hp.id, type: m.type as any, value: m.value, unit: m.unit, recordedBy: req.userId }
+            });
+        }
+
+        res.json({ success: true });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ==================== FINANCIAL SETTLEMENT ====================
 
 app.post("/api/payments/settle", authenticate, async (req: any, res) => {
@@ -1510,8 +1551,11 @@ app.patch("/api/staff/leaves/:id", authenticate, async (req: any, res) => {
 // Invoices Management
 app.get("/api/invoices", authenticate, async (req: any, res) => {
     try {
+        const where: any = { tenantId: req.tenantId };
+        if (req.query.memberId) where.memberId = req.query.memberId as string;
+        if (req.query.status) where.status = req.query.status as string;
         const invoices = await prisma.invoice.findMany({
-            where: { tenantId: req.tenantId },
+            where,
             include: { member: { select: { fullName: true, memberCode: true } } },
             orderBy: { invoiceDate: "desc" }
         });
@@ -2427,6 +2471,47 @@ setInterval(async () => {
         console.error("[Alert Cron] Error:", err.message);
     }
 }, 24 * 60 * 60 * 1000);
+
+// ==================== ACCESS CONTROL ====================
+
+app.get("/api/access-controls", authenticate, async (req: any, res) => {
+    try {
+        const tenant = await prisma.tenant.findUnique({
+            where: { id: req.tenantId },
+            select: { features: true }
+        });
+        const controls = (tenant?.features as any)?.accessControls || {};
+        if (req.query.role) {
+            return res.json(controls[req.query.role as string] || []);
+        }
+        res.json(controls);
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post("/api/access-controls", authenticate, async (req: any, res) => {
+    try {
+        if (req.role !== "gym_owner") return res.status(403).json({ error: "Access denied. Owners only." });
+        const { role, permissions } = req.body;
+        if (!role || !permissions) return res.status(400).json({ error: "Role and permissions required" });
+        const tenant = await prisma.tenant.findUnique({
+            where: { id: req.tenantId },
+            select: { features: true }
+        });
+        const features = (tenant?.features as any) || {};
+        const controls = features.accessControls || {};
+        controls[role] = permissions;
+        features.accessControls = controls;
+        await prisma.tenant.update({
+            where: { id: req.tenantId },
+            data: { features }
+        });
+        res.json({ success: true, role, permissions });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ==================== START SERVER ====================
 

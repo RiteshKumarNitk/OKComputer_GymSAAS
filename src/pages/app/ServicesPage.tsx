@@ -6,16 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dumbbell, Users, Zap, Edit, Trash2, CreditCard } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/utils"
-// Ensure Membership type is imported or defined
-// If your type index has Membership, import it. 
 import { Service, Membership } from "@/types"
+import { PageHeader, DataTable, ActionMenu, ConfirmDialog, FormDialog } from "@/components/common"
+import type { Column } from "@/components/common"
 
 export const ServicesPage: React.FC = () => {
     const { user } = useAuth()
@@ -29,6 +28,7 @@ export const ServicesPage: React.FC = () => {
     const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false)
     const [isMembershipDialogOpen, setIsMembershipDialogOpen] = useState(false)
     const [isCreateMembershipOpen, setIsCreateMembershipOpen] = useState(false)
+    const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null)
 
     // --- SERVICES LOGIC ---
     const { data: services } = useQuery({
@@ -67,14 +67,15 @@ export const ServicesPage: React.FC = () => {
         onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" })
     })
 
-    const deleteService = async (id: string) => {
-        if (!confirm("Delete this service?")) return
-        const response = await servicesApi.delete(id)
+    const confirmDeleteService = async () => {
+        if (!serviceToDelete) return
+        const response = await servicesApi.delete(serviceToDelete.id)
         if (response.error) toast({ title: "Error", description: response.error.message || "Failed to delete", variant: "destructive" })
         else {
             queryClient.invalidateQueries({ queryKey: ["services"] })
             toast({ title: "Success", description: "Service deleted" })
         }
+        setServiceToDelete(null)
     }
 
     // --- MEMBERSHIP PLANS LOGIC ---
@@ -134,9 +135,9 @@ export const ServicesPage: React.FC = () => {
 
 
     // --- HANDLERS ---
-    const handleServiceSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleServiceSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        const formData = new FormData(e.currentTarget)
+        const formData = new FormData(e.currentTarget as HTMLFormElement)
         serviceMutation.mutate(formData)
     }
 
@@ -154,14 +155,51 @@ export const ServicesPage: React.FC = () => {
         }
     }
 
+    const serviceColumns: Column<Service>[] = [
+        {
+            key: "name",
+            label: "Name",
+            render: (service) => (
+                <div className="flex items-center">
+                    <div className="mr-2 p-1 bg-muted rounded-md">{getIcon(service.type)}</div>
+                    <div>
+                        <div>{service.name}</div>
+                        <div className="text-xs text-muted-foreground">{service.description}</div>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: "type",
+            label: "Type",
+            render: (service) => <span className="capitalize">{service.type}</span>,
+        },
+        {
+            key: "capacity",
+            label: "Capacity",
+            render: (service) => <span>{service.capacity || "Unlimited"}</span>,
+        },
+        {
+            key: "actions",
+            label: "Actions",
+            headClassName: "text-right",
+            className: "text-right",
+            render: (service) => (
+                <ActionMenu
+                    onEdit={() => { setEditingService(service); setIsServiceDialogOpen(true) }}
+                    onDelete={() => setServiceToDelete(service)}
+                />
+            ),
+        },
+    ]
+
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Services & Pricing</h1>
-                    <p className="text-muted-foreground">Manage your membership plans and facility services.</p>
-                </div>
-            </div>
+            <PageHeader
+                title="Services & Pricing"
+                subtitle="Manage your membership plans and facility services."
+                titleClassName="text-3xl font-bold tracking-tight"
+            />
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
                 <TabsList>
@@ -213,98 +251,64 @@ export const ServicesPage: React.FC = () => {
 
                 {/* --- SERVICES TAB --- */}
                 <TabsContent value="services" className="space-y-4">
-                    <div className="flex justify-end">
-                        <Button onClick={() => { setEditingService(null); setIsServiceDialogOpen(true) }}>
-                            <Zap className="mr-2 h-4 w-4" /> Add Service
-                        </Button>
-                    </div>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Classes & Facilities</CardTitle>
-                            <CardDescription>Extra services like Personal Training, Zumba, etc.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Type</TableHead>
-                                        <TableHead>Capacity</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {services?.map((service) => (
-                                        <TableRow key={service.id}>
-                                            <TableCell className="font-medium">
-                                                <div className="flex items-center">
-                                                    <div className="mr-2 p-1 bg-muted rounded-md">{getIcon(service.type)}</div>
-                                                    <div>
-                                                        <div>{service.name}</div>
-                                                        <div className="text-xs text-muted-foreground">{service.description}</div>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="capitalize">{service.type}</TableCell>
-                                            <TableCell>{service.capacity || "Unlimited"}</TableCell>
-                                            <TableCell className="text-right space-x-2">
-                                                <Button variant="ghost" size="sm" onClick={() => { setEditingService(service); setIsServiceDialogOpen(true) }}>
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteService(service.id)}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {services?.length === 0 && (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No services found.</TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
+                    <DataTable
+                        columns={serviceColumns}
+                        data={services || []}
+                        title="Classes & Facilities"
+                        emptyMessage="No services found."
+                        pagination={false}
+                        titleAction={
+                            <Button onClick={() => { setEditingService(null); setIsServiceDialogOpen(true) }}>
+                                <Zap className="mr-2 h-4 w-4" /> Add Service
+                            </Button>
+                        }
+                    />
                 </TabsContent>
             </Tabs>
 
             {/* --- DIALOGS --- */}
 
             {/* 1. Edit Service Dialog */}
-            <Dialog open={isServiceDialogOpen} onOpenChange={(open) => { setIsServiceDialogOpen(open); if (!open) setEditingService(null); }}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{editingService ? "Edit Service" : "Add Service"}</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleServiceSubmit} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="s-name">Name</Label>
-                            <Input id="s-name" name="name" defaultValue={editingService?.name} required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="s-type">Type</Label>
-                            <Select name="type" defaultValue={editingService?.type || "class"}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="class">Group Class</SelectItem>
-                                    <SelectItem value="training">Personal Training</SelectItem>
-                                    <SelectItem value="facility">Facility Access</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="s-capacity">Capacity</Label>
-                            <Input id="s-capacity" name="capacity" type="number" defaultValue={editingService?.capacity || ""} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="s-desc">Description</Label>
-                            <Input id="s-desc" name="description" defaultValue={editingService?.description || ""} />
-                        </div>
-                        <DialogFooter><Button type="submit">{serviceMutation.isPending ? "Saving..." : "Save"}</Button></DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            <FormDialog
+                open={isServiceDialogOpen}
+                onOpenChange={(open) => { setIsServiceDialogOpen(open); if (!open) setEditingService(null); }}
+                title={editingService ? "Edit Service" : "Add Service"}
+                onSubmit={handleServiceSubmit}
+                isPending={serviceMutation.isPending}
+            >
+                <div className="space-y-2">
+                    <Label htmlFor="s-name">Name</Label>
+                    <Input id="s-name" name="name" defaultValue={editingService?.name} required />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="s-type">Type</Label>
+                    <Select name="type" defaultValue={editingService?.type || "class"}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="class">Group Class</SelectItem>
+                            <SelectItem value="training">Personal Training</SelectItem>
+                            <SelectItem value="facility">Facility Access</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="s-capacity">Capacity</Label>
+                    <Input id="s-capacity" name="capacity" type="number" defaultValue={editingService?.capacity || ""} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="s-desc">Description</Label>
+                    <Input id="s-desc" name="description" defaultValue={editingService?.description || ""} />
+                </div>
+            </FormDialog>
+
+            <ConfirmDialog
+                open={!!serviceToDelete}
+                onOpenChange={(open) => !open && setServiceToDelete(null)}
+                title="Delete Service"
+                description={`Are you sure you want to delete "${serviceToDelete?.name}"?`}
+                confirmLabel="Delete"
+                onConfirm={confirmDeleteService}
+            />
 
             {/* 2. Create/Edit Membership Dialog */}
             <Dialog open={isCreateMembershipOpen || isMembershipDialogOpen} onOpenChange={(open) => {

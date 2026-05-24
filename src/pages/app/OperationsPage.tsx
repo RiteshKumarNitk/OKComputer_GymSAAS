@@ -7,13 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { MessageSquareWarning, Plus } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useSearchParams } from "react-router-dom"
+import { PageHeader, DataTable } from "@/components/common"
+import type { Column } from "@/components/common"
 
 export const OperationsPage: React.FC = () => {
     const { user } = useAuth()
@@ -24,13 +25,11 @@ export const OperationsPage: React.FC = () => {
     // Default tab from URL
     const defaultTab = searchParams.get("tab") || "visitors"
 
-    // Pagination State (Visitors)
-    const [visitorPage, setVisitorPage] = useState(1)
-    const [visitorRowsPerPage, setVisitorRowsPerPage] = useState(10)
-
     // States
     const [isAddVisitorOpen, setIsAddVisitorOpen] = useState(false)
     const [isAddComplaintOpen, setIsAddComplaintOpen] = useState(false)
+    const [visitorPurpose, setVisitorPurpose] = useState("Inquiry")
+    const [complaintPriority, setComplaintPriority] = useState("medium")
 
     // --- VISITORS LOGIC ---
     const { data: visitors, isLoading: isVisitorLoading } = useQuery({
@@ -43,23 +42,16 @@ export const OperationsPage: React.FC = () => {
         enabled: !!user?.tenantId
     })
 
-    const filteredVisitors = visitors || []
-    const totalVisitors = filteredVisitors.length
-    const visitorTotalPages = Math.ceil(totalVisitors / visitorRowsPerPage)
-    const paginatedVisitors = filteredVisitors.slice((visitorPage - 1) * visitorRowsPerPage, visitorPage * visitorRowsPerPage)
-    const visitorShowingFrom = totalVisitors === 0 ? 0 : (visitorPage - 1) * visitorRowsPerPage + 1
-    const visitorShowingTo = Math.min(visitorPage * visitorRowsPerPage, totalVisitors)
-
     const addVisitorMutation = useMutation({
-        mutationFn: async (formData: FormData) => {
+        mutationFn: async (data: { name: string; phone: string; purpose: string }) => {
             const response = await visitorsApi.create({
-                name: formData.get("name"),
-                phone: formData.get("phone"),
-                visit_purpose: formData.get("purpose")
+                name: data.name,
+                phone: data.phone,
+                visit_purpose: data.purpose
             })
             if (response.error) throw response.error
         },
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["visitors"] }); setIsAddVisitorOpen(false); toast({ title: "Visitor Logged" }) }
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["visitors"] }); setIsAddVisitorOpen(false); setVisitorPurpose("Inquiry"); toast({ title: "Visitor Logged" }) }
     })
 
     // --- COMPLAINTS LOGIC ---
@@ -74,27 +66,37 @@ export const OperationsPage: React.FC = () => {
     })
 
     const addComplaintMutation = useMutation({
-        mutationFn: async (formData: FormData) => {
+        mutationFn: async (data: { title: string; description: string; priority: string }) => {
             const response = await complaintsApi.create({
-                title: formData.get("title"),
-                description: formData.get("description"),
-                priority: formData.get("priority"),
+                title: data.title,
+                description: data.description,
+                priority: data.priority,
                 status: 'open'
             })
             if (response.error) throw response.error
         },
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["complaints"] }); setIsAddComplaintOpen(false); toast({ title: "Complaint Logged" }) }
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["complaints"] }); setIsAddComplaintOpen(false); setComplaintPriority("medium"); toast({ title: "Complaint Logged" }) }
     })
 
-    const updateComplaintStatus = async (id: string, status: string) => {
-        const response = await complaintsApi.update(id, { status })
-        if (response.error) toast({ title: "Error", description: response.error.message || "Failed to update", variant: "destructive" })
-        else queryClient.invalidateQueries({ queryKey: ["complaints"] })
-    }
+    const updateComplaintMutation = useMutation({
+        mutationFn: async ({ id, status }: { id: string; status: string }) => {
+            const response = await complaintsApi.update(id, { status })
+            if (response.error) throw response.error
+        },
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["complaints"] }); toast({ title: "Status updated" }) },
+        onError: (err: any) => { toast({ title: "Error", description: err.message, variant: "destructive" }) }
+    })
+
+    const visitorColumns: Column<any>[] = [
+        { key: "time", label: "Time", render: (v: any) => <>{formatDate(v.visitTime ?? v.visit_time, "h:mm a")}</> },
+        { key: "name", label: "Name", render: (v: any) => <span className="font-medium">{v.name}</span> },
+        { key: "purpose", label: "Purpose", render: (v: any) => <Badge variant="outline">{v.visitPurpose ?? v.visit_purpose}</Badge> },
+        { key: "phone", label: "Phone", render: (v: any) => <>{v.phone || "-"}</> },
+    ]
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold tracking-tight">Gym Operations</h1>
+            <PageHeader title="Gym Operations" titleClassName="text-3xl font-bold tracking-tight" />
 
             <Tabs defaultValue={defaultTab} className="space-y-4">
                 <TabsList>
@@ -109,12 +111,12 @@ export const OperationsPage: React.FC = () => {
                         <h2 className="text-lg font-semibold">Daily Visitor Log</h2>
                         <Dialog open={isAddVisitorOpen} onOpenChange={setIsAddVisitorOpen}>
                             <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Log Visitor</Button></DialogTrigger>
-                            <DialogContent>
+                                <DialogContent>
                                 <DialogHeader><DialogTitle>Log New Visitor</DialogTitle></DialogHeader>
-                                <form onSubmit={(e) => { e.preventDefault(); addVisitorMutation.mutate(new FormData(e.currentTarget)); }} className="space-y-4">
+                                <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); addVisitorMutation.mutate({ name: fd.get("name") as string, phone: fd.get("phone") as string, purpose: visitorPurpose }); }} className="space-y-4">
                                     <Input name="name" placeholder="Visitor Name" required />
                                     <Input name="phone" placeholder="Phone Number" />
-                                    <Select name="purpose" defaultValue="Inquiry">
+                                    <Select value={visitorPurpose} onValueChange={setVisitorPurpose}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="Inquiry">Membership Inquiry</SelectItem>
@@ -127,76 +129,12 @@ export const OperationsPage: React.FC = () => {
                             </DialogContent>
                         </Dialog>
                     </div>
-                    <Card><CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Time</TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Purpose</TableHead>
-                                    <TableHead>Phone</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                                <TableBody>
-                                    {isVisitorLoading ? (
-                                        Array(5).fill(0).map((_, i) => (
-                                            <TableRow key={i} className="animate-pulse">
-                                                <TableCell colSpan={4} className="h-10 bg-slate-50" />
-                                            </TableRow>
-                                        ))
-                                    ) : paginatedVisitors.length > 0 ? (
-                                        paginatedVisitors.map((v: any) => (
-                                            <TableRow key={v.id}>
-                                                <TableCell>{formatDate(v.visitTime ?? v.visit_time, "h:mm a")}</TableCell>
-                                                <TableCell className="font-medium">{v.name}</TableCell>
-                                                <TableCell><Badge variant="outline">{v.visitPurpose ?? v.visit_purpose}</Badge></TableCell>
-                                                <TableCell>{v.phone || "-"}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow><TableCell colSpan={4} className="text-center py-4">No visitors today.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-
-                            {/* Pagination Integration */}
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 py-3 text-slate-500 font-bold border-t border-slate-100">
-                                <div className="text-xs">
-                                    Showing <span className="text-slate-900">{visitorShowingFrom}</span> to <span className="text-slate-900">{visitorShowingTo}</span> of <span className="text-slate-900">{totalVisitors}</span> entries
-                                </div>
-
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                                        Rows:
-                                        <select className="bg-transparent font-bold text-slate-900 focus:outline-none" value={visitorRowsPerPage} onChange={(e) => {setVisitorRowsPerPage(Number(e.target.value)); setVisitorPage(1);}}>
-                                            {[10, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
-                                        </select>
-                                    </div>
-
-                                    <div className="flex items-center gap-1">
-                                        <Button 
-                                            variant="ghost" 
-                                            size="sm" 
-                                            onClick={() => setVisitorPage(prev => Math.max(1, prev - 1))}
-                                            disabled={visitorPage === 1}
-                                            className="h-8 text-xs font-bold"
-                                        >
-                                            Prev
-                                        </Button>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="sm" 
-                                            onClick={() => setVisitorPage(prev => Math.min(visitorTotalPages, prev + 1))}
-                                            disabled={visitorPage === visitorTotalPages || visitorTotalPages === 0}
-                                            className="h-8 text-xs font-bold"
-                                        >
-                                            Next
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <DataTable
+                        columns={visitorColumns}
+                        data={visitors || []}
+                        loading={isVisitorLoading}
+                        emptyMessage="No visitors today."
+                    />
                 </TabsContent>
 
                 {/* COMPLAINTS TAB */}
@@ -207,9 +145,9 @@ export const OperationsPage: React.FC = () => {
                             <DialogTrigger asChild><Button variant="destructive"><MessageSquareWarning className="mr-2 h-4 w-4" /> Log Complaint</Button></DialogTrigger>
                             <DialogContent>
                                 <DialogHeader><DialogTitle>Log Complaint/Request</DialogTitle></DialogHeader>
-                                <form onSubmit={(e) => { e.preventDefault(); addComplaintMutation.mutate(new FormData(e.currentTarget)); }} className="space-y-4">
+                                <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); addComplaintMutation.mutate({ title: fd.get("title") as string, description: fd.get("description") as string, priority: complaintPriority }); }} className="space-y-4">
                                     <Input name="title" placeholder="Issue Subject (e.g. AC not working)" required />
-                                    <Select name="priority" defaultValue="medium">
+                                    <Select value={complaintPriority} onValueChange={setComplaintPriority}>
                                         <SelectTrigger><SelectValue placeholder="Select Priority" /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="low">Low</SelectItem>
@@ -239,7 +177,7 @@ export const OperationsPage: React.FC = () => {
                                 <CardContent className="py-2 pb-4 text-sm flex justify-between items-end">
                                     <p>{ticket.description}</p>
                                     {ticket.status !== 'resolved' && (
-                                        <Button size="sm" variant="outline" onClick={() => updateComplaintStatus(ticket.id, 'resolved')}>Mark Resolved</Button>
+                                        <Button size="sm" variant="outline" onClick={() => updateComplaintMutation.mutate({ id: ticket.id, status: 'resolved' })}>Mark Resolved</Button>
                                     )}
                                 </CardContent>
                             </Card>

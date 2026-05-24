@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MapPin, Phone, Building, Edit, Trash2 } from "lucide-react"
+import { MapPin, Phone, Building } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import type { Branch } from "@/types"
+import { PageHeader, DataTable, ActionMenu, ConfirmDialog } from "@/components/common"
 
 export const BranchesPage: React.FC = () => {
     const { user } = useAuth()
@@ -20,6 +20,7 @@ export const BranchesPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState("list")
     const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false) // For Edit only
+    const [branchToDelete, setBranchToDelete] = useState<Branch | null>(null)
 
     // Fetch Branches
     const { data: branches } = useQuery({
@@ -69,25 +70,25 @@ export const BranchesPage: React.FC = () => {
         mutation.mutate(formData)
     }
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this branch?")) return
-        const response = await branchesApi.delete(id)
+    const confirmDeleteBranch = async () => {
+        if (!branchToDelete) return
+        const response = await branchesApi.delete(branchToDelete.id)
         if (response.error) {
             toast({ title: "Error", description: response.error.message || "Delete failed", variant: "destructive" })
         } else {
             queryClient.invalidateQueries({ queryKey: ["branches"] })
             toast({ title: "Success", description: "Branch deleted successfully" })
         }
+        setBranchToDelete(null)
     }
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Branches</h1>
-                    <p className="text-muted-foreground">Manage your gym locations.</p>
-                </div>
-            </div>
+            <PageHeader
+                title="Branches"
+                subtitle="Manage your gym locations."
+                titleClassName="text-3xl font-bold tracking-tight"
+            />
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
                 <TabsList>
@@ -96,66 +97,59 @@ export const BranchesPage: React.FC = () => {
                 </TabsList>
 
                 <TabsContent value="list" className="space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>All Branches</CardTitle>
-                            <CardDescription>A list of all your gym branches.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Address</TableHead>
-                                        <TableHead>Phone</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {branches?.map((branch) => (
-                                        <TableRow key={branch.id}>
-                                            <TableCell className="font-medium">
-                                                <div className="flex items-center">
-                                                    <Building className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                    {branch.name}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center text-muted-foreground">
-                                                    <MapPin className="mr-2 h-3 w-3" />
-                                                    {branch.address || "-"}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center text-muted-foreground">
-                                                    <Phone className="mr-2 h-3 w-3" />
-                                                    {branch.phone || "-"}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-right space-x-2">
-                                                <Button variant="ghost" size="sm" onClick={() => {
-                                                    setEditingBranch(branch)
-                                                    setIsDialogOpen(true)
-                                                }}>
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(branch.id)}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {branches?.length === 0 && (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                                No branches found. Create your first one!
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
+                    <DataTable
+                        columns={[
+                            {
+                                key: "name",
+                                label: "Name",
+                                render: (branch: Branch) => (
+                                    <div className="flex items-center">
+                                        <Building className="mr-2 h-4 w-4 text-muted-foreground" />
+                                        {branch.name}
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: "address",
+                                label: "Address",
+                                render: (branch: Branch) => (
+                                    <div className="flex items-center text-muted-foreground">
+                                        <MapPin className="mr-2 h-3 w-3" />
+                                        {branch.address || "-"}
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: "phone",
+                                label: "Phone",
+                                render: (branch: Branch) => (
+                                    <div className="flex items-center text-muted-foreground">
+                                        <Phone className="mr-2 h-3 w-3" />
+                                        {branch.phone || "-"}
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: "actions",
+                                label: "Actions",
+                                headClassName: "text-right",
+                                className: "text-right",
+                                render: (branch: Branch) => (
+                                    <ActionMenu
+                                        onEdit={() => {
+                                            setEditingBranch(branch)
+                                            setIsDialogOpen(true)
+                                        }}
+                                        onDelete={() => setBranchToDelete(branch)}
+                                    />
+                                ),
+                            },
+                        ]}
+                        data={branches || []}
+                        title="All Branches"
+                        emptyMessage="No branches found. Create your first one!"
+                        pagination={false}
+                    />
                 </TabsContent>
 
                 <TabsContent value="create" className="space-y-4">
@@ -186,6 +180,15 @@ export const BranchesPage: React.FC = () => {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            <ConfirmDialog
+                open={!!branchToDelete}
+                onOpenChange={(open) => !open && setBranchToDelete(null)}
+                title="Delete Branch"
+                description={`Are you sure you want to delete "${branchToDelete?.name}"?`}
+                confirmLabel="Delete"
+                onConfirm={confirmDeleteBranch}
+            />
 
             {/* Edit Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={(open) => {

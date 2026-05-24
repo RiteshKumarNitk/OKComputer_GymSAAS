@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, UserPlus, Pencil } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Member } from "@/types"
+import { PageHeader } from "@/components/common"
 
 interface Meal {
   name: string
@@ -65,47 +66,23 @@ export const DietPlansPage: React.FC = () => {
 
   // Mutations
   const createMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const name = formData.get("name")
-      const calories = formData.get("calories")
-
-      if (!name) throw new Error("Plan name is required")
-      if (!calories) throw new Error("Target calories is required")
-
-      const data = {
-        name: name,
-        description: formData.get("description"),
-        targetCalories: parseInt(calories as string),
-        meals: meals
-      }
-      const response = await dietPlansApi.create(data)
+    mutationFn: async (data: { name: string; description: string; targetCalories: number }) => {
+      const response = await dietPlansApi.create({ ...data, meals })
       if (response.error) throw response.error
     },
     onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to create diet plan", variant: "destructive" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["diet_plans"] })
       setIsCreateOpen(false)
-      setMeals([{ name: "Breakfast", time: "08:00", items: "", calories: "" }]) // Reset
+      setMeals([{ name: "Breakfast", time: "08:00", items: "", calories: "" }])
       toast({ title: "Success", description: "Diet Plan created" })
     }
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const name = formData.get("name")
-      const calories = formData.get("calories")
-
+    mutationFn: async (data: { name: string; description: string; targetCalories: number }) => {
       if (!selectedDiet) throw new Error("No plan selected")
-      if (!name) throw new Error("Plan name is required")
-      if (!calories) throw new Error("Target calories is required")
-
-      const data = {
-        name: name,
-        description: formData.get("description"),
-        targetCalories: parseInt(calories as string),
-        meals: meals
-      }
-      const response = await dietPlansApi.update(selectedDiet.id, data)
+      const response = await dietPlansApi.update(selectedDiet.id, { ...data, meals })
       if (response.error) throw response.error
     },
     onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to update diet plan", variant: "destructive" }),
@@ -113,7 +90,7 @@ export const DietPlansPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ["diet_plans"] })
       setIsCreateOpen(false)
       setSelectedDiet(null)
-      setMeals([{ name: "Breakfast", time: "08:00", items: "", calories: "" }]) // Reset
+      setMeals([{ name: "Breakfast", time: "08:00", items: "", calories: "" }])
       toast({ title: "Success", description: "Diet Plan updated" })
     }
   })
@@ -159,15 +136,16 @@ export const DietPlansPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Diet Plans</h1>
-          <p className="text-muted-foreground">Detailed nutrition plans for your members.</p>
-        </div>
-        <Button onClick={openCreateDialog}>
-          <Plus className="mr-2 h-4 w-4" /> Create Diet Plan
-        </Button>
-      </div>
+      <PageHeader
+        title="Diet Plans"
+        subtitle="Detailed nutrition plans for your members."
+        titleClassName="text-3xl font-bold tracking-tight"
+        actions={
+          <Button onClick={openCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" /> Create Diet Plan
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {plans?.map((plan) => (
@@ -214,10 +192,16 @@ export const DietPlansPage: React.FC = () => {
           </DialogHeader>
           <form onSubmit={(e) => {
             e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            const data = {
+              name: fd.get("name") as string,
+              description: (fd.get("description") as string) || "",
+              targetCalories: parseInt(fd.get("calories") as string) || 0
+            };
             if (selectedDiet) {
-              updateMutation.mutate(new FormData(e.currentTarget))
+              updateMutation.mutate(data)
             } else {
-              createMutation.mutate(new FormData(e.currentTarget));
+              createMutation.mutate(data);
             }
           }} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">

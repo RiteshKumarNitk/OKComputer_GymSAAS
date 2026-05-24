@@ -161,6 +161,13 @@ function App() {
                         <Route path="/attendance" element={<Navigate to="/members/attendance" replace />} />
                         <Route path="/analytics" element={<Navigate to="/members/analytics" replace />} />
                         <Route path="/renewals" element={<Navigate to="/members/renewals" replace />} />
+                        <Route path="/expenses" element={<Navigate to="/operations" replace />} />
+                        <Route path="/reports/balance-due" element={<Navigate to="/reports" replace />} />
+                        <Route path="/reports/expired" element={<Navigate to="/reports" replace />} />
+                        <Route path="/reports/member-card" element={<Navigate to="/reports" replace />} />
+                        <Route path="/reports/due-membership" element={<Navigate to="/reports" replace />} />
+                        <Route path="/reports/sms" element={<Navigate to="/reports" replace />} />
+                        <Route path="/settings/biometric" element={<Navigate to="/settings" replace />} />
 
                         <Route path="*" element={<NotFoundPage />} />
                       </Routes>

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { formatDate } from "@/lib/utils"
+import { PageHeader, ConfirmDialog } from "@/components/common"
 
 interface Locker {
     id: string
@@ -31,7 +32,11 @@ export const LockersPage: React.FC = () => {
     const queryClient = useQueryClient()
     const [isAddLockerOpen, setIsAddLockerOpen] = useState(false)
     const [selectedLocker, setSelectedLocker] = useState<Locker | null>(null)
+    const [lockerToDelete, setLockerToDelete] = useState<Locker | null>(null)
     const [assignmentMemberId, setAssignmentMemberId] = useState("")
+
+    // Reset assignmentMemberId when selectedLocker changes
+    React.useEffect(() => { setAssignmentMemberId("") }, [selectedLocker?.id])
 
     // Fetch Lockers
     const { data: lockers } = useQuery({
@@ -91,40 +96,51 @@ export const LockersPage: React.FC = () => {
     })
 
     // Delete Locker
-    const deleteLocker = async (id: string) => {
-        if (!confirm("Remove this locker?")) return;
-        const response = await lockersApi.delete(id)
-        if (response.error) throw response.error
-        queryClient.invalidateQueries({ queryKey: ["lockers"] })
+    const deleteLockerMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const response = await lockersApi.delete(id)
+            if (response.error) throw response.error
+        },
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["lockers"] }); toast({ title: "Locker removed" }) },
+        onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" })
+    })
+
+    const confirmDelete = () => {
+        if (lockerToDelete) {
+            deleteLockerMutation.mutate(lockerToDelete.id)
+            setLockerToDelete(null)
+        }
+    }
+
+    const handleDeleteClick = (e: React.MouseEvent, locker: Locker) => {
+        e.stopPropagation()
+        setLockerToDelete(locker)
     }
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Locker Management</h1>
-                    <p className="text-muted-foreground">Assign lockers to members for safekeeping.</p>
-                </div>
-                <div className="flex gap-2">
+            <PageHeader
+                title="Locker Management"
+                subtitle="Assign lockers to members for safekeeping."
+                actions={
                     <Dialog open={isAddLockerOpen} onOpenChange={setIsAddLockerOpen}>
                         <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Add Locker</Button></DialogTrigger>
                         <DialogContent>
                             <DialogHeader><DialogTitle>Add New Locker</DialogTitle></DialogHeader>
-                            <form onSubmit={(e) => { e.preventDefault(); addLockerMutation.mutate((new FormData(e.currentTarget).get("number") as string)); }} className="space-y-4">
+                            <form onSubmit={(e) => { e.preventDefault(); const num = new FormData(e.currentTarget).get("number"); if (num) addLockerMutation.mutate(num as string); }} className="space-y-4">
                                 <Input name="number" placeholder="Locker Number (e.g. 101)" required />
                                 <DialogFooter><Button type="submit">Create</Button></DialogFooter>
                             </form>
                         </DialogContent>
                     </Dialog>
-                    {/* Auto-Generate Button could go here */}
-                </div>
-            </div>
+                }
+            />
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
                 {lockers?.map(locker => (
                     <Card key={locker.id} className={`cursor-pointer hover:border-primary transition-all group relative ${locker.status === 'occupied' ? 'bg-red-50 dark:bg-red-950/20 border-red-200' : 'bg-green-50 dark:bg-green-950/20 border-green-200'}`}>
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteLocker(locker.id); }}>
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => handleDeleteClick(e, locker)}>
                                 <Trash2 className="h-3 w-3" />
                             </Button>
                         </div>
@@ -151,7 +167,7 @@ export const LockersPage: React.FC = () => {
             <Dialog open={!!selectedLocker} onOpenChange={(o) => !o && setSelectedLocker(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Locker {selectedLocker?.locker_number}</DialogTitle>
+                        <DialogTitle>Locker {selectedLocker?.lockerNumber || selectedLocker?.locker_number}</DialogTitle>
                         <DialogDescription>
                             Current Status: <span className="uppercase font-bold">{selectedLocker?.status}</span>
                         </DialogDescription>
@@ -188,6 +204,18 @@ export const LockersPage: React.FC = () => {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                open={!!lockerToDelete}
+                onOpenChange={(open) => !open && setLockerToDelete(null)}
+                title="Delete Locker"
+                itemName={`Locker ${lockerToDelete?.lockerNumber || lockerToDelete?.locker_number}`}
+                onConfirm={confirmDelete}
+                loading={deleteLockerMutation.isPending}
+                variant="danger"
+                confirmLabel="Delete"
+            />
         </div>
     )
 }
