@@ -17,6 +17,7 @@ export default defineConfig({
       },
     },
   },
+  // @ts-ignore -- vitest config (not supported by vite's tsconfig)
   test: {
     globals: true,
     environment: 'jsdom',

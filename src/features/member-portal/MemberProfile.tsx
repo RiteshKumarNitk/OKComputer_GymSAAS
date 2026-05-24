@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDate } from "@/lib/utils"
 import { Phone, User, Calendar, Award } from "lucide-react"
+import { PageHeader } from "@/components/common/PageHeader"
 
 export const MemberProfile: React.FC = () => {
     const { user } = useAuth()
@@ -43,7 +44,7 @@ export const MemberProfile: React.FC = () => {
 
     return (
         <div className="p-4 space-y-6 max-w-md mx-auto">
-            <h1 className="text-2xl font-bold text-center">Profile</h1>
+            <PageHeader title="Profile" />
 
             <Card className="shadow-lg border-primary/10 overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">

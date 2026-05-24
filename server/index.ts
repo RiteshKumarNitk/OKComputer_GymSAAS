@@ -911,7 +911,7 @@ app.post("/api/workouts/assign", authenticate, async (req: any, res) => {
 createCrudRoutes("members", "member", {
     searchFields: ["fullName", "email", "memberCode"],
     filterFields: ["status"],
-    include: { currentPlan: true, assignedTrainer: true, healthProfile: true, fitnessStats: true },
+    include: { currentPlan: true, assignedTrainer: true, healthProfile: { include: { measurements: true } }, fitnessStats: true },
     roles: {
         list: ["gym_owner", "manager", "frontdesk", "member"],
         create: ["gym_owner", "manager", "frontdesk"],

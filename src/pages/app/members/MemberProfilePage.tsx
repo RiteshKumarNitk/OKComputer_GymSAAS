@@ -708,14 +708,28 @@ export const MemberProfilePage: React.FC = () => {
                             </div>
                             <Button className="h-10 rounded-xl bg-[#FF6B3D] text-white font-bold px-5 shadow-sm" onClick={() => setAssessmentDialogOpen(true)}>New Assessment</Button>
                         </div>
+                        {(() => {
+                            const measurements = (member as any)?.healthProfile?.measurements || [];
+                            const getLatest = (type: string) => {
+                                const matches = measurements.filter((m: any) => m.type === type);
+                                if (matches.length === 0) return null;
+                                return matches.reduce((a: any, b: any) => new Date(a.createdAt) > new Date(b.createdAt) ? a : b);
+                            };
+                            const bp = getLatest("blood_pressure");
+                            const hr = getLatest("heart_rate");
+                            const bf = getLatest("body_fat");
+                            const mm = getLatest("muscle_mass");
+                            const ma = getLatest("metabolic_age");
+                            const bmiVal = member?.healthProfile?.bmi ? String(member.healthProfile.bmi) : getLatest("bmi")?.value;
+                            return (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {[
-                                { label: "Blood Pressure", value: "--", status: "N/A", statusClass: "bg-slate-100 text-slate-500" },
-                                { label: "Heart Rate", value: "--", status: "N/A", statusClass: "bg-slate-100 text-slate-500" },
-                                { label: "BMI", value: member?.healthProfile?.bmi ? String(member.healthProfile.bmi) : "--", status: member?.healthProfile?.bmi ? "Recorded" : "N/A", statusClass: member?.healthProfile?.bmi ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500" },
-                                { label: "Body Fat %", value: "--", status: "N/A", statusClass: "bg-slate-100 text-slate-500" },
-                                { label: "Muscle Mass", value: "--", status: "N/A", statusClass: "bg-slate-100 text-slate-500" },
-                                { label: "Metabolic Age", value: "--", status: "N/A", statusClass: "bg-slate-100 text-slate-500" },
+                                { label: "Blood Pressure", value: bp ? `${bp.value}` : "--", status: bp ? "Recorded" : "N/A", statusClass: bp ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500" },
+                                { label: "Heart Rate", value: hr ? `${hr.value} bpm` : "--", status: hr ? "Recorded" : "N/A", statusClass: hr ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500" },
+                                { label: "BMI", value: bmiVal ? String(bmiVal) : "--", status: bmiVal ? "Recorded" : "N/A", statusClass: bmiVal ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500" },
+                                { label: "Body Fat %", value: bf ? `${bf.value}%` : "--", status: bf ? "Recorded" : "N/A", statusClass: bf ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500" },
+                                { label: "Muscle Mass", value: mm ? `${mm.value} kg` : "--", status: mm ? "Recorded" : "N/A", statusClass: mm ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500" },
+                                { label: "Metabolic Age", value: ma ? `${ma.value}` : "--", status: ma ? "Recorded" : "N/A", statusClass: ma ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500" },
                             ].map((stat, i) => (
                                 <Card key={i} className="border-slate-100 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden group hover:shadow-md transition-all dark:bg-slate-900/50">
                                     <CardContent className="p-5">
@@ -728,6 +742,7 @@ export const MemberProfilePage: React.FC = () => {
                                 </Card>
                             ))}
                         </div>
+                    )})()}
                      </div>
                 )}
 

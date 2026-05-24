@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Apple, Calendar, AlignLeft } from "lucide-react"
+import { PageHeader } from "@/components/common/PageHeader"
 
 export const MemberDiets: React.FC = () => {
     const { user } = useAuth()
@@ -61,7 +62,7 @@ export const MemberDiets: React.FC = () => {
 
     return (
         <div className="p-4 space-y-6 max-w-4xl mx-auto pb-20">
-            <h1 className="text-2xl font-bold text-center">Diet & Nutrition</h1>
+            <PageHeader title="Diet & Nutrition" />
 
             {(!diets || diets.length === 0) && (
                 <div className="p-8 text-center text-muted-foreground border rounded-xl bg-slate-50">

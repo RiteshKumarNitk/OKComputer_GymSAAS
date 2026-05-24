@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, User } from "lucide-react"
+import { PageHeader } from "@/components/common/PageHeader"
 
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
@@ -48,7 +49,7 @@ export const MemberSchedule: React.FC = () => {
 
     return (
         <div className="p-4 space-y-6 max-w-4xl mx-auto pb-20">
-            <h1 className="text-2xl font-bold text-center">Class Schedule</h1>
+            <PageHeader title="Class Schedule" />
 
             {(!schedules || schedules.length === 0) && (
                 <div className="p-8 text-center text-muted-foreground">
