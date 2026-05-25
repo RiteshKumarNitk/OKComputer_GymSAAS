@@ -32,6 +32,7 @@ class _MemberShellState extends ConsumerState<MemberShell> {
     final List<Map<String, dynamic>> navItems = [
       {'label': 'HOME', 'icon': Icons.home_rounded, 'route': isStaff ? '/frontdesk' : '/member'},
       {'label': 'WORKOUTS', 'icon': Icons.fitness_center_rounded, 'route': '/member/workouts'},
+      {'label': 'PRODUCTS', 'icon': Icons.shopping_bag_rounded, 'route': '/member/products'},
       {'label': 'TOOLS', 'icon': Icons.grid_view_rounded, 'route': '/member/tools'},
       if (isStaff) {'label': 'OPERATIONS', 'icon': Icons.dashboard_customize_rounded, 'route': '/frontdesk/operations'},
       {'label': 'PROFILE', 'icon': Icons.person_rounded, 'route': isStaff ? '/frontdesk/profile' : '/member/profile'},

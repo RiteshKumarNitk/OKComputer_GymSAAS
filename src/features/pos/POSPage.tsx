@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { productsApi, paymentsApi } from "@/api/apiClient"
+import { productsApi, paymentsApi, tenantsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatCurrency } from "@/lib/utils"
 import { ShoppingCart, Plus, Minus, Trash2, Package, CreditCard } from "lucide-react"
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { PageHeader } from "@/components/common"
+import { Select } from "@/components/ui/select"
 
 interface Product {
     id: string
@@ -33,16 +34,31 @@ export const POSPage: React.FC = () => {
     const [cart, setCart] = useState<CartItem[]>([])
     const [isAddProductOpen, setIsAddProductOpen] = useState(false)
     const [, setCheckoutOpen] = useState(false)
+    const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
+    const [isSuperAdmin] = useState<boolean>(user?.role === "super_admin")
 
-    // Fetch Products
-    const { data: products } = useQuery({
-        queryKey: ["products", user?.tenantId],
+    // Fetch tenants (only for super admins)
+    const { data: tenants } = useQuery({
+        queryKey: ["tenants"],
         queryFn: async () => {
-            const response = await productsApi.list(user?.tenantId || "")
+            const response = await tenantsApi.list()
+            if (response.error) throw response.error
+            return response.data
+        },
+        enabled: isSuperAdmin,
+    })
+
+    // Fetch Products based on selected tenant
+    const { data: products } = useQuery({
+        queryKey: ["products", selectedTenantId || user?.tenantId],
+        queryFn: async () => {
+            const tenantIdToUse = selectedTenantId || user?.tenantId || ""
+            if (!tenantIdToUse) throw new Error("No tenant selected")
+            const response = await productsApi.list(tenantIdToUse)
             if (response.error) throw response.error
             return response.data as Product[]
         },
-        enabled: !!user?.tenantId,
+        enabled: !!(selectedTenantId || user?.tenantId),
     })
 
     const addToCart = (product: Product) => {
@@ -123,29 +139,51 @@ export const POSPage: React.FC = () => {
         <div className="flex h-[calc(100vh-2rem)] gap-4 flex-col md:flex-row">
             {/* Products Grid */}
             <div className="flex-1 space-y-4 overflow-auto">
-                <PageHeader
-                    title="Point of Sale"
-                    actions={
-                        <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
-                            <DialogTrigger asChild>
-                                <Button><Plus className="mr-2 h-4 w-4" /> Add Product</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Add New Product</DialogTitle>
-                                </DialogHeader>
-                                <form onSubmit={(e) => { e.preventDefault(); addProductMutation.mutate(new FormData(e.currentTarget)); }} className="space-y-4">
-                                    <Input name="name" placeholder="Product Name (e.g. Whey Protein)" required />
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <Input name="price" type="number" placeholder="Price (₹)" required />
-                                        <Input name="stock" type="number" placeholder="Initial Stock" required />
-                                    </div>
-                                    <Input name="category" placeholder="Category (e.g. Supplements)" />
-                                    <DialogFooter><Button type="submit">Add Product</Button></DialogFooter>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
-                    }
+<PageHeader
+    title="Point of Sale"
+    actions={
+        <>
+            {isSuperAdmin && (
+                <div className="flex items-center space-x-3 mb-4 md:mb-0 w-48">
+                    <span className="text-sm font-medium">Tenant:</span>
+                    <Select
+                        value={selectedTenantId || ""}
+                        onValueChange={setSelectedTenantId}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select tenant..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {tenants?.map(tenant => (
+                                <SelectItem key={tenant.id} value={tenant.id}>
+                                    <span className="pr-2">{tenant.name}</span>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+            <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
+                <DialogTrigger asChild>
+                    <Button><Plus className="mr-2 h-4 w-4" /> Add Product</Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add New Product</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={(e) => { e.preventDefault(); addProductMutation.mutate(new FormData(e.currentTarget)); }} className="space-y-4">
+                        <Input name="name" placeholder="Product Name (e.g. Whey Protein)" required />
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input name="price" type="number" placeholder="Price (₹)" required />
+                            <Input name="stock" type="number" placeholder="Initial Stock" required />
+                        </div>
+                        <Input name="category" placeholder="Category (e.g. Supplements)" />
+                        <DialogFooter><Button type="submit">Add Product</Button></DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </>
+    }
                 />
 
                 <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">

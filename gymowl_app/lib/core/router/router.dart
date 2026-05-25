@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/member/screens/fitness_tools_screen.dart';
+import '../../features/products/screens/products_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/intro_screen.dart';
@@ -115,7 +116,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/member/profile', builder: (context, state) => const ProfileScreen()),
           GoRoute(path: '/member/schedule', builder: (context, state) => const Scaffold(body: Center(child: Text('Schedule Coming Soon')))),
           GoRoute(path: '/member/payment', builder: (context, state) => const PaymentScreen()),
-          GoRoute(path: '/member/tools', builder: (context, state) => const FitnessToolsScreen()),
+           GoRoute(path: '/member/tools', builder: (context, state) => const FitnessToolsScreen()),
+           GoRoute(path: '/member/products', builder: (context, state) => const ProductsScreen()),
           GoRoute(path: '/member/calories-calculator', builder: (context, state) => const CaloriesCalculatorScreen()),
           GoRoute(path: '/member/bmi-calculator', builder: (context, state) => const BmiCalculatorScreen()),
           GoRoute(path: '/member/water-reminder', builder: (context, state) => const WaterReminderScreen()),
