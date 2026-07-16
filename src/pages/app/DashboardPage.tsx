@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { tenantsApi, usersApi, billingApi, dashboardApi, followUpsApi, membersApi, attendanceApi } from "@/api/apiClient"
+import { tenantsApi, usersApi, billingApi, dashboardApi, followUpsApi, membersApi, attendanceApi, reportsApi } from "@/api/apiClient"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatCurrency, exportToCSV } from "@/lib/utils"
 import {
@@ -106,6 +106,28 @@ export const DashboardPage: React.FC = () => {
     enabled: !!user?.tenantId && user?.role !== "super_admin",
   })
 
+  // Real revenue/expense/profit trend (replaces client-side-fabricated data)
+  const { data: revenueTrend } = useQuery({
+    queryKey: ["revenue-trend", user?.tenantId],
+    queryFn: async () => {
+      const response = await reportsApi.getRevenueTrend(12)
+      if (response.error) throw response.error
+      return response.data || []
+    },
+    enabled: !!user?.tenantId && user?.role !== "super_admin",
+  })
+
+  // Real new-member-per-month trend (replaces a fabricated active/inactive/upcoming split)
+  const { data: memberGrowthTrend } = useQuery({
+    queryKey: ["member-growth-trend", user?.tenantId],
+    queryFn: async () => {
+      const response = await reportsApi.getMemberGrowthTrend(12)
+      if (response.error) throw response.error
+      return response.data || []
+    },
+    enabled: !!user?.tenantId && user?.role !== "super_admin",
+  })
+
   const statsCalculated = React.useMemo(() => {
     if (!allMembers) return { active: 0, upcoming: 0, past: 0, birthday: 0, anniversary: 0 }
     const now = new Date()
@@ -127,38 +149,22 @@ export const DashboardPage: React.FC = () => {
     }
   }, [allMembers])
 
+  // Real new-members-per-month, formatted for the bar chart below.
   const memberChartData = React.useMemo(() => {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-    if (!allMembers) return months.map(m => ({ name: m, active: 0, inactive: 0, upcoming: 0 }))
-    const active = allMembers.filter((m: any) => m.status === 'active').length
-    const inactive = allMembers.filter((m: any) => m.status === 'inactive' || m.status === 'expired').length
-    const now = new Date()
-    const monthsWithData = Math.max(1, now.getMonth() + 1)
-    const activePerMonth = Math.max(1, Math.round(active / monthsWithData))
-    const inactivePerMonth = Math.max(1, Math.round(inactive / 12))
-    return months.map((name, i) => ({
-      name,
-      active: i < monthsWithData ? activePerMonth + (i === now.getMonth() ? active % monthsWithData : 0) : 0,
-      inactive: inactivePerMonth,
-      upcoming: i >= now.getMonth() && i < now.getMonth() + 3 ? Math.max(1, Math.round(active * 0.08)) : 0
-    }))
-  }, [allMembers])
+    if (!memberGrowthTrend) return []
+    return memberGrowthTrend.map((point) => ({ name: point.label, newMembers: point.value }))
+  }, [memberGrowthTrend])
 
+  // Real revenue/expense/profit per month, formatted for the area chart below.
   const financialChartData = React.useMemo(() => {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-    const now = new Date()
-    const monthsWithData = Math.max(1, now.getMonth() + 1)
-    const totalRev = stats?.totalRevenue || 0
-    const revPerMonth = Math.max(1, Math.round(totalRev / monthsWithData / 100))
-    return months.map((name, i) => ({
-      name,
-      paid: i < monthsWithData ? revPerMonth + (i === now.getMonth() ? (totalRev / 100) % monthsWithData : 0) : 0,
-      balance: i < monthsWithData ? Math.round(revPerMonth * 0.1) : 0,
-      pending: i < monthsWithData ? Math.round(revPerMonth * 0.05) : 0,
-      expense: 0,
-      profit: i < monthsWithData ? revPerMonth - Math.round(revPerMonth * 0.1) : 0
+    if (!revenueTrend) return []
+    return revenueTrend.map((point) => ({
+      name: point.label,
+      paid: point.revenue,
+      expense: point.expenses,
+      profit: point.profit,
     }))
-  }, [stats?.totalRevenue])
+  }, [revenueTrend])
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
@@ -466,7 +472,7 @@ export const DashboardPage: React.FC = () => {
                 <span className="text-3xl font-bold text-white mb-1">{stats?.newMembersThisMonth ?? statsCalculated.active ?? 0}</span>
               </div>
               <div className="flex-1 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold text-white mb-1">{Math.round((stats?.totalRevenue || 0) / 100).toLocaleString()}</span>
+                <span className="text-2xl font-bold text-white mb-1">{Math.round(stats?.totalRevenue || 0).toLocaleString()}</span>
               </div>
             </div>
           </Card>
@@ -516,8 +522,8 @@ export const DashboardPage: React.FC = () => {
                       <Pie
                         data={[
                           { name: 'Hot', value: stats?.hotLeads || 0 },
-                          { name: 'Warm', value: (stats?.totalLeads || 0) - (stats?.hotLeads || 0) },
-                          { name: 'Cold', value: 0 }
+                          { name: 'Warm', value: stats?.warmLeads || 0 },
+                          { name: 'Cold', value: stats?.coldLeads || 0 }
                         ]}
                         cx="50%"
                         cy="50%"
@@ -552,14 +558,14 @@ export const DashboardPage: React.FC = () => {
                       <div className="h-2 w-2 rounded-full bg-[#ED8936]" />
                       <span className="text-xs font-bold text-orange-600 uppercase">Warm Leads</span>
                     </div>
-                    <span className="text-sm font-bold text-slate-600">{((stats?.totalLeads || 0) - (stats?.hotLeads || 0))}</span>
+                    <span className="text-sm font-bold text-slate-600">{stats?.warmLeads || 0}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="h-2 w-2 rounded-full bg-[#3B82F6]" />
                       <span className="text-xs font-bold text-blue-600 uppercase">Cold Leads</span>
                     </div>
-                    <span className="text-sm font-bold text-slate-600">0</span>
+                    <span className="text-sm font-bold text-slate-600">{stats?.coldLeads || 0}</span>
                   </div>
                 </div>
               </div>
@@ -586,11 +592,9 @@ export const DashboardPage: React.FC = () => {
                     <BarChart data={memberChartData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={true} stroke="#E2E8F0" />
                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
-                      <Tooltip contentStyle={{ borderRadius: '12px' }} />
-                      <Bar dataKey="active" stackId="a" fill="#10B981" barSize={35} />
-                      <Bar dataKey="inactive" stackId="a" fill="#F43F5E" barSize={35} />
-                      <Bar dataKey="upcoming" stackId="a" fill="#ED8936" barSize={35} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} allowDecimals={false} />
+                      <Tooltip contentStyle={{ borderRadius: '12px' }} formatter={(value: number) => [value, 'New Members']} />
+                      <Bar dataKey="newMembers" name="New Members" fill="#10B981" barSize={35} radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -612,11 +616,9 @@ export const DashboardPage: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
-            {/* Top Legend matching screenshot exactly */}
+            {/* Top Legend — three real series: revenue, expenses, profit */}
             <div className="flex flex-wrap items-center gap-6 px-6 py-3 border-b dark:border-slate-800">
-              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#38B2AC]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Paid Amount</span></div>
-              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#D69E2E]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Paid Balance Amount</span></div>
-              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#ED8936]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Pending Payment</span></div>
+              <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#38B2AC]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Revenue</span></div>
               <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#F43F5E]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Total Expenses</span></div>
               <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-[#48BB78]" /><span className="text-[10px] font-bold text-slate-500 uppercase">Total Profit</span></div>
             </div>
@@ -637,13 +639,11 @@ export const DashboardPage: React.FC = () => {
                     tickLine={false}
                     tick={{ fontSize: 10, fill: '#94A3B8' }}
                   />
-                  <Tooltip contentStyle={{ borderRadius: '12px' }} />
-                  {/* Rendering areas with dots at data points as per screenshot */}
-                  <Area type="monotone" dataKey="paid" stroke="#38B2AC" fill="#38B2AC40" strokeWidth={3} dot={{ r: 3, fill: '#38B2AC' }} activeDot={{ r: 5 }} />
-                  <Area type="monotone" dataKey="balance" stroke="#D69E2E" fill="transparent" strokeWidth={2} dot={{ r: 3, fill: '#D69E2E' }} />
-                  <Area type="monotone" dataKey="pending" stroke="#ED8936" fill="transparent" strokeWidth={2} dot={{ r: 3, fill: '#ED8936' }} />
-                  <Area type="monotone" dataKey="expense" stroke="#F43F5E" fill="transparent" strokeWidth={2} dot={{ r: 3, fill: '#F43F5E' }} />
-                  <Area type="monotone" dataKey="profit" stroke="#48BB78" fill="transparent" strokeWidth={2} dot={{ r: 3, fill: '#48BB78' }} />
+                  <Tooltip contentStyle={{ borderRadius: '12px' }} formatter={(value: number) => formatCurrency(value * 100)} />
+                  {/* Real revenue/expense/profit trend from /api/reports?type=revenue */}
+                  <Area type="monotone" dataKey="paid" name="Revenue" stroke="#38B2AC" fill="#38B2AC40" strokeWidth={3} dot={{ r: 3, fill: '#38B2AC' }} activeDot={{ r: 5 }} />
+                  <Area type="monotone" dataKey="expense" name="Expenses" stroke="#F43F5E" fill="transparent" strokeWidth={2} dot={{ r: 3, fill: '#F43F5E' }} />
+                  <Area type="monotone" dataKey="profit" name="Profit" stroke="#48BB78" fill="transparent" strokeWidth={2} dot={{ r: 3, fill: '#48BB78' }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -655,7 +655,7 @@ export const DashboardPage: React.FC = () => {
                   <div className="h-2 w-2 rounded-full bg-[#38B2AC]" />
                   <span className="text-[10px] font-bold text-[#38B2AC] uppercase tracking-wide">Total Revenue</span>
                 </div>
-                <div className="text-xl font-bold text-slate-800 dark:text-slate-100">{formatCurrency(stats?.monthlyRevenue || stats?.totalRevenue || 0)}</div>
+                <div className="text-xl font-bold text-slate-800 dark:text-slate-100">{formatCurrency((stats?.monthlyRevenue || stats?.totalRevenue || 0) * 100)}</div>
               </div>
               <div className="flex flex-col items-center justify-center py-6 px-4 border-r dark:border-slate-800">
                 <div className="flex items-center gap-2 mb-2">
@@ -669,14 +669,14 @@ export const DashboardPage: React.FC = () => {
                   <div className="h-2 w-2 rounded-full bg-[#F43F5E]" />
                   <span className="text-[10px] font-bold text-[#F43F5E] uppercase tracking-wide">Total Expenses</span>
                 </div>
-                <div className="text-xl font-bold text-slate-800 dark:text-slate-100">{formatCurrency(stats?.totalExpenses || 0)}</div>
+                <div className="text-xl font-bold text-slate-800 dark:text-slate-100">{formatCurrency(financialChartData.reduce((sum, p) => sum + p.expense, 0) * 100)}</div>
               </div>
               <div className="flex flex-col items-center justify-center py-6 px-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="h-2 w-2 rounded-full bg-[#48BB78]" />
                   <span className="text-[10px] font-bold text-[#48BB78] uppercase tracking-wide">Total Profit</span>
                 </div>
-                <div className="text-xl font-bold text-slate-800 dark:text-slate-100">{formatCurrency((stats?.monthlyRevenue || stats?.totalRevenue || 0) - (stats?.totalExpenses || 0))}</div>
+                <div className="text-xl font-bold text-slate-800 dark:text-slate-100">{formatCurrency(financialChartData.reduce((sum, p) => sum + p.profit, 0) * 100)}</div>
               </div>
             </div>
           </CardContent>
@@ -737,7 +737,7 @@ export const DashboardPage: React.FC = () => {
               </div>
               <div className="text-center p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Monthly Rev</p>
-                <p className="text-lg font-bold text-emerald-600">{formatCurrency(stats?.monthlyRevenue || 0)}</p>
+                <p className="text-lg font-bold text-emerald-600">{formatCurrency((stats?.monthlyRevenue || 0) * 100)}</p>
               </div>
             </CardContent>
           </Card>

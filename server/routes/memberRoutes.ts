@@ -28,7 +28,7 @@ router.post("/", authenticate, async (req: Request, res: Response) => {
       })
 
       if (data.currentPlanId) {
-        const plan = await (tx as any).membership.findUnique({ where: { id: data.currentPlanId } })
+        const plan = await (tx as any).membership.findFirst({ where: { id: data.currentPlanId, tenantId } })
         if (plan) {
           const subtotalPaise = plan.priceCents
           const taxPercent = 0
@@ -93,7 +93,7 @@ router.post("/renew", authenticate, async (req: Request, res: Response) => {
     const selectedPlanId = planId || member.currentPlanId
     if (!selectedPlanId) { res.status(400).json({ error: "Plan ID is required for renewal" }); return }
 
-    const plan = await prisma.membership.findUnique({ where: { id: selectedPlanId } })
+    const plan = await prisma.membership.findFirst({ where: { id: selectedPlanId, tenantId } })
     if (!plan) { res.status(404).json({ error: "Plan not found" }); return }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -340,7 +340,7 @@ router.post("/:memberId/workout_template", authenticate, async (req: Request, re
     const { memberId } = req.params
     const { templateId, startDate } = req.body
 
-    const template = await prisma.workoutTemplate.findUnique({ where: { id: templateId } })
+    const template = await prisma.workoutTemplate.findFirst({ where: { id: templateId, tenantId: req.tenantId! } })
     if (!template) { res.status(404).json({ error: "Template not found" }); return }
 
     const exercises = typeof template.exercises === "string" ? JSON.parse(template.exercises) : template.exercises

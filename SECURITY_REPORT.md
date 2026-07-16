@@ -21,6 +21,8 @@ Findings are ranked by severity. Each includes why it matters, business impact, 
 **Estimated effort:** 30 minutes.
 
 ### C3. Multiple production API routes have no authentication
+
+**Status: ✅ Fixed 2026-07-16.** `tenantRoutes.ts` (`GET /`, `POST /`, `PATCH /` — the query-param-style routes the frontend actually calls) now require `authenticate` plus an ownership check (own tenant or `super_admin`) or `requireRole("super_admin")` where appropriate. `billingRoutes.ts` now requires `authenticate` with an ownership check on the `subscription`/`invoices` branches (`plans` stays open to any authenticated user). `uploadRoutes.ts` now requires `authenticate` and enforces a 5MB size limit + image/PDF MIME allowlist. See the Batch 2 plan for the full investigation of which routes the frontend actually calls (several were query-param style, not the path-param routes that already had auth).
 **Files/routes:**
 - `server/routes/tenantRoutes.ts:8` — `GET /api/tenants` — lists every tenant with member/user counts, no auth.
 - `server/routes/tenantRoutes.ts:31` — `POST /api/tenants` — unauthenticated tenant + gym-owner account creation.
@@ -34,6 +36,8 @@ Findings are ranked by severity. Each includes why it matters, business impact, 
 **Estimated effort:** 1 day (mostly testing after the change, since these are used by the tenant onboarding wizard and settings pages).
 
 ### C4. Route-level authorization is not enforced on the frontend at all
+
+**Status: ✅ Fixed 2026-07-16.** `src/App.tsx`'s outer `<ProtectedRoute>` around the CRM/admin tree now sets `requiredRoles` to every role except `member`, so a member-role user is redirected to `/unauthorized` instead of browsing the owner/manager app shell. The 5 `/super-admin/*` routes are now individually wrapped in the existing `SuperAdminRoute`. Per-page role arrays for the remaining ~50 individual CRM routes are not reconciled against backend role arrays — deferred as separate, lower-urgency work.
 **File:** `src/App.tsx`
 **Why it's a problem:** Every non-public page is wrapped in a single `<ProtectedRoute>` with no `requiredRoles` prop. `ProtectedRoute.tsx` defines role-specific wrapper components (`SuperAdminRoute`, `GymOwnerRoute`, etc.) that exist but are never used.
 **Business impact:** Any authenticated user — including a `member` or `trainer` account — can type `/settings/access-control`, `/billing/saas`, or any admin URL directly into the browser and see (and, if the underlying API also lacks a check, act on) admin-only screens. This is defense-in-depth failure on top of the backend gaps above, not the sole line of defense, but it's currently the *only* line of defense for pages whose backing APIs also don't check roles consistently (see C5).
@@ -41,6 +45,8 @@ Findings are ranked by severity. Each includes why it matters, business impact, 
 **Estimated effort:** 0.5-1 day.
 
 ### C5. No centralized authorization middleware on the backend
+
+**Status: 🟡 Partially addressed 2026-07-16.** `server/middleware/requireRole.ts` now exists (a thin wrapper around the previously-unused `hasRole()` in `server/config/roles.ts`) and is applied to `POST /api/tenants`. Ownership-style checks (own tenant vs. arbitrary id) intentionally stay as inline checks — `requireRole`'s fixed-list shape doesn't fit those. Retrofitting the ~15 other route files' already-working inline checks onto this middleware is deferred — that's a consistency cleanup, not a new open door, and touching 15 files' worth of correct authorization logic for style reasons carries more regression risk than value right now.
 **Files:** every hand-written route file under `server/routes/*.ts` and the inline handlers in `server/index.ts:104-204`
 **Why it's a problem:** `server/config/roles.ts` defines a proper role-hierarchy system (`hasRole`, `hasMinRole`, `ROLE_HIERARCHY`) but it is **never imported anywhere**. Every hand-written route instead inlines its own `if (req.role !== 'x')` check, duplicated dozens of times, with no single source of truth. This is exactly the kind of inconsistency that produced C3.
 **Business impact:** Every new route added by a developer has to remember to add its own ad hoc check; it's already been forgotten multiple times (C3). This class of bug will keep recurring until there's one enforced pattern.
@@ -73,6 +79,8 @@ Findings are ranked by severity. Each includes why it matters, business impact, 
 **Estimated effort:** 30 minutes.
 
 ### H4. Cross-tenant data access via unfiltered `findUnique`/`update`/`delete`
+
+**Status: ✅ Fixed 2026-07-16, then hardened structurally 2026-07-16.** See `DATABASE_REVIEW.md` D1 — beyond fixing the 5 known call sites, a Prisma extension now auto-injects `tenantId` into tenant-scoped queries for every request, so this bug class can't silently reappear in code not yet reviewed.
 **Files:** `server/index.ts:187` (workout template PATCH), `server/index.ts:199` (workout template DELETE), `server/routes/memberRoutes.ts:31` (membership lookup), `server/routes/memberRoutes.ts:96`, `server/routes/memberRoutes.ts:343` (template assignment)
 **Why it's a problem:** These queries use only `{ where: { id } }` with no `tenantId` filter, despite every one of these models having a `tenantId` column meant to isolate tenants.
 **Business impact:** A malicious or curious authenticated user from **Tenant A** can pass an id that belongs to **Tenant B** and modify or delete Tenant B's workout templates, or attach Tenant B's membership plan/pricing to a member in their own gym. In a multi-tenant SaaS this is the single most reputation-damaging class of bug possible — it breaks the fundamental promise of tenant isolation this product is sold on.
@@ -178,26 +186,26 @@ See `DEVELOPMENT_ROADMAP.md`/`FINAL_PROJECT_SCORE.md` for testing completion —
 
 ## Summary table
 
-| ID | Finding | Severity |
-|---|---|---|
-| C1 | DB password committed to git | Critical |
-| C2 | WhatsApp token committed to git | Critical |
-| C3 | Unauthenticated tenant/billing/upload routes | Critical |
-| C4 | No frontend route-level role enforcement | Critical |
-| C5 | No centralized backend authorization middleware | Critical |
-| H1 | OTP logged in plaintext | High |
-| H2 | Hardcoded master OTP bypass | High |
-| H3 | Hardcoded JWT secret fallback | High |
-| H4 | Cross-tenant data access (missing tenantId filters) | High |
-| H5 | Upload endpoint: no size/MIME limits, no auth | High |
-| H6 | Razorpay signature verification empty-key fallback | High |
-| H7 | Plaintext credentials in README/MASTER_PLAN | High |
-| M1 | Phone OTP rate limiter built but not wired in | Medium |
-| M2 | Rate limiter fails open on Redis outage | Medium |
-| M3 | Long-lived JWTs, no revocation | Medium |
-| M4 | JWT in localStorage, not httpOnly cookie | Medium |
-| M5 | No CSP header | Medium |
-| M6 | CORS wildcard-with-credentials footgun | Medium |
-| L1 | No auth/authz test coverage | Low |
-| L2 | Inconsistent logging for security events | Low |
-| L3 | Confusing/unused env var naming | Low |
+| ID | Finding | Severity | Status |
+|---|---|---|---|
+| C1 | DB password committed to git | Critical | Open |
+| C2 | WhatsApp token committed to git | Critical | Open |
+| C3 | Unauthenticated tenant/billing/upload routes | Critical | ✅ Fixed 2026-07-16 |
+| C4 | No frontend route-level role enforcement | Critical | ✅ Fixed 2026-07-16 |
+| C5 | No centralized backend authorization middleware | Critical | 🟡 Partial 2026-07-16 |
+| H1 | OTP logged in plaintext | High | Open |
+| H2 | Hardcoded master OTP bypass | High | Open |
+| H3 | Hardcoded JWT secret fallback | High | Open |
+| H4 | Cross-tenant data access (missing tenantId filters) | High | ✅ Fixed 2026-07-16 |
+| H5 | Upload endpoint: no size/MIME limits, no auth | High | Open |
+| H6 | Razorpay signature verification empty-key fallback | High | Open |
+| H7 | Plaintext credentials in README/MASTER_PLAN | High | Open |
+| M1 | Phone OTP rate limiter built but not wired in | Medium | Open |
+| M2 | Rate limiter fails open on Redis outage | Medium | Open |
+| M3 | Long-lived JWTs, no revocation | Medium | Open |
+| M4 | JWT in localStorage, not httpOnly cookie | Medium | Open |
+| M5 | No CSP header | Medium | Open |
+| M6 | CORS wildcard-with-credentials footgun | Medium | Open |
+| L1 | No auth/authz test coverage | Low | Open |
+| L2 | Inconsistent logging for security events | Low | Open |
+| L3 | Confusing/unused env var naming | Low | Open |

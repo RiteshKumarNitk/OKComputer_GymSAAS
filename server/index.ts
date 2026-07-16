@@ -3,7 +3,8 @@ import cors from "cors"
 import dotenv from "dotenv"
 import admin from "firebase-admin"
 import { v2 as cloudinary } from "cloudinary"
-import { prisma, snakeToCamel, authenticate } from "./config/db.js"
+import { prisma, snakeToCamel, authenticate, AuthenticatedRequest } from "./config/db.js"
+import type { Response } from "express"
 import { errorMiddleware } from "./middleware/errorMiddleware.js"
 import { createCrudRoutes } from "./config/crudHelper.js"
 
@@ -101,7 +102,7 @@ app.use("/api/workouts", workoutRoutes)
 // are kept inline because their base path (/api/member) uses a different prefix
 
 // GET /api/member/workouts/today — Member's workout for today
-app.get("/api/member/workouts/today", authenticate, async (req: any, res) => {
+app.get("/api/member/workouts/today", authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.role !== "member") { res.status(403).json({ error: "Only members can access this" }); return }
     const member = await prisma.member.findUnique({ where: { userId: req.userId, tenantId: req.tenantId } })
@@ -119,7 +120,7 @@ app.get("/api/member/workouts/today", authenticate, async (req: any, res) => {
 })
 
 // PATCH /api/member/workouts/:id — Update daily workout plan
-app.patch("/api/member/workouts/:id", authenticate, async (req: any, res) => {
+app.patch("/api/member/workouts/:id", authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params
     const tenantId = req.tenantId
@@ -145,7 +146,7 @@ app.patch("/api/member/workouts/:id", authenticate, async (req: any, res) => {
 // ──────────────────────────────────────────────
 
 // GET /api/workout_templates
-app.get("/api/workout_templates", authenticate, async (req: any, res) => {
+app.get("/api/workout_templates", authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const templates = await prisma.workoutTemplate.findMany({
       where: { tenantId: req.tenantId, isActive: true },
@@ -158,7 +159,7 @@ app.get("/api/workout_templates", authenticate, async (req: any, res) => {
 })
 
 // POST /api/workout_templates
-app.post("/api/workout_templates", authenticate, async (req: any, res) => {
+app.post("/api/workout_templates", authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.role === "member") { res.status(403).json({ error: "Members cannot create templates" }); return }
     const { name, description, days, exercises } = req.body
@@ -172,7 +173,7 @@ app.post("/api/workout_templates", authenticate, async (req: any, res) => {
 })
 
 // PATCH /api/workout_templates/:id
-app.patch("/api/workout_templates/:id", authenticate, async (req: any, res) => {
+app.patch("/api/workout_templates/:id", authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.role === "member") { res.status(403).json({ error: "Members cannot modify templates" }); return }
     const { id } = req.params
@@ -184,7 +185,9 @@ app.patch("/api/workout_templates/:id", authenticate, async (req: any, res) => {
     if (exercises) updateData.exercises = typeof exercises === "string" ? exercises : JSON.stringify(exercises)
     if (isActive !== undefined) updateData.isActive = isActive
     if (isDefault !== undefined) updateData.isDefault = isDefault
-    const template = await prisma.workoutTemplate.update({ where: { id }, data: updateData })
+    const result = await prisma.workoutTemplate.updateMany({ where: { id, tenantId: req.tenantId }, data: updateData })
+    if (result.count === 0) { res.status(404).json({ error: "Template not found" }); return }
+    const template = await prisma.workoutTemplate.findFirst({ where: { id, tenantId: req.tenantId } })
     res.json(snakeToCamel(template))
   } catch (err: any) {
     res.status(500).json({ error: err.message })
@@ -192,11 +195,12 @@ app.patch("/api/workout_templates/:id", authenticate, async (req: any, res) => {
 })
 
 // DELETE /api/workout_templates/:id
-app.delete("/api/workout_templates/:id", authenticate, async (req: any, res) => {
+app.delete("/api/workout_templates/:id", authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.role === "member") { res.status(403).json({ error: "Members cannot delete templates" }); return }
     const { id } = req.params
-    await prisma.workoutTemplate.delete({ where: { id } })
+    const result = await prisma.workoutTemplate.deleteMany({ where: { id, tenantId: req.tenantId } })
+    if (result.count === 0) { res.status(404).json({ error: "Template not found" }); return }
     res.json({ success: true })
   } catch (err: any) {
     res.status(500).json({ error: err.message })

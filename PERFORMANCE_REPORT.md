@@ -16,14 +16,13 @@
 
 ## 3. Server-side aggregate computation done client-side
 
-**Finding:** `DashboardPage.tsx` and `pages/admin/superadmin/Dashboard.tsx` extrapolate monthly trend charts from a single `totalRevenue` number returned by `dashboardApi.getStats()`, computed in the browser on every dashboard visit.
-**Impact:** beyond the data-integrity issue already flagged in `FEATURE_GAP_ANALYSIS.md` (the numbers are fabricated), this is also wasted client CPU recomputing the same derived shape every load instead of the backend returning real precomputed time-series data once.
-**Fix:** move real aggregation to the backend (a scheduled rollup job or a grouped Prisma query with `groupBy`), return actual time-series data, and remove the client-side fabrication entirely — this is both a correctness fix and a performance one.
-**Severity:** Medium (performance angle); High (correctness angle, tracked in `FEATURE_GAP_ANALYSIS.md`). **Effort:** 2-3 days.
+**Status: ✅ Fixed 2026-07-16.** `DashboardPage.tsx` and `pages/admin/superadmin/Dashboard.tsx` used to extrapolate monthly trend charts from a single `totalRevenue` number, recomputed client-side on every visit. Real backend aggregation now exists (`server/lib/analytics.ts`, computed on-demand from bounded Prisma queries rather than a scheduled rollup job — deliberately avoiding a `setInterval`-based approach given the serverless cron-reliability issue already documented in `ARCHITECTURE_REVIEW.md` §4). See `FEATURE_COMPLETION_MATRIX.md` #30 for the full list of what moved from fabricated to real.
+
+Original finding, retained for context: `DashboardPage.tsx` and `pages/admin/superadmin/Dashboard.tsx` extrapolated monthly trend charts from a single `totalRevenue` number returned by `dashboardApi.getStats()`, computed in the browser on every dashboard visit — both wasted client CPU and fabricated the underlying numbers.
 
 ## 4. List/report endpoints returning unbounded data (backend, cross-referenced)
 
-Covered in full in `DATABASE_REVIEW.md` D5: `attendanceRoutes.ts`, `reportRoutes.ts` (revenue/attendance/member-growth), and `billingRoutes.ts` (invoices) return all matching rows with no pagination, unlike the `crudHelper.ts`-backed resources which correctly cap at 100/page. This directly affects frontend performance on the pages that call these endpoints (`ReportsPage.tsx`, `SalesReportPage.tsx`, `features/attendance/AttendanceHistory.tsx`) as data volume grows — large payloads mean slow JSON parse, slow render, and slow network transfer, compounding with the memoization gap in §2.
+Covered in full in `DATABASE_REVIEW.md` D5: `attendanceRoutes.ts`, `reportRoutes.ts` (revenue/attendance/member-growth), and `billingRoutes.ts` (invoices) return all matching rows with no pagination, unlike the `crudHelper.ts`-backed resources which correctly cap at 100/page. **`reportRoutes.ts`'s revenue/attendance/member-growth endpoints are fixed as of 2026-07-16** — they now return real aggregated, bounded data (max 24 months / 52 weeks) instead of unbounded raw rows, as part of the Analytics Engine build (`FEATURE_COMPLETION_MATRIX.md` #30). `attendanceRoutes.ts` and `billingRoutes.ts`'s own list endpoints are unrelated and still open. This directly affects frontend performance on the pages that call these endpoints (`ReportsPage.tsx`, `SalesReportPage.tsx`, `features/attendance/AttendanceHistory.tsx`) as data volume grows — large payloads mean slow JSON parse, slow render, and slow network transfer, compounding with the memoization gap in §2.
 **Severity:** Medium-High as data grows. **Effort:** see `DATABASE_REVIEW.md` D5 (4-6 hours).
 
 ## 5. Image handling

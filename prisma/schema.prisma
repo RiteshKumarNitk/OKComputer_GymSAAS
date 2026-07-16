@@ -290,6 +290,9 @@ model Tenant {
   memberWorkouts      MemberWorkout[]
   memberDiets         MemberDiet[]
   membershipHistories MembershipHistory[]
+  memberHealthProfiles MemberHealthProfile[]
+  bodyMeasurements     BodyMeasurement[]
+  memberFitnessStats   MemberFitnessStats[]
   // Staff & HR
   staffProfiles       StaffProfile[]
   staffAttendance     StaffAttendance[]
@@ -362,6 +365,8 @@ model Membership {
   members           Member[]
   payments          Payment[]
   membershipHistory MembershipHistory[]
+
+  @@index([tenantId])
 }
 
 model Member {
@@ -484,6 +489,8 @@ model Trainer {
   members           Member[]
   schedules         Schedule[]
   dailyWorkoutPlans DailyWorkoutPlan[]
+
+  @@index([tenantId])
 }
 
 model TrainerSlot {
@@ -504,6 +511,8 @@ model TrainerSlot {
   trainer  Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
   tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   bookedBy Member? @relation("MemberTrainerSlots", fields: [bookedByMemberId], references: [id])
+
+  @@index([tenantId])
 }
 
 model Schedule {
@@ -522,6 +531,8 @@ model Schedule {
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   service Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   trainer Trainer? @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
 }
 
 model Workout {
@@ -541,6 +552,8 @@ model Workout {
   tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   creator           UserProfile?    @relation("CreatedWorkouts", fields: [createdBy], references: [id])
   memberAssignments MemberWorkout[]
+
+  @@index([tenantId])
 }
 
 model DietPlan {
@@ -560,6 +573,8 @@ model DietPlan {
   tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   creator           UserProfile? @relation("CreatedDietPlans", fields: [createdBy], references: [id])
   memberAssignments MemberDiet[]
+
+  @@index([tenantId])
 }
 
 model MemberWorkout {
@@ -578,6 +593,8 @@ model MemberWorkout {
   member   Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
   workout  Workout      @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   assigner UserProfile? @relation("AssignedWorkouts", fields: [assignedBy], references: [id])
+
+  @@index([tenantId])
 }
 
 model MemberDiet {
@@ -596,6 +613,8 @@ model MemberDiet {
   member   Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
   dietPlan DietPlan     @relation(fields: [dietPlanId], references: [id], onDelete: Cascade)
   assigner UserProfile? @relation("AssignedDiets", fields: [assignedBy], references: [id])
+
+  @@index([tenantId])
 }
 
 model Notification {
@@ -612,6 +631,8 @@ model Notification {
   // Relations
   tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   UserProfile? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model AuditLog {
@@ -629,6 +650,8 @@ model AuditLog {
   // Relations
   tenant Tenant?      @relation(fields: [tenantId], references: [id])
   user   UserProfile? @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
 }
 
 model Visitor {
@@ -643,6 +666,8 @@ model Visitor {
 
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model Complaint {
@@ -659,6 +684,8 @@ model Complaint {
   // Relations
   tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   member Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
 }
 
 model Expense {
@@ -674,6 +701,8 @@ model Expense {
 
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model Lead {
@@ -699,6 +728,8 @@ model Lead {
   // Relations
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   followUps FollowUp[]
+
+  @@index([tenantId])
 }
 
 model FollowUp {
@@ -721,6 +752,8 @@ model FollowUp {
   lead     Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
   member   Member?      @relation(fields: [memberId], references: [id], onDelete: Cascade)
   assignee UserProfile? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
 }
 
 model Product {
@@ -737,6 +770,8 @@ model Product {
 
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model Locker {
@@ -751,6 +786,8 @@ model Locker {
   // Relations
   tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   member Member? @relation(fields: [assignedToMemberId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
 }
 
 model SaasPlan {
@@ -781,6 +818,8 @@ model SaasSubscription {
   tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   plan     SaasPlan?     @relation(fields: [planId], references: [id])
   invoices SaasInvoice[]
+
+  @@index([tenantId])
 }
 
 model SaasInvoice {
@@ -796,6 +835,8 @@ model SaasInvoice {
   // Relations
   tenant       Tenant            @relation(fields: [tenantId], references: [id])
   subscription SaasSubscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([tenantId])
 }
 
 model Branch {
@@ -810,6 +851,8 @@ model Branch {
 
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model Service {
@@ -825,6 +868,8 @@ model Service {
   // Relations
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   schedules Schedule[]
+
+  @@index([tenantId])
 }
 
 model FrontDesk {
@@ -841,6 +886,8 @@ model FrontDesk {
   // Relations
   tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   UserProfile? @relation("UserToFrontDesk", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
 }
 
 // =====================
@@ -866,6 +913,8 @@ model MembershipHistory {
   member     Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
   membership Membership @relation(fields: [membershipId], references: [id])
   payment    Payment?   @relation(fields: [paymentId], references: [id])
+
+  @@index([tenantId])
 }
 
 // =====================
@@ -895,8 +944,11 @@ model MemberHealthProfile {
   updatedAt         DateTime     @updatedAt
 
   // Relations
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   member       Member            @relation(fields: [memberId], references: [id], onDelete: Cascade)
   measurements BodyMeasurement[]
+
+  @@index([tenantId])
 }
 
 model BodyMeasurement {
@@ -913,8 +965,11 @@ model BodyMeasurement {
   createdAt       DateTime            @default(now())
 
   // Relations
+  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   member        Member              @relation(fields: [memberId], references: [id], onDelete: Cascade)
   healthProfile MemberHealthProfile @relation(fields: [healthProfileId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model MemberFitnessStats {
@@ -930,7 +985,10 @@ model MemberFitnessStats {
   updatedAt              DateTime  @updatedAt
 
   // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 // =====================
@@ -989,6 +1047,7 @@ model StaffAttendance {
   staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@unique([staffId, date])
+  @@index([tenantId])
 }
 
 model StaffLeave {
@@ -1010,6 +1069,8 @@ model StaffLeave {
   // Relations
   tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model SalarySlip {
@@ -1035,6 +1096,7 @@ model SalarySlip {
   staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@unique([staffId, month, year])
+  @@index([tenantId])
 }
 
 // =====================
@@ -1099,6 +1161,8 @@ model Message {
   // Relations
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   campaign Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([tenantId])
 }
 
 model Campaign {
@@ -1122,6 +1186,8 @@ model Campaign {
   // Relations
   tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   messages Message[]
+
+  @@index([tenantId])
 }
 
 model MessageTemplate {
@@ -1167,6 +1233,8 @@ model RazorpayOrder {
   tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   webhookEvents RazorpayWebhookLog[]
   payment       Payment?
+
+  @@index([tenantId])
 }
 
 model RazorpayWebhookLog {
@@ -1184,6 +1252,8 @@ model RazorpayWebhookLog {
   // Relations
   tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   order  RazorpayOrder? @relation(fields: [orderId], references: [id])
+
+  @@index([tenantId])
 }
 
 model Invoice {
@@ -1215,6 +1285,8 @@ model Invoice {
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   member  Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([tenantId])
 }
 
 model Discount {
@@ -1273,10 +1345,10 @@ model DailyWorkoutPlan {
   date        DateTime @db.Date  // Target date for the workout
   day         String   // e.g., "Monday"
   planType    String   @default("default") // "default" or "custom"
-  
+
   // Array of exercise objects (status, sets, reps, completedAt)
-  exercises   Json     @default("[]") 
-  
+  exercises   Json     @default("[]")
+
   // Computed progress cache
   progress    Json     @default("{\"totalExercises\": 0, \"completed\": 0, \"percentage\": 0}")
   status      String   @default("pending") // "pending", "in_progress", "completed", "skipped"

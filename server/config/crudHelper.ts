@@ -1,5 +1,5 @@
-import { Application } from "express"
-import { prisma, snakeToCamel, authenticate } from "./db.js"
+import { Application, Response } from "express"
+import { prisma, snakeToCamel, authenticate, AuthenticatedRequest } from "./db.js"
 
 interface CrudOptions {
   searchFields?: string[]
@@ -33,7 +33,7 @@ export function createCrudRoutes(
   const defaultMutationRoles = ["gym_owner", "manager"]
 
   // LIST
-  app.get(`/api/${path}`, authenticate, async (req: any, res) => {
+  app.get(`/api/${path}`, authenticate, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const allowed = opts?.roles?.list || ["gym_owner", "manager", "frontdesk", "trainer"]
       if (!allowed.includes(req.role)) { res.status(403).json({ error: "Access denied." }); return }
@@ -110,7 +110,7 @@ export function createCrudRoutes(
   })
 
   // CREATE
-  app.post(`/api/${path}`, authenticate, async (req: any, res) => {
+  app.post(`/api/${path}`, authenticate, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const allowed = opts?.roles?.create || defaultMutationRoles
       if (!allowed.includes(req.role)) { res.status(403).json({ error: "Access denied." }); return }
@@ -128,7 +128,7 @@ export function createCrudRoutes(
   })
 
   // UPDATE
-  app.patch(`/api/${path}`, authenticate, async (req: any, res) => {
+  app.patch(`/api/${path}`, authenticate, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const allowed = opts?.roles?.update || defaultMutationRoles
       if (!allowed.includes(req.role)) { res.status(403).json({ error: "Access denied." }); return }
@@ -154,7 +154,7 @@ export function createCrudRoutes(
   })
 
   // DELETE
-  app.delete(`/api/${path}`, authenticate, async (req: any, res) => {
+  app.delete(`/api/${path}`, authenticate, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const allowed = opts?.roles?.delete || defaultMutationRoles
       if (!allowed.includes(req.role)) { res.status(403).json({ error: "Access denied." }); return }

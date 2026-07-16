@@ -1,44 +1,26 @@
 import React from "react"
 import { useQuery } from "@tanstack/react-query"
-import { tenantsApi, billingApi } from "@/api/apiClient"
+import { tenantsApi, billingApi, reportsApi } from "@/api/apiClient"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { 
-  Building, 
-  Users, 
-  Banknote, 
-  Activity, 
-  UserPlus 
+import {
+  Building,
+  Users,
+  Banknote,
+  Activity,
+  UserPlus
 } from "lucide-react"
-import { 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  BarChart, 
-  Bar, 
-  AreaChart, 
-  Area 
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area
 } from "recharts"
 import { formatCurrency } from "@/lib/utils"
-
-const MOCK_REVENUE_DATA = [
-  { name: "Jan", revenue: 45000 },
-  { name: "Feb", revenue: 52000 },
-  { name: "Mar", revenue: 48000 },
-  { name: "Apr", revenue: 61000 },
-  { name: "May", revenue: 75000 },
-  { name: "Jun", revenue: 82000 },
-]
-
-const MOCK_GROWTH_DATA = [
-  { name: "Jan", gyms: 12, members: 1200 },
-  { name: "Feb", gyms: 15, members: 1550 },
-  { name: "Mar", gyms: 18, members: 1900 },
-  { name: "Apr", gyms: 22, members: 2400 },
-  { name: "May", gyms: 28, members: 3100 },
-  { name: "Jun", gyms: 35, members: 4200 },
-]
 
 export const SuperAdminDashboard: React.FC = () => {
     const { data: tenants } = useQuery({
@@ -59,9 +41,37 @@ export const SuperAdminDashboard: React.FC = () => {
         }
     })
 
-    const totalRevenue = invoices?.reduce((acc: number, curr: any) => acc + (curr.amount_cents || 0), 0) || 0
+    // Real platform-wide trends — replaces fabricated MOCK_REVENUE_DATA /
+    // MOCK_GROWTH_DATA and the Math.random() "growth" figures previously shown.
+    const { data: platformGrowth } = useQuery({
+        queryKey: ["platform-growth"],
+        queryFn: async () => {
+            const { data, error } = await reportsApi.getPlatformGrowth(6)
+            if (error) throw error
+            return data
+        },
+    })
+
+    // amountPaise is the real SaasInvoice field — the previous version of this
+    // page summed `curr.amount_cents`, a field that doesn't exist on the
+    // response, so this total was always 0. Fixed as part of this build.
+    const totalRevenue = invoices?.reduce((acc: number, curr: any) => acc + (curr.amountPaise || 0), 0) || 0
     const activeGyms = tenants?.filter((t: any) => t.subscriptionStatus === 'active').length || 0
-    const totalMembers = 5000 
+    const totalMembers = tenants?.reduce((sum: number, t: any) => sum + (t._count?.members || 0), 0) || 0
+    const growthChartData = React.useMemo(() => {
+        if (!platformGrowth) return []
+        return platformGrowth.tenantGrowth.map((point, i) => ({
+            name: point.label,
+            gyms: point.value,
+            members: platformGrowth.memberGrowth[i]?.value || 0,
+        }))
+    }, [platformGrowth])
+    const fastestGrowing = React.useMemo(() => {
+        if (!tenants) return []
+        return [...tenants]
+            .sort((a: any, b: any) => (b._count?.members || 0) - (a._count?.members || 0))
+            .slice(0, 4)
+    }, [tenants])
 
     return (
         <div className="space-y-6">
@@ -88,7 +98,7 @@ export const SuperAdminDashboard: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
-                        <p className="text-xs text-emerald-600 font-medium">↑ 12% from last month</p>
+                        <p className="text-xs text-muted-foreground">All-time, paid SaaS invoices</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -107,8 +117,8 @@ export const SuperAdminDashboard: React.FC = () => {
                         <Activity className="h-4 w-4 text-orange-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">1,482</div>
-                        <p className="text-xs text-orange-600 font-medium">Live activity pulse</p>
+                        <div className="text-2xl font-bold">{platformGrowth?.todayCheckins ?? 0}</div>
+                        <p className="text-xs text-orange-600 font-medium">Across all tenants, today</p>
                     </CardContent>
                 </Card>
             </div>
@@ -121,7 +131,7 @@ export const SuperAdminDashboard: React.FC = () => {
                     </CardHeader>
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={MOCK_REVENUE_DATA}>
+                            <AreaChart data={platformGrowth?.revenueGrowth || []}>
                                 <defs>
                                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
@@ -129,12 +139,13 @@ export const SuperAdminDashboard: React.FC = () => {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
                                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                                <Tooltip 
+                                <Tooltip
+                                    formatter={(value: number) => formatCurrency(value * 100)}
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                                 />
-                                <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={3} />
+                                <Area type="monotone" dataKey="value" name="Revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={3} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </CardContent>
@@ -147,7 +158,7 @@ export const SuperAdminDashboard: React.FC = () => {
                     </CardHeader>
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={MOCK_GROWTH_DATA}>
+                            <BarChart data={growthChartData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
                                 <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
@@ -164,12 +175,12 @@ export const SuperAdminDashboard: React.FC = () => {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <Card className="lg:col-span-2">
                     <CardHeader>
-                        <CardTitle>Fastest Growing Gyms</CardTitle>
-                        <CardDescription>Tenants with highest week-over-week growth</CardDescription>
+                        <CardTitle>Largest Gyms by Membership</CardTitle>
+                        <CardDescription>Tenants ranked by real active member count</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {tenants?.slice(0, 4).map((t, i) => (
+                            {fastestGrowing.map((t: any, i) => (
                                 <div key={t.id} className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3">
                                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500">{i+1}</div>
@@ -179,8 +190,8 @@ export const SuperAdminDashboard: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-bold text-emerald-600">+{Math.floor(Math.random() * 25) + 5}%</p>
-                                        <p className="text-xs text-muted-foreground">Growth</p>
+                                        <p className="text-sm font-bold text-emerald-600">{t._count?.members ?? 0}</p>
+                                        <p className="text-xs text-muted-foreground">Members</p>
                                     </div>
                                 </div>
                             ))}

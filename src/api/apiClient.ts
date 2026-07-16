@@ -305,15 +305,31 @@ export const uploadApi = {
     },
 }
 
-// ========== REPORTS ==========
+// ========== REPORTS & ANALYTICS ==========
+export interface MonthTrendPoint { month: string; label: string; value: number }
+export interface WeekTrendPoint { week: string; label: string; value: number }
+export interface RevenueTrendPoint { month: string; label: string; revenue: number; expenses: number; profit: number }
+export interface RetentionStats { rate30: number; rate90: number; changePercent: number; cohortSize30: number; cohortSize90: number }
+export interface TopPlanStat { planId: string; planName: string; revenue: number; memberCount: number }
+export interface PlatformGrowthStats {
+    tenantGrowth: MonthTrendPoint[]
+    revenueGrowth: MonthTrendPoint[]
+    memberGrowth: MonthTrendPoint[]
+    todayCheckins: number
+}
+
 export const reportsApi = {
     getMembers: () => request<{ expiring: any[], newJoiners: any[], inactive: any[] }>("/reports/members"),
-    getRevenue: (tenantId: string, period?: string) =>
-        request<any>(`/reports/revenue?tenantId=${tenantId}${period ? `&period=${period}` : ""}`),
-    getAttendance: (tenantId: string, period?: string) =>
-        request<any>(`/reports/attendance?tenantId=${tenantId}${period ? `&period=${period}` : ""}`),
-    getMemberGrowth: (tenantId: string) =>
-        request<any>(`/reports/member-growth?tenantId=${tenantId}`),
+    // Real, backend-aggregated analytics — replaces the client-side-fabricated
+    // trend data previously shown on the Dashboard, Member Analytics, and
+    // Super Admin Dashboard pages.
+    getRevenueTrend: (months = 12) => request<RevenueTrendPoint[]>(`/reports?type=revenue&months=${months}`),
+    getMemberGrowthTrend: (months = 12) => request<MonthTrendPoint[]>(`/reports?type=member-growth&months=${months}`),
+    getLeadGrowthTrend: (months = 12) => request<MonthTrendPoint[]>(`/reports?type=lead-growth&months=${months}`),
+    getAttendanceTrend: (weeks = 12) => request<WeekTrendPoint[]>(`/reports?type=attendance&weeks=${weeks}`),
+    getRetention: () => request<RetentionStats>(`/reports?type=retention`),
+    getTopPlans: (months = 12) => request<TopPlanStat[]>(`/reports?type=top-plans&months=${months}`),
+    getPlatformGrowth: (months = 12) => request<PlatformGrowthStats>(`/reports/platform-growth?months=${months}`),
 }
 
 export const razorpayApi = {

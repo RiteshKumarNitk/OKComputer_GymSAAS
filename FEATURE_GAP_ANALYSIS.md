@@ -8,7 +8,7 @@ Feature inventory based on reading every routed page/feature component in `src/p
 |---|---|---|---|
 | Dashboard (owner/manager) | `pages/app/DashboardPage.tsx` | Complete, with a caveat | Real API calls, charts, CSV export. Monthly trend charts are extrapolated client-side from a single `totalRevenue` figure, not a true time series — looks real, isn't statistically real. |
 | Dashboard (super admin) | same file | Partial | Real tenant/invoice counts; "System Health: Optimal" is hardcoded text. |
-| Member Analytics | `pages/app/members/MemberAnalyticsPage.tsx` | Partial | Real stat cards; "Retention Rate 88%" and all percentage deltas are hardcoded; revenue trend and plan analytics panels show literal "Coming Soon" text. |
+| Member Analytics | `pages/app/members/MemberAnalyticsPage.tsx` | **Complete (fixed 2026-07-16)** | Previously: real stat cards but "Retention Rate 88%" and all percentage deltas were hardcoded, revenue trend and plan analytics panels showed literal "Coming Soon" text. Now backed by `server/lib/analytics.ts`: real 30-day/90-day retention, real month-over-month change % on every metric card, a real revenue trend chart, and a real top-performing-plans list. See `FEATURE_COMPLETION_MATRIX.md` #30. |
 | Reports (member reports) | `pages/app/ReportsPage.tsx` | Complete | Real data, tabs, CSV export. |
 | Sales Report | `pages/app/SalesReportPage.tsx` | Partial | Real invoice data; filter controls (Tax Type/Plan/Sale Type) and "Apply" button are non-functional decoration. |
 | POS (Point of Sale) | `features/pos/POSPage.tsx` | Complete | Real product CRUD, cart, checkout that both records payment and decrements stock. |

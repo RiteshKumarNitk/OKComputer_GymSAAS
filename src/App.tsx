@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/features/auth/AuthContext"
-import { ProtectedRoute } from "@/features/auth/ProtectedRoute"
+import { ProtectedRoute, SuperAdminRoute } from "@/features/auth/ProtectedRoute"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 
 // Pages
@@ -113,15 +113,15 @@ function App() {
               <Route
                 path="/*"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute requiredRoles={["super_admin", "gym_owner", "manager", "trainer", "frontdesk"]}>
                     <DashboardLayout>
                       <Routes>
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                        <Route path="/super-admin" element={<SuperAdminDashboard />} />
-                        <Route path="/super-admin/tenants" element={<SuperAdminTenants />} />
-                        <Route path="/super-admin/subscriptions" element={<SuperAdminSubscriptions />} />
-                        <Route path="/super-admin/payments" element={<SuperAdminPayments />} />
-                        <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
+                        <Route path="/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
+                        <Route path="/super-admin/tenants" element={<SuperAdminRoute><SuperAdminTenants /></SuperAdminRoute>} />
+                        <Route path="/super-admin/subscriptions" element={<SuperAdminRoute><SuperAdminSubscriptions /></SuperAdminRoute>} />
+                        <Route path="/super-admin/payments" element={<SuperAdminRoute><SuperAdminPayments /></SuperAdminRoute>} />
+                        <Route path="/super-admin/settings" element={<SuperAdminRoute><SuperAdminSettings /></SuperAdminRoute>} />
                         <Route path="/dashboard" element={<DashboardPage />} />
                         
                         {/* Members Group */}

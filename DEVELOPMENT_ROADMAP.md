@@ -22,13 +22,13 @@ Not part of the brief's phase structure, but nothing else matters if these aren'
 
 ## Phase 1 — Critical bugs
 
-| Task | Ref | Effort | Priority |
-|---|---|---|---|
-| Fix cross-tenant query bypass (add `tenantId` filter to unfiltered queries) | `SECURITY_REPORT.md` H4 / `DATABASE_REVIEW.md` D1 | 2-3 hrs | Critical |
-| Fix member-portal identity bug (fetches tenant's first member, not logged-in member) | `FEATURE_GAP_ANALYSIS.md` §1 | 0.5-1 day | Critical |
-| Replace `setInterval` cron jobs with a serverless-compatible scheduler | `ARCHITECTURE_REVIEW.md` §4 | 1-2 days | Critical |
-| Fix hardcoded status bugs in Member Subscriptions view | `CODE_AUDIT.md` §4 | 2-3 hrs | High |
-| Fix Contact page form (no submit handler) | `UI_UX_REVIEW.md` §4 | 2-4 hrs | Medium |
+| Task | Ref | Effort | Priority | Status |
+|---|---|---|---|---|
+| Fix cross-tenant query bypass (add `tenantId` filter to unfiltered queries) | `SECURITY_REPORT.md` H4 / `DATABASE_REVIEW.md` D1 | 2-3 hrs | Critical | ✅ Done 2026-07-16 |
+| Fix member-portal identity bug (fetches tenant's first member, not logged-in member) | `FEATURE_GAP_ANALYSIS.md` §1 | 0.5-1 day | Critical | Open |
+| Replace `setInterval` cron jobs with a serverless-compatible scheduler | `ARCHITECTURE_REVIEW.md` §4 | 1-2 days | Critical | Open |
+| Fix hardcoded status bugs in Member Subscriptions view | `CODE_AUDIT.md` §4 | 2-3 hrs | High | Open |
+| Fix Contact page form (no submit handler) | `UI_UX_REVIEW.md` §4 | 2-4 hrs | Medium | Open |
 
 **Total Phase 1: ~4-5 days.**
 
@@ -36,23 +36,23 @@ Not part of the brief's phase structure, but nothing else matters if these aren'
 
 ## Phase 2 — Security fixes
 
-| Task | Ref | Effort | Priority |
-|---|---|---|---|
-| Add `authenticate` (+ role checks) to `tenantRoutes.ts`, `billingRoutes.ts`, `uploadRoutes.ts` | `SECURITY_REPORT.md` C3 | 1 day | Critical |
-| Enforce role-based route guards on the frontend router | `SECURITY_REPORT.md` C4 | 0.5-1 day | Critical |
-| Build and apply a centralized `requireRole()` middleware (wire up existing `server/config/roles.ts`) | `SECURITY_REPORT.md` C5 | 2-3 days | Critical |
-| Remove plaintext OTP logging | `SECURITY_REPORT.md` H1 | 15 min | High |
-| Fix hardcoded master-OTP bypass condition | `SECURITY_REPORT.md` H2 | 30 min | High |
-| Remove hardcoded JWT secret fallback | `SECURITY_REPORT.md` H3 | 30 min | High |
-| Add file-size/MIME validation to upload route | `SECURITY_REPORT.md` H5 | 1-2 hrs | High |
-| Fail closed on missing Razorpay secret + constant-time signature compare | `SECURITY_REPORT.md` H6 | 30 min | High |
-| Wire `phoneRateLimiter` into OTP routes | `SECURITY_REPORT.md` M1 | 30 min | Medium |
-| Add missing `tenantId` foreign keys (health/measurement tables) | `DATABASE_REVIEW.md` D4 | 1-2 hrs | Medium |
-| Fix `SaasInvoice` cascade/delete handling | `DATABASE_REVIEW.md` D3 | 2-4 hrs | Medium |
-| Route caught server errors through `errorMiddleware.ts` instead of leaking raw messages | `CODE_AUDIT.md` §7 | 1 day | Medium |
-| Move JWT/session to httpOnly cookies + CSRF protection (larger, can follow) | `SECURITY_REPORT.md` M4 | 2-3 days | Medium |
-| Add CSP header | `SECURITY_REPORT.md` M5 | 1 day | Medium |
-| Add auth/authorization/tenant-isolation test coverage | `SECURITY_REPORT.md` L1 | 3-5 days | High (prevents regression of everything above) |
+| Task | Ref | Effort | Priority | Status |
+|---|---|---|---|---|
+| Add `authenticate` (+ role checks) to `tenantRoutes.ts`, `billingRoutes.ts`, `uploadRoutes.ts` | `SECURITY_REPORT.md` C3 | 1 day | Critical | ✅ Done 2026-07-16 |
+| Enforce role-based route guards on the frontend router | `SECURITY_REPORT.md` C4 | 0.5-1 day | Critical | ✅ Done 2026-07-16 |
+| Build and apply a centralized `requireRole()` middleware (wire up existing `server/config/roles.ts`) | `SECURITY_REPORT.md` C5 | 2-3 days | Critical | 🟡 Partial 2026-07-16 (middleware built + applied to new/touched routes; full retrofit of ~15 existing route files deferred) |
+| Remove plaintext OTP logging | `SECURITY_REPORT.md` H1 | 15 min | High | Open |
+| Fix hardcoded master-OTP bypass condition | `SECURITY_REPORT.md` H2 | 30 min | High | Open |
+| Remove hardcoded JWT secret fallback | `SECURITY_REPORT.md` H3 | 30 min | High | Open |
+| Add file-size/MIME validation to upload route | `SECURITY_REPORT.md` H5 | 1-2 hrs | High | Open |
+| Fail closed on missing Razorpay secret + constant-time signature compare | `SECURITY_REPORT.md` H6 | 30 min | High | Open |
+| Wire `phoneRateLimiter` into OTP routes | `SECURITY_REPORT.md` M1 | 30 min | Medium | Open |
+| Add missing `tenantId` foreign keys (health/measurement tables) | `DATABASE_REVIEW.md` D4 | 1-2 hrs | Medium | ✅ Done 2026-07-16 |
+| Fix `SaasInvoice` cascade/delete handling | `DATABASE_REVIEW.md` D3 | 2-4 hrs | Medium | ✅ Done 2026-07-16 |
+| Route caught server errors through `errorMiddleware.ts` instead of leaking raw messages | `CODE_AUDIT.md` §7 | 1 day | Medium | Open |
+| Move JWT/session to httpOnly cookies + CSRF protection (larger, can follow) | `SECURITY_REPORT.md` M4 | 2-3 days | Medium | Open |
+| Add CSP header | `SECURITY_REPORT.md` M5 | 1 day | Medium | Open |
+| Add auth/authorization/tenant-isolation test coverage | `SECURITY_REPORT.md` L1 | 3-5 days | High (prevents regression of everything above) | Open |
 
 **Total Phase 2: ~2.5-3 weeks**, front-loaded on the Critical items (roughly the first week).
 
@@ -60,15 +60,15 @@ Not part of the brief's phase structure, but nothing else matters if these aren'
 
 ## Phase 3 — Performance
 
-| Task | Ref | Effort | Priority |
-|---|---|---|---|
-| Add route-level code splitting (`React.lazy`/`Suspense`) | `PERFORMANCE_REPORT.md` P1 | 1 day | High |
-| Add pagination to unbounded report/list endpoints | `PERFORMANCE_REPORT.md` P5 / `DATABASE_REVIEW.md` D5 | 4-6 hrs | Medium-High |
-| Add `@@index([tenantId])` (or composite) to ~25 tenant-scoped tables | `DATABASE_REVIEW.md` D2 | 2-3 hrs | High |
-| Replace N+1 loop writes with batched queries | `DATABASE_REVIEW.md` D6 | 4-6 hrs | Medium |
-| Memoize shared `DataTable`/derived-list computations | `PERFORMANCE_REPORT.md` P3 | 1-2 days | Medium |
-| Move dashboard chart aggregation to the backend, remove client-side fabrication | `PERFORMANCE_REPORT.md` P4 | 2-3 days | Medium (also a correctness fix) |
-| Add Cloudinary upload/delivery transformations | `PERFORMANCE_REPORT.md` P6 | 0.5-1 day | Low-Medium |
+| Task | Ref | Effort | Priority | Status |
+|---|---|---|---|---|
+| Add route-level code splitting (`React.lazy`/`Suspense`) | `PERFORMANCE_REPORT.md` P1 | 1 day | High | Open |
+| Add pagination to unbounded report/list endpoints | `PERFORMANCE_REPORT.md` P5 / `DATABASE_REVIEW.md` D5 | 4-6 hrs | Medium-High | Open |
+| Add `@@index([tenantId])` (or composite) to ~25 tenant-scoped tables | `DATABASE_REVIEW.md` D2 | 2-3 hrs | High | ✅ Done 2026-07-16 (34 models — 2 more than originally counted) |
+| Replace N+1 loop writes with batched queries | `DATABASE_REVIEW.md` D6 | 4-6 hrs | Medium | Open |
+| Memoize shared `DataTable`/derived-list computations | `PERFORMANCE_REPORT.md` P3 | 1-2 days | Medium | Open |
+| Move dashboard chart aggregation to the backend, remove client-side fabrication | `PERFORMANCE_REPORT.md` P4 | 2-3 days | Medium (also a correctness fix) | Open |
+| Add Cloudinary upload/delivery transformations | `PERFORMANCE_REPORT.md` P6 | 0.5-1 day | Low-Medium | Open |
 
 **Total Phase 3: ~1.5-2 weeks.**
 
@@ -78,18 +78,18 @@ Not part of the brief's phase structure, but nothing else matters if these aren'
 
 Ordered by the Critical/Important/Nice-to-have ranking from `FEATURE_GAP_ANALYSIS.md`.
 
-| Task | Ref | Effort | Priority |
-|---|---|---|---|
-| Build working super-admin plan/subscription management (replace `Subscriptions.tsx`, `Settings.tsx` placeholders) | `FEATURE_GAP_ANALYSIS.md` §2 | 1-2 weeks | Critical |
-| Real business intelligence: backend aggregation for revenue/retention/growth (retire hardcoded/`MOCK_*` data) | `FEATURE_GAP_ANALYSIS.md` §3 | 1-2 weeks | Important |
-| Recurring billing / membership auto-charge (Razorpay mandates or equivalent) | `FEATURE_GAP_ANALYSIS.md` §3 | 1-2 weeks | Important |
-| Class booking capacity/waitlist logic | `FEATURE_GAP_ANALYSIS.md` §3 | 3-5 days | Important |
-| Audit log for sensitive actions (impersonation, permission changes, billing edits) | `FEATURE_GAP_ANALYSIS.md` §2 | 3-5 days | Important |
-| Real invoice viewer (replace `alert()`) | `FEATURE_GAP_ANALYSIS.md` §2 | 1-2 days | Medium |
-| Wire trial-booking form data through to a real model/flow | `FEATURE_GAP_ANALYSIS.md` §2 | 2-3 days | Medium |
-| Staff payroll computation from attendance (`SalarySlip` model exists, logic doesn't) | `FEATURE_GAP_ANALYSIS.md` §3 | 1 week | Important |
-| Two-factor authentication | `FEATURE_GAP_ANALYSIS.md` §2 | 3-5 days | Nice to have |
-| Legal review of JustDial scraping fallback; consider removing or gating it behind explicit terms review | `FEATURE_GAP_ANALYSIS.md` §1 | Legal consult + 1-2 days eng | Important (risk mitigation, not a feature) |
+| Task | Ref | Effort | Priority | Status |
+|---|---|---|---|---|
+| Build working super-admin plan/subscription management (replace `Subscriptions.tsx`, `Settings.tsx` placeholders) | `FEATURE_GAP_ANALYSIS.md` §2 | 1-2 weeks | Critical | Open |
+| Real business intelligence: backend aggregation for revenue/retention/growth (retire hardcoded/`MOCK_*` data) | `FEATURE_GAP_ANALYSIS.md` §3 | 1-2 weeks | Important | ✅ Done 2026-07-16 — `server/lib/analytics.ts`, see `FEATURE_COMPLETION_MATRIX.md` #30 |
+| Recurring billing / membership auto-charge (Razorpay mandates or equivalent) | `FEATURE_GAP_ANALYSIS.md` §3 | 1-2 weeks | Important | Open |
+| Class booking capacity/waitlist logic | `FEATURE_GAP_ANALYSIS.md` §3 | 3-5 days | Important | Open |
+| Audit log for sensitive actions (impersonation, permission changes, billing edits) | `FEATURE_GAP_ANALYSIS.md` §2 | 3-5 days | Important | Open |
+| Real invoice viewer (replace `alert()`) | `FEATURE_GAP_ANALYSIS.md` §2 | 1-2 days | Medium | Open |
+| Wire trial-booking form data through to a real model/flow | `FEATURE_GAP_ANALYSIS.md` §2 | 2-3 days | Medium | Open |
+| Staff payroll computation from attendance (`SalarySlip` model exists, logic doesn't) | `FEATURE_GAP_ANALYSIS.md` §3 | 1 week | Important | Open |
+| Two-factor authentication | `FEATURE_GAP_ANALYSIS.md` §2 | 3-5 days | Nice to have | Open |
+| Legal review of JustDial scraping fallback; consider removing or gating it behind explicit terms review | `FEATURE_GAP_ANALYSIS.md` §1 | Legal consult + 1-2 days eng | Important (risk mitigation, not a feature) | Open |
 
 **Total Phase 4: ~2-2.5 months**, sequenced by business priority — the super-admin plan management and real BI are the two items most likely to block actually operating this as a SaaS business, so pull those earliest within this phase.
 

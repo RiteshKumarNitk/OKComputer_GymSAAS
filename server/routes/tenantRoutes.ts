@@ -1,16 +1,35 @@
 import { Router, Request, Response } from "express"
 import bcrypt from "bcrypt"
 import { prisma, authenticate, snakeToCamel } from "../config/db.js"
+import { requireRole } from "../middleware/requireRole.js"
 
 const router = Router()
 
-// GET /api/tenants — List all tenants (public)
-router.get("/", async (_req: Request, res: Response) => {
-  const tenants = await prisma.tenant.findMany({
-    include: { _count: { select: { members: true, users: true } } },
-    orderBy: { createdAt: "desc" }
-  })
-  res.json(snakeToCamel(tenants))
+// GET /api/tenants — List all tenants (super_admin), or a single tenant via ?id=
+// (the frontend calls this with ?id=... for "get my tenant" — see apiClient.ts tenantsApi.get)
+router.get("/", authenticate, async (req: Request, res: Response) => {
+  try {
+    const id = req.query.id as string | undefined
+    if (id) {
+      if (id !== req.tenantId && req.role !== "super_admin") {
+        res.status(403).json({ error: "Access denied" }); return
+      }
+      const tenant = await prisma.tenant.findUnique({ where: { id } })
+      if (!tenant) { res.status(404).json({ error: "Tenant not found" }); return }
+      res.json(snakeToCamel(tenant)); return
+    }
+
+    if (req.role !== "super_admin") {
+      res.status(403).json({ error: "Access denied" }); return
+    }
+    const tenants = await prisma.tenant.findMany({
+      include: { _count: { select: { members: true, users: true } } },
+      orderBy: { createdAt: "desc" }
+    })
+    res.json(snakeToCamel(tenants))
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // GET /api/tenants/:id — Get single tenant
@@ -27,16 +46,14 @@ router.get("/:id", authenticate, async (req: Request, res: Response) => {
   }
 })
 
-// POST /api/tenants — Create tenant (public, includes auto-owner creation)
-router.post("/", async (req: Request, res: Response) => {
+// POST /api/tenants — Create tenant (super_admin only, includes auto-owner creation)
+router.post("/", authenticate, requireRole("super_admin"), async (req: Request, res: Response) => {
   try {
-    console.log("Creating tenant with body:", JSON.stringify(req.body, null, 2))
     const body = Array.isArray(req.body) ? req.body[0] : req.body
     const { ownerPassword, owner_password, ...rest } = body
     const password = ownerPassword || owner_password
 
     const converted = snakeToCamel(rest)
-    console.log("Converted data for Prisma:", JSON.stringify(converted, null, 2))
 
     const data: any = {
       name: converted.name,
@@ -99,12 +116,20 @@ router.patch("/:id", authenticate, async (req: Request, res: Response) => {
   }
 })
 
-// PATCH /api/tenants — Update tenant by query param (alternative)
-router.patch("/", async (req: Request, res: Response) => {
-  const id = req.query.id as string
-  if (!id) { res.status(400).json({ error: "ID required" }); return }
-  const tenant = await prisma.tenant.update({ where: { id }, data: snakeToCamel(req.body) })
-  res.json(snakeToCamel(tenant))
+// PATCH /api/tenants — Update tenant by query param (this is the one the frontend
+// actually calls — see apiClient.ts tenantsApi.update)
+router.patch("/", authenticate, async (req: Request, res: Response) => {
+  try {
+    const id = req.query.id as string
+    if (!id) { res.status(400).json({ error: "ID required" }); return }
+    if (id !== req.tenantId && req.role !== "super_admin") {
+      res.status(403).json({ error: "Access denied" }); return
+    }
+    const tenant = await prisma.tenant.update({ where: { id }, data: snakeToCamel(req.body) })
+    res.json(snakeToCamel(tenant))
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // DELETE /api/tenants — Delete tenant (super_admin only)
@@ -119,6 +144,13 @@ router.delete("/", authenticate, async (req: Request, res: Response) => {
     if (result.count === 0) { res.status(404).json({ error: "Tenant not found" }); return }
     res.json({ success: true })
   } catch (err: any) {
+    // SaasInvoice.tenant has no cascade (billing history is intentionally
+    // preserved — see DATABASE_REVIEW.md D3), so deleting a tenant that has
+    // ever been invoiced hits a foreign key violation (Prisma code P2003).
+    if (err.code === "P2003") {
+      res.status(409).json({ error: "Cannot delete tenant with existing billing history. Contact support to archive this tenant instead." })
+      return
+    }
     res.status(500).json({ error: err.message })
   }
 })

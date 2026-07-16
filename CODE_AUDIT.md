@@ -53,6 +53,8 @@ None of these are "wrong," but all five would benefit from decomposition before 
 - Several Express handlers type `req` as `any` (e.g. `req: any` throughout the inline handlers in `server/index.ts:104,122`, widely elsewhere) instead of extending Express's `Request` type with the `userId`/`role`/`tenantId` properties `authenticate` attaches. This defeats TypeScript's usefulness for exactly the request properties most central to the app's security model (role/tenant checks) — a typo like `req.tenandId` would not be caught at compile time today.
 - **Recommendation:** define one `AuthenticatedRequest` interface (extending `express.Request` with `userId: string; role: string; tenantId: string`) in a shared types file and use it everywhere instead of `any`, closing an entire class of potential typo-driven bugs in exactly the code responsible for security enforcement.
 
+**Status: 🟡 Partially done 2026-07-16.** `AuthenticatedRequest` now exists (`server/config/db.ts`, exported alongside `authenticate`) and is applied to `server/config/crudHelper.ts` (all 25+ resources registered through it) and the 6 inline handlers in `server/index.ts` — the two highest-`any`-density spots. Note `tenantId` is typed `string | null`, not a bare `string`: `super_admin` tokens carry no tenantId, and the interface is meant to reflect that honestly rather than force a non-null assertion that's wrong for exactly that role. The ~15 other hand-written route files still use plain `Request` + `req.tenantId!` — reasonably typed already, so adopting `AuthenticatedRequest` there is optional follow-up polish, not required.
+
 ## 7. Error handling
 
 - `server/middleware/errorMiddleware.ts` exists as a final Express error handler — appropriate pattern.

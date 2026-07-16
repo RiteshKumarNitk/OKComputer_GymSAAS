@@ -1,18 +1,25 @@
 import { Router, Request, Response } from "express"
-import { prisma } from "../config/db.js"
+import { prisma, authenticate } from "../config/db.js"
 
 const router = Router()
 
 // GET /api/billing — SaaS billing info
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", authenticate, async (req: Request, res: Response) => {
   try {
     const type = req.query.type as string
     const tenantId = req.query.tenantId as string
 
     if (type === "plans") {
-      const plans = await prisma.saasPlan.findMany({ where: { isActive: true }, orderBy: { priceInr: "asc" } })
+      const plans = await prisma.saasPlan.findMany({ where: { isActive: true }, orderBy: { pricePaise: "asc" } })
       res.json(plans); return
     }
+
+    if ((type === "subscription" || type === "invoices") && tenantId) {
+      if (tenantId !== req.tenantId && req.role !== "super_admin") {
+        res.status(403).json({ error: "Access denied" }); return
+      }
+    }
+
     if (type === "subscription" && tenantId) {
       const sub = await prisma.saasSubscription.findFirst({
         where: { tenantId }, include: { plan: true }, orderBy: { createdAt: "desc" }
