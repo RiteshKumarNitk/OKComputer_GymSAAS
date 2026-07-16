@@ -5,7 +5,7 @@ import type { UserRole } from "@/types"
 
 interface ProtectedRouteProps {
   children: React.ReactNode
-  requiredRoles?: UserRole[]
+  requiredRoles?: readonly UserRole[]
   requiredPermission?: string
   redirectTo?: string
 }

@@ -12,7 +12,7 @@ interface AuthContextType {
   signInWithPhone: (phone: string, idToken: string) => Promise<void>
   signUp: (email: string, password: string, fullName: string, role?: string, tenantId?: string) => Promise<void>
   signOut: () => Promise<void>
-  hasRole: (roles: UserRole[]) => boolean
+  hasRole: (roles: readonly UserRole[]) => boolean
   hasPermission: (permission: string) => boolean
   refreshUser: () => Promise<void>
 }
@@ -189,7 +189,7 @@ const authUser: AuthUser = {
     try { await fetch("/api/auth/signout", { method: "POST" }) } catch { }
   }
 
-  const hasRole = (roles: UserRole[]): boolean => {
+  const hasRole = (roles: readonly UserRole[]): boolean => {
     if (!user) return false
     return roles.includes(user.role)
   }

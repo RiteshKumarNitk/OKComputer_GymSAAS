@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express"
 import { prisma, authenticate, snakeToCamel } from "../config/db.js"
+import { requireRole } from "../middleware/requireRole.js"
 
 const router = Router()
 
@@ -23,7 +24,7 @@ router.get("/", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/workouts/assign — Assign workout to member
-router.post("/assign", authenticate, async (req: Request, res: Response) => {
+router.post("/assign", authenticate, requireRole("super_admin", "gym_owner", "manager", "trainer"), async (req: Request, res: Response) => {
   try {
     const { memberId, workoutId, notes } = snakeToCamel(req.body)
     const tenantId = req.tenantId!

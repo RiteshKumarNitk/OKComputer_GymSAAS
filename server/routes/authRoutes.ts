@@ -6,6 +6,7 @@ import { prisma, authenticate, snakeToCamel, JWT_SECRET } from "../config/db.js"
 import { validate } from "../middleware/validate.js"
 import { loginSchema, registerSchema, setupAdminSchema } from "../validators/authValidators.js"
 import { ipRateLimiter } from "../middleware/rateLimiter.js"
+import { requireRole } from "../middleware/requireRole.js"
 import AuthController from "../controllers/authController.js"
 
 const router = Router()
@@ -217,10 +218,8 @@ router.get("/session", async (req: Request, res: Response) => {
 })
 
 // POST /api/auth/impersonate — Super admin impersonation
-router.post("/impersonate", authenticate, async (req: Request, res: Response) => {
+router.post("/impersonate", authenticate, requireRole("super_admin"), async (req: Request, res: Response) => {
   try {
-    if (req.role !== "super_admin") { res.status(403).json({ error: "Only superadmins can impersonate." }); return }
-
     const { tenantId } = req.body
     if (!tenantId) { res.status(400).json({ error: "Tenant ID required." }); return }
 

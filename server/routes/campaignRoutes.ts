@@ -1,12 +1,16 @@
 import { Router, Request, Response } from "express"
 import { prisma, authenticate, snakeToCamel } from "../config/db.js"
+import { requireRole } from "../middleware/requireRole.js"
 import { SmsService } from "../services/smsService.js"
 import { WhatsappService } from "../services/whatsappService.js"
 
 const router = Router()
+// None of these routes had a role gate before this pass — same role set as
+// the "WhatsApp Campaigns" sidebar nav item.
+const CAMPAIGN_ROLES = ["gym_owner", "manager"] as const
 
 // GET /api/campaigns — List campaigns
-router.get("/", authenticate, async (req: Request, res: Response) => {
+router.get("/", authenticate, requireRole(...CAMPAIGN_ROLES), async (req: Request, res: Response) => {
   try {
     const campaigns = await prisma.campaign.findMany({
       where: { tenantId: req.tenantId! },
@@ -19,7 +23,7 @@ router.get("/", authenticate, async (req: Request, res: Response) => {
 })
 
 // GET /api/campaigns/:id — Get single campaign
-router.get("/:id", authenticate, async (req: Request, res: Response) => {
+router.get("/:id", authenticate, requireRole(...CAMPAIGN_ROLES), async (req: Request, res: Response) => {
   try {
     const campaign = await prisma.campaign.findFirst({
       where: { id: req.params.id, tenantId: req.tenantId! },
@@ -33,7 +37,7 @@ router.get("/:id", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/campaigns — Create campaign
-router.post("/", authenticate, async (req: Request, res: Response) => {
+router.post("/", authenticate, requireRole(...CAMPAIGN_ROLES), async (req: Request, res: Response) => {
   try {
     const { name, channel, subject, body, targetAudience, scheduledAt } = req.body
     if (!name || !body) { res.status(400).json({ error: "Name and body are required" }); return }
@@ -59,7 +63,7 @@ router.post("/", authenticate, async (req: Request, res: Response) => {
 })
 
 // PATCH /api/campaigns/:id — Update campaign
-router.patch("/:id", authenticate, async (req: Request, res: Response) => {
+router.patch("/:id", authenticate, requireRole(...CAMPAIGN_ROLES), async (req: Request, res: Response) => {
   try {
     const { name, channel, subject, body, targetAudience, scheduledAt, status } = req.body
 
@@ -92,7 +96,7 @@ router.patch("/:id", authenticate, async (req: Request, res: Response) => {
 })
 
 // DELETE /api/campaigns/:id — Delete campaign
-router.delete("/:id", authenticate, async (req: Request, res: Response) => {
+router.delete("/:id", authenticate, requireRole(...CAMPAIGN_ROLES), async (req: Request, res: Response) => {
   try {
     const existing = await prisma.campaign.findFirst({
       where: { id: req.params.id, tenantId: req.tenantId! },
@@ -110,7 +114,7 @@ router.delete("/:id", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/campaigns/:id/test — Send test message
-router.post("/:id/test", authenticate, async (req: Request, res: Response) => {
+router.post("/:id/test", authenticate, requireRole(...CAMPAIGN_ROLES), async (req: Request, res: Response) => {
   try {
     const { to } = req.body
     if (!to) { res.status(400).json({ error: "Recipient phone (to) is required" }); return }
@@ -143,7 +147,7 @@ router.post("/:id/test", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/campaigns/:id/launch — Launch campaign to target audience
-router.post("/:id/launch", authenticate, async (req: Request, res: Response) => {
+router.post("/:id/launch", authenticate, requireRole(...CAMPAIGN_ROLES), async (req: Request, res: Response) => {
   try {
     const campaign = await prisma.campaign.findFirst({
       where: { id: req.params.id, tenantId: req.tenantId! },

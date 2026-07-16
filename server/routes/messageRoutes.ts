@@ -1,12 +1,16 @@
 import { Router, Request, Response } from "express"
 import { prisma, authenticate } from "../config/db.js"
+import { requireRole } from "../middleware/requireRole.js"
 import { SmsService } from "../services/smsService.js"
 import { WhatsappService } from "../services/whatsappService.js"
 
 const router = Router()
+// None of these routes had a role gate before this pass — same role set as
+// the "WhatsApp Campaigns" / "Message Templates" sidebar nav items.
+const MESSAGING_ROLES = ["gym_owner", "manager"] as const
 
 // POST /api/messages/send-sms — Send an SMS message
-router.post("/send-sms", authenticate, async (req: Request, res: Response) => {
+router.post("/send-sms", authenticate, requireRole(...MESSAGING_ROLES), async (req: Request, res: Response) => {
   try {
     const { to, body, memberId } = req.body
     if (!to || !body) {
@@ -44,7 +48,7 @@ router.post("/send-sms", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/messages/send-whatsapp — Send a WhatsApp message
-router.post("/send-whatsapp", authenticate, async (req: Request, res: Response) => {
+router.post("/send-whatsapp", authenticate, requireRole(...MESSAGING_ROLES), async (req: Request, res: Response) => {
   try {
     const { to, body, memberId } = req.body
     if (!to || !body) {
@@ -76,7 +80,7 @@ router.post("/send-whatsapp", authenticate, async (req: Request, res: Response) 
 })
 
 // POST /api/messages/bulk-sms — Send bulk SMS
-router.post("/bulk-sms", authenticate, async (req: Request, res: Response) => {
+router.post("/bulk-sms", authenticate, requireRole(...MESSAGING_ROLES), async (req: Request, res: Response) => {
   try {
     const { recipients } = req.body as { recipients: { phone: string; body: string; memberId?: string }[] }
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
@@ -109,7 +113,7 @@ router.post("/bulk-sms", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/messages/templates — Create a message template
-router.post("/templates", authenticate, async (req: Request, res: Response) => {
+router.post("/templates", authenticate, requireRole(...MESSAGING_ROLES), async (req: Request, res: Response) => {
   try {
     const { name, triggerKey, channel, subject, body } = req.body
     if (!name || !body) {
@@ -136,7 +140,7 @@ router.post("/templates", authenticate, async (req: Request, res: Response) => {
 })
 
 // GET /api/messages/templates — List message templates
-router.get("/templates", authenticate, async (req: Request, res: Response) => {
+router.get("/templates", authenticate, requireRole(...MESSAGING_ROLES), async (req: Request, res: Response) => {
   try {
     const includeInactive = req.query.all === "true"
     const templates = await prisma.messageTemplate.findMany({
@@ -150,7 +154,7 @@ router.get("/templates", authenticate, async (req: Request, res: Response) => {
 })
 
 // PATCH /api/messages/templates/:id — Update a message template
-router.patch("/templates/:id", authenticate, async (req: Request, res: Response) => {
+router.patch("/templates/:id", authenticate, requireRole(...MESSAGING_ROLES), async (req: Request, res: Response) => {
   try {
     const existing = await prisma.messageTemplate.findFirst({
       where: { id: req.params.id, tenantId: req.tenantId! },
@@ -177,7 +181,7 @@ router.patch("/templates/:id", authenticate, async (req: Request, res: Response)
 })
 
 // DELETE /api/messages/templates/:id — Delete a message template
-router.delete("/templates/:id", authenticate, async (req: Request, res: Response) => {
+router.delete("/templates/:id", authenticate, requireRole(...MESSAGING_ROLES), async (req: Request, res: Response) => {
   try {
     const existing = await prisma.messageTemplate.findFirst({
       where: { id: req.params.id, tenantId: req.tenantId! },
@@ -192,7 +196,7 @@ router.delete("/templates/:id", authenticate, async (req: Request, res: Response
 })
 
 // POST /api/messages/templates/:id/test — Send test message using template
-router.post("/templates/:id/test", authenticate, async (req: Request, res: Response) => {
+router.post("/templates/:id/test", authenticate, requireRole(...MESSAGING_ROLES), async (req: Request, res: Response) => {
   try {
     const template = await prisma.messageTemplate.findFirst({
       where: { id: req.params.id, tenantId: req.tenantId! },

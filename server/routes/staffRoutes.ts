@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express"
 import { prisma, authenticate, snakeToCamel } from "../config/db.js"
+import { requireRole } from "../middleware/requireRole.js"
 
 const router = Router()
 
@@ -35,7 +36,7 @@ router.get("/profiles", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/staff/profiles — Create staff profile
-router.post("/profiles", authenticate, async (req: Request, res: Response) => {
+router.post("/profiles", authenticate, requireRole("gym_owner", "manager"), async (req: Request, res: Response) => {
   try {
     const data = snakeToCamel(req.body)
     const staff = await prisma.staffProfile.create({
@@ -48,7 +49,7 @@ router.post("/profiles", authenticate, async (req: Request, res: Response) => {
 })
 
 // PATCH /api/staff/profiles/:id — Update staff profile
-router.patch("/profiles/:id", authenticate, async (req: Request, res: Response) => {
+router.patch("/profiles/:id", authenticate, requireRole("gym_owner", "manager"), async (req: Request, res: Response) => {
   try {
     const data = snakeToCamel(req.body)
     if (data.joiningDate) data.joiningDate = new Date(data.joiningDate)
@@ -92,7 +93,7 @@ router.post("/leaves", authenticate, async (req: Request, res: Response) => {
 })
 
 // PATCH /api/staff/leaves/:id — Approve/reject leave
-router.patch("/leaves/:id", authenticate, async (req: Request, res: Response) => {
+router.patch("/leaves/:id", authenticate, requireRole("gym_owner", "manager"), async (req: Request, res: Response) => {
   try {
     const { status, notes } = req.body
     const leave = await prisma.staffLeave.update({

@@ -1,16 +1,11 @@
 import { Router, Request, Response } from "express"
 import { prisma, authenticate, snakeToCamel } from "../config/db.js"
+import { requireRole } from "../middleware/requireRole.js"
 
 const router = Router()
 
 // POST /api/members — override to auto-generate Invoices and Payments
-router.post("/", authenticate, async (req: Request, res: Response) => {
-  const allowedRoles = ["gym_owner", "manager", "frontdesk"]
-  if (!allowedRoles.includes(req.role!)) {
-    res.status(403).json({ error: "Access denied." })
-    return
-  }
-
+router.post("/", authenticate, requireRole("gym_owner", "manager", "frontdesk"), async (req: Request, res: Response) => {
   try {
     const data = snakeToCamel(req.body)
     const tenantId = req.tenantId!
@@ -74,13 +69,7 @@ router.post("/", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/members/renew — Renew member plan + auto-generate Invoice & Payment
-router.post("/renew", authenticate, async (req: Request, res: Response) => {
-  const allowedRoles = ["gym_owner", "manager", "frontdesk"]
-  if (!allowedRoles.includes(req.role!)) {
-    res.status(403).json({ error: "Access denied." })
-    return
-  }
-
+router.post("/renew", authenticate, requireRole("gym_owner", "manager", "frontdesk"), async (req: Request, res: Response) => {
   try {
     const { id, planId } = snakeToCamel(req.body)
     const tenantId = req.tenantId!
@@ -333,10 +322,8 @@ router.post("/:memberId/health-assessment", authenticate, async (req: Request, r
 })
 
 // POST /api/members/:memberId/workout_template — Assign weekly template
-router.post("/:memberId/workout_template", authenticate, async (req: Request, res: Response) => {
+router.post("/:memberId/workout_template", authenticate, requireRole("super_admin", "gym_owner", "manager", "trainer", "frontdesk"), async (req: Request, res: Response) => {
   try {
-    if (req.role === "member") { res.status(403).json({ error: "Only trainers can assign plans" }); return }
-
     const { memberId } = req.params
     const { templateId, startDate } = req.body
 
@@ -378,10 +365,8 @@ router.post("/:memberId/workout_template", authenticate, async (req: Request, re
 })
 
 // POST /api/members/me/workout-logs — Log a workout completion
-router.post("/me/workout-logs", authenticate, async (req: Request, res: Response) => {
+router.post("/me/workout-logs", authenticate, requireRole("member"), async (req: Request, res: Response) => {
   try {
-    if (req.role !== "member") { res.status(403).json({ error: "Only members can log workouts" }); return }
-
     const member = await prisma.member.findUnique({ where: { userId: req.userId } })
     if (!member) { res.status(404).json({ error: "Member not found" }); return }
 

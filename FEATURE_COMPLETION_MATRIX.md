@@ -101,10 +101,19 @@ A bottom-up, computed completion score — not a holistic estimate. Every featur
 | # | Feature | Total Tasks | Completed | Missing Tasks | Completion % | Prod Ready |
 |---|---|---|---|---|---|---|
 | 41 | Authentication (email/password + phone OTP) | 8 | 6 | Hardcoded JWT-secret fallback; OTP logged in plaintext | 75% | No |
-| 42 | Authorization / RBAC | 6 | 3 | `requireRole` middleware not retrofitted across ~15 route files; not all ~50 frontend pages have per-page role guards | 50% | No |
+| 42 | Authorization / RBAC | 6 | 4 | Not all ~50 frontend pages have per-page role guards (tracked as Production Ready v1.0 Item 2) | 67% | No |
 | 43 | Multi-Tenant Isolation | 6 | 5 | Batch 1 migration (indexes + FK) generated but not yet applied to the live database | 83% | No |
 | 44 | Audit Logging | 3 | 1 | `AuditLog` table exists but no route writes to it; no admin UI to view it | 33% | No |
-| | **Category H subtotal** | **23** | **15** | | **65.2%** | 0 of 4 Yes |
+| | **Category H subtotal** | **23** | **16** | | **69.6%** | 0 of 4 Yes |
+
+**Update 2026-07-16 — Authorization / RBAC moved from 50% to 67%: "Production Ready v1.0" Item 1 complete.** Every hand-written route now has explicit role-based (or, in one case, permission-based) authorization — no more bare `authenticate`-only routes and no more copy-pasted inline `if (req.role !== ...)` checks scattered across files. Concretely:
+- `server/middleware/requirePermission.ts` (new) complements the existing `requireRole.ts`, backed by a new `PERMISSION_MAP` in `server/config/roles.ts` mirroring the frontend's permission map.
+- 6 pre-existing inline role checks (in `memberRoutes.ts`, `membershipRoutes.ts` ×3, `trainerRoutes.ts`, `authRoutes.ts`, and the workout-template/member-workout handlers in `server/index.ts`) were lifted into `requireRole(...)` calls — mechanical, zero behavior change.
+- 22 routes across `paymentRoutes.ts`, `messageRoutes.ts`, `campaignRoutes.ts`, `leadAgentRoutes.ts`, `staffRoutes.ts`, and `workoutRoutes.ts` had **no authorization check at all** before this pass — money-handling routes included. Each now has a role gate matching the same role set already used for that resource in `DashboardLayout.tsx`'s nav config, so nothing that currently works for a given role stops working.
+- Deliberately left unchanged: `notificationRoutes.ts` (correctly self-scoped, not a role concern), `qrRoutes.ts`'s kiosk check-in (intentionally public), `authRoutes.ts`'s pre-authentication endpoints, and `crudHelper.ts` (already the one genuinely centralized mechanism in this codebase).
+- 10 new unit tests (`server/__tests__/authzMiddleware.test.ts`) cover the middleware directly — build passes, all 44 tests pass.
+- **Found along the way, not yet fixed:** `paymentRoutes.ts`'s `GET /` and the generic-CRUD `payments` resource registered later in `server/index.ts` both claim `GET /api/payments`; the earlier mount always wins, silently dead-coding the CRUD-factory registration. No functional impact today, noted in `CODE_AUDIT.md` for cleanup.
+- **Still open:** per-page frontend role guards (Production Ready v1.0 Item 2, next), and `authRoutes.ts`'s `POST /register` (a hierarchical caller-role→allowed-target-roles check that doesn't fit `requireRole`'s shape, and bypasses the shared `authenticate` middleware with its own inline JWT verification) — flagged for a future, separate look.
 
 ---
 
@@ -119,17 +128,17 @@ A bottom-up, computed completion score — not a holistic estimate. Every featur
 | E. Reporting & Analytics | 9 | 7 | 77.8% |
 | F. Staff & HR | 13 | 8 | 61.5% |
 | G. Platform & Admin | 32 | 23 | 71.9% |
-| H. Security & Platform Infrastructure | 23 | 15 | 65.2% |
-| **TOTAL** | **218** | **168** | — |
+| H. Security & Platform Infrastructure | 23 | 16 | 69.6% |
+| **TOTAL** | **218** | **169** | — |
 
 ```
 Overall Completion = Σ Completed ÷ Σ Total
-                    = 168 ÷ 218
-                    = 0.7706...
-                    ≈ 77.1%
+                    = 169 ÷ 218
+                    = 0.7752...
+                    ≈ 77.5%
 ```
 
-*(Updated 2026-07-16: was 75.7% / 165 completed tasks before the Analytics & BI Engine build described below moved 3 tasks in Category E from not-done to done.)*
+*(Updated 2026-07-16, two changes today: 75.7% → 77.1% from the Analytics & BI Engine build (Category E, +3 tasks), then → 77.5% from Production Ready v1.0 Item 1 — centralized authorization middleware (Category H, +1 task). Item 1 mostly closed pre-existing gaps rather than completing whole new tasks, which is why the single-task movement understates the amount of work — 28 individual routes across 12 files gained or had their authorization check centralized.)*
 
 **Production-ready features: 12 of 44 (27%)** — Member Management, Membership Plans, Attendance (Manual), Lockers, Visitors, Feedback Management, Branches, Daily Workout Plans, Diet Plan Management, CRM/Leads, Message Templates, and now **Analytics / Dashboards**. Every other feature has at least one unmet task, most commonly: fabricated/hardcoded data where real logic should be, an unreconciled duplicate model, or an open security/reliability gap.
 

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express"
 import { prisma, authenticate, snakeToCamel } from "../config/db.js"
+import { requireRole } from "../middleware/requireRole.js"
 
 const router = Router()
 
@@ -17,10 +18,7 @@ router.get("/", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/memberships — Create plan (owner only)
-router.post("/", authenticate, async (req: Request, res: Response) => {
-  if (req.role !== "gym_owner") {
-    res.status(403).json({ error: "Access denied. Owners only." }); return
-  }
+router.post("/", authenticate, requireRole("gym_owner"), async (req: Request, res: Response) => {
   try {
     const body = Array.isArray(req.body) ? req.body[0] : req.body
     const data = { ...snakeToCamel(body), tenantId: req.tenantId! }
@@ -32,10 +30,7 @@ router.post("/", authenticate, async (req: Request, res: Response) => {
 })
 
 // PATCH /api/memberships — Update plan (owner only)
-router.patch("/", authenticate, async (req: Request, res: Response) => {
-  if (req.role !== "gym_owner") {
-    res.status(403).json({ error: "Access denied. Owners only." }); return
-  }
+router.patch("/", authenticate, requireRole("gym_owner"), async (req: Request, res: Response) => {
   try {
     const id = req.query.id as string
     if (!id) { res.status(400).json({ error: "ID required" }); return }
@@ -52,10 +47,7 @@ router.patch("/", authenticate, async (req: Request, res: Response) => {
 })
 
 // DELETE /api/memberships — Remove plan (owner only)
-router.delete("/", authenticate, async (req: Request, res: Response) => {
-  if (req.role !== "gym_owner") {
-    res.status(403).json({ error: "Access denied. Owners only." }); return
-  }
+router.delete("/", authenticate, requireRole("gym_owner"), async (req: Request, res: Response) => {
   try {
     const id = req.query.id as string
     if (!id) { res.status(400).json({ error: "ID required" }); return }

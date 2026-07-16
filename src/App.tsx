@@ -78,6 +78,16 @@ const queryClient = new QueryClient({
   },
 })
 
+// Per-route role sets. Kept in sync with DashboardLayout.tsx's `navigation`
+// config on purpose — that's the single source of truth for "which role
+// sees this in the sidebar", and this is "which role can reach it directly
+// by URL". They should never drift apart.
+const OWNER_MANAGER_FRONTDESK = ["gym_owner", "manager", "frontdesk"] as const
+const OWNER_MANAGER = ["gym_owner", "manager"] as const
+const OWNER_MANAGER_TRAINER = ["gym_owner", "manager", "trainer"] as const
+const OWNER_ONLY = ["gym_owner"] as const
+const EVERYONE_NON_MEMBER = ["super_admin", "gym_owner", "manager", "trainer", "frontdesk"] as const
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -95,7 +105,10 @@ function App() {
               <Route path="/setup-admin" element={<SetupAdminPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-              {/* Member Portal Routes */}
+              {/* Member Portal Routes — open to any authenticated user on
+                  purpose (staff previewing the member portal isn't a data
+                  leak; they already have more access than what's shown
+                  there). Not gated to the "member" role specifically. */}
               <Route path="/member" element={
                 <ProtectedRoute>
                   <MemberLayout />
@@ -122,46 +135,50 @@ function App() {
                         <Route path="/super-admin/subscriptions" element={<SuperAdminRoute><SuperAdminSubscriptions /></SuperAdminRoute>} />
                         <Route path="/super-admin/payments" element={<SuperAdminRoute><SuperAdminPayments /></SuperAdminRoute>} />
                         <Route path="/super-admin/settings" element={<SuperAdminRoute><SuperAdminSettings /></SuperAdminRoute>} />
+                        {/* Same role set as the outer gate above — no extra wrapper needed */}
                         <Route path="/dashboard" element={<DashboardPage />} />
-                        
-                        {/* Members Group */}
-                        <Route path="/members" element={<MemberDirectoryPage />} />
-                        <Route path="/members/packages" element={<MembershipPackagesPage />} />
-                        <Route path="/members/subscriptions" element={<MemberSubscriptionsPage />} />
-                        <Route path="/members/workouts" element={<MemberWorkoutsPage />} />
-                        <Route path="/members/analytics" element={<MemberAnalyticsPage />} />
-                        <Route path="/members/attendance" element={<MemberAttendancePage />} />
-                        <Route path="/members/renewals" element={<MemberRenewalsPage />} />
-                        <Route path="/members/:id" element={<MemberProfilePage />} />
-                        <Route path="/members/add" element={<AddMemberPage />} />
 
-                        <Route path="/trainers" element={<TrainersPage />} />
-                        <Route path="/front-desk" element={<FrontDeskPage />} />
-                        <Route path="/staff" element={<StaffPage />} />
-                        <Route path="/leads" element={<LeadsPage />} />
-                        <Route path="/pos" element={<POSPage />} />
-                        <Route path="/lockers" element={<LockersPage />} />
-                        <Route path="/operations" element={<OperationsPage />} />
-                        <Route path="/branches" element={<BranchesPage />} />
-                        <Route path="/services" element={<ServicesPage />} />
-                        <Route path="/schedule" element={<SchedulePage />} />
-                        <Route path="/billing" element={<BillingPage />} />
-                        <Route path="/diet-plans" element={<DietPlansPage />} />
-                        <Route path="/feedback" element={<FeedbackPage />} />
-                        <Route path="/reports" element={<ReportsPage />} />
-                        <Route path="/reports/sales" element={<SalesReportPage />} />
-                        <Route path="/settings" element={<SettingsPage />} />
-                        <Route path="/settings/access-control" element={<AccessControlsPage />} />
-                        <Route path="/invoices" element={<InvoicesPage />} />
-                        <Route path="/billing/saas" element={<SaasBillingPage />} />
-                        <Route path="/enquiries/new" element={<AddEnquiryPage />} />
-                        <Route path="/follow-ups" element={<FollowUpsPage />} />
-                        <Route path="/campaigns" element={<CampaignsPage />} />
-                        <Route path="/settings/message-templates" element={<MessageTemplatesPage />} />
-                        <Route path="/qr-kiosk" element={<QrKioskPage />} />
-                        <Route path="/profile" element={<ProfilePage />} />
-                        
-                        {/* Legacy Redirects for stability */}
+                        {/* Members Group */}
+                        <Route path="/members" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><MemberDirectoryPage /></ProtectedRoute>} />
+                        <Route path="/members/packages" element={<ProtectedRoute requiredRoles={OWNER_ONLY}><MembershipPackagesPage /></ProtectedRoute>} />
+                        <Route path="/members/subscriptions" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><MemberSubscriptionsPage /></ProtectedRoute>} />
+                        <Route path="/members/workouts" element={<ProtectedRoute requiredRoles={["gym_owner", "trainer"]}><MemberWorkoutsPage /></ProtectedRoute>} />
+                        <Route path="/members/analytics" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><MemberAnalyticsPage /></ProtectedRoute>} />
+                        <Route path="/members/attendance" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><MemberAttendancePage /></ProtectedRoute>} />
+                        <Route path="/members/renewals" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><MemberRenewalsPage /></ProtectedRoute>} />
+                        <Route path="/members/:id" element={<ProtectedRoute requiredRoles={["gym_owner", "manager", "frontdesk", "trainer"]}><MemberProfilePage /></ProtectedRoute>} />
+                        <Route path="/members/add" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><AddMemberPage /></ProtectedRoute>} />
+
+                        <Route path="/trainers" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_TRAINER}><TrainersPage /></ProtectedRoute>} />
+                        <Route path="/front-desk" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><FrontDeskPage /></ProtectedRoute>} />
+                        <Route path="/staff" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><StaffPage /></ProtectedRoute>} />
+                        <Route path="/leads" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><LeadsPage /></ProtectedRoute>} />
+                        <Route path="/pos" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><POSPage /></ProtectedRoute>} />
+                        <Route path="/lockers" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><LockersPage /></ProtectedRoute>} />
+                        <Route path="/operations" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><OperationsPage /></ProtectedRoute>} />
+                        <Route path="/branches" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><BranchesPage /></ProtectedRoute>} />
+                        <Route path="/services" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><ServicesPage /></ProtectedRoute>} />
+                        <Route path="/schedule" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_TRAINER}><SchedulePage /></ProtectedRoute>} />
+                        <Route path="/billing" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><BillingPage /></ProtectedRoute>} />
+                        <Route path="/diet-plans" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_TRAINER}><DietPlansPage /></ProtectedRoute>} />
+                        <Route path="/feedback" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><FeedbackPage /></ProtectedRoute>} />
+                        <Route path="/reports" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><ReportsPage /></ProtectedRoute>} />
+                        <Route path="/reports/sales" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><SalesReportPage /></ProtectedRoute>} />
+                        <Route path="/settings" element={<ProtectedRoute requiredRoles={OWNER_ONLY}><SettingsPage /></ProtectedRoute>} />
+                        <Route path="/settings/access-control" element={<ProtectedRoute requiredRoles={OWNER_ONLY}><AccessControlsPage /></ProtectedRoute>} />
+                        <Route path="/invoices" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><InvoicesPage /></ProtectedRoute>} />
+                        <Route path="/billing/saas" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><SaasBillingPage /></ProtectedRoute>} />
+                        <Route path="/enquiries/new" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><AddEnquiryPage /></ProtectedRoute>} />
+                        <Route path="/follow-ups" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><FollowUpsPage /></ProtectedRoute>} />
+                        <Route path="/campaigns" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><CampaignsPage /></ProtectedRoute>} />
+                        <Route path="/settings/message-templates" element={<ProtectedRoute requiredRoles={OWNER_MANAGER}><MessageTemplatesPage /></ProtectedRoute>} />
+                        <Route path="/qr-kiosk" element={<ProtectedRoute requiredRoles={OWNER_MANAGER_FRONTDESK}><QrKioskPage /></ProtectedRoute>} />
+                        {/* Every non-member role has their own profile — deliberately not narrowed */}
+                        <Route path="/profile" element={<ProtectedRoute requiredRoles={EVERYONE_NON_MEMBER}><ProfilePage /></ProtectedRoute>} />
+
+                        {/* Legacy Redirects for stability — not individually gated: they
+                            render no data themselves, and the route they redirect to
+                            enforces its own guard the moment the browser lands there. */}
                         <Route path="/plans" element={<Navigate to="/members/packages" replace />} />
                         <Route path="/workouts" element={<Navigate to="/members/workouts" replace />} />
                         <Route path="/attendance" element={<Navigate to="/members/attendance" replace />} />

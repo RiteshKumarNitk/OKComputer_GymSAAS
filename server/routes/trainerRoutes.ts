@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express"
 import { prisma, authenticate, snakeToCamel } from "../config/db.js"
+import { requireRole } from "../middleware/requireRole.js"
 
 const router = Router()
 
@@ -24,10 +25,7 @@ router.get("/members", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/trainer/workouts/daily-plan — Create daily workout plan for a member
-router.post("/workouts/daily-plan", authenticate, async (req: Request, res: Response) => {
-  const allowed = ["super_admin", "gym_owner", "manager", "trainer"]
-  if (!allowed.includes(req.role!)) { res.status(403).json({ error: "Access denied" }); return }
-
+router.post("/workouts/daily-plan", authenticate, requireRole("super_admin", "gym_owner", "manager", "trainer"), async (req: Request, res: Response) => {
   try {
     const { memberId, date, day, planType, exercises, status } = req.body
     const tenantId = req.tenantId!

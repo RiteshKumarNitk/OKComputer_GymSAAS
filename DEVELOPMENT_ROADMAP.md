@@ -40,7 +40,7 @@ Not part of the brief's phase structure, but nothing else matters if these aren'
 |---|---|---|---|---|
 | Add `authenticate` (+ role checks) to `tenantRoutes.ts`, `billingRoutes.ts`, `uploadRoutes.ts` | `SECURITY_REPORT.md` C3 | 1 day | Critical | ✅ Done 2026-07-16 |
 | Enforce role-based route guards on the frontend router | `SECURITY_REPORT.md` C4 | 0.5-1 day | Critical | ✅ Done 2026-07-16 |
-| Build and apply a centralized `requireRole()` middleware (wire up existing `server/config/roles.ts`) | `SECURITY_REPORT.md` C5 | 2-3 days | Critical | 🟡 Partial 2026-07-16 (middleware built + applied to new/touched routes; full retrofit of ~15 existing route files deferred) |
+| Build and apply a centralized `requireRole()` middleware (wire up existing `server/config/roles.ts`) | `SECURITY_REPORT.md` C5 | 2-3 days | Critical | ✅ Done 2026-07-16 — full retrofit across all hand-written routes, "Production Ready v1.0" Item 1, see `FEATURE_COMPLETION_MATRIX.md` #42 |
 | Remove plaintext OTP logging | `SECURITY_REPORT.md` H1 | 15 min | High | Open |
 | Fix hardcoded master-OTP bypass condition | `SECURITY_REPORT.md` H2 | 30 min | High | Open |
 | Remove hardcoded JWT secret fallback | `SECURITY_REPORT.md` H3 | 30 min | High | Open |

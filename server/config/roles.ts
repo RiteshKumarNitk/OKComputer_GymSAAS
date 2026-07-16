@@ -93,3 +93,27 @@ export function hasMinRole(userRole: UserRole, minRole: UserRole): boolean {
   if (userIdx === -1 || minIdx === -1) return false
   return userIdx <= minIdx
 }
+
+/**
+ * Permission strings per role — the backend source of truth. Mirrors
+ * src/features/auth/AuthContext.tsx's hasPermission map (frontend and
+ * backend can't share a bundle in this codebase, so this is a deliberate,
+ * documented duplication — keep the two in sync when either changes).
+ * "*" means every permission (super_admin only).
+ */
+export const PERMISSION_MAP: Record<UserRole, string[]> = {
+  [ROLES.SUPER_ADMIN]: ["*"],
+  [ROLES.GYM_OWNER]: ["view_dashboard", "manage_members", "manage_trainers", "manage_billing", "view_analytics", "manage_settings"],
+  [ROLES.MANAGER]: ["view_dashboard", "manage_members", "manage_trainers", "view_billing", "view_analytics"],
+  [ROLES.TRAINER]: ["view_dashboard", "view_members", "manage_workouts", "manage_diet_plans", "view_schedule"],
+  [ROLES.FRONTDESK]: ["view_dashboard", "view_members", "manage_attendance", "view_payments"],
+  [ROLES.MEMBER]: [],
+}
+
+/**
+ * Check if a role has a given permission (or holds the "*" wildcard).
+ */
+export function hasPermission(userRole: UserRole, permission: string): boolean {
+  const perms = PERMISSION_MAP[userRole] || []
+  return perms.includes("*") || perms.includes(permission)
+}

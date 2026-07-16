@@ -12,7 +12,9 @@
 | `src/features/renewals/RenewalsPage.tsx` | Dead, not routed | Superseded by `src/pages/app/members/MemberRenewalsPage.tsx` |
 | `prisma/schema_additions.prisma` | Dead, not read by any Prisma command | Duplicates models already in `schema.prisma` |
 | `src/lib/prisma.ts` | Dead, unconfigured second `PrismaClient`, imported nowhere live | `server/config/db.ts` is the real, configured client |
-| `server/config/roles.ts` | Dead, never imported | A complete, unused role-hierarchy utility — see `ARCHITECTURE_REVIEW.md` §7 and `SECURITY_REPORT.md` C5 |
+| `server/config/roles.ts` | **No longer dead as of 2026-07-16** | Now imported by `server/middleware/requireRole.ts` and `requirePermission.ts` and used across every hand-written route — see `SECURITY_REPORT.md` C5, `FEATURE_COMPLETION_MATRIX.md` #42 |
+
+**New finding, 2026-07-16 (from the authorization-middleware retrofit):** `server/routes/paymentRoutes.ts`'s `GET /` and the generic-CRUD `payments` resource registered later in `server/index.ts` (via `createCrudRoutes(app, "payments", "payment", ...)`) both claim `GET /api/payments`. Because `app.use("/api/payments", paymentRoutes)` is mounted earlier in `server/index.ts` than the generic CRUD registration, Express always routes to `paymentRoutes.ts`'s handler — the CRUD-factory's `GET /api/payments` registration is silently dead code. No functional impact today (both paths are tenant-scoped and now both are role-gated equivalently), but worth removing the redundant registration for clarity.
 
 **Recommendation:** don't just delete the "duplicate" side reflexively — `pages/admin/SuperAdminPage.tsx` should be reviewed as the *keeper* and the routed `pages/admin/superadmin/*` pages migrated to match its mutations (see `FEATURE_GAP_ANALYSIS.md` for what's missing in the routed versions). For the other five, the routed version is the more complete one and the dead file should simply be deleted.
 

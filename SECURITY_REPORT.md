@@ -46,7 +46,7 @@ Findings are ranked by severity. Each includes why it matters, business impact, 
 
 ### C5. No centralized authorization middleware on the backend
 
-**Status: 🟡 Partially addressed 2026-07-16.** `server/middleware/requireRole.ts` now exists (a thin wrapper around the previously-unused `hasRole()` in `server/config/roles.ts`) and is applied to `POST /api/tenants`. Ownership-style checks (own tenant vs. arbitrary id) intentionally stay as inline checks — `requireRole`'s fixed-list shape doesn't fit those. Retrofitting the ~15 other route files' already-working inline checks onto this middleware is deferred — that's a consistency cleanup, not a new open door, and touching 15 files' worth of correct authorization logic for style reasons carries more regression risk than value right now.
+**Status: ✅ Fixed 2026-07-16 (Production Ready v1.0, Item 1).** `server/middleware/requireRole.ts` and the new `server/middleware/requirePermission.ts` are now applied across every hand-written route file — 6 pre-existing inline checks lifted mechanically, plus 22 previously-ungated routes (including every payment-handling route) given an explicit role gate for the first time. Full detail in `FEATURE_COMPLETION_MATRIX.md` #42. `crudHelper.ts`'s ownership-style checks intentionally remain inline (not a `requireRole` fit). One follow-up flagged, not yet done: `authRoutes.ts`'s `POST /register` uses a hierarchical caller-role→allowed-target-roles check with its own inline JWT verification, bypassing the shared `authenticate` middleware — doesn't fit this pass's mechanical scope, needs its own look.
 **Files:** every hand-written route file under `server/routes/*.ts` and the inline handlers in `server/index.ts:104-204`
 **Why it's a problem:** `server/config/roles.ts` defines a proper role-hierarchy system (`hasRole`, `hasMinRole`, `ROLE_HIERARCHY`) but it is **never imported anywhere**. Every hand-written route instead inlines its own `if (req.role !== 'x')` check, duplicated dozens of times, with no single source of truth. This is exactly the kind of inconsistency that produced C3.
 **Business impact:** Every new route added by a developer has to remember to add its own ad hoc check; it's already been forgotten multiple times (C3). This class of bug will keep recurring until there's one enforced pattern.
@@ -192,7 +192,7 @@ See `DEVELOPMENT_ROADMAP.md`/`FINAL_PROJECT_SCORE.md` for testing completion —
 | C2 | WhatsApp token committed to git | Critical | Open |
 | C3 | Unauthenticated tenant/billing/upload routes | Critical | ✅ Fixed 2026-07-16 |
 | C4 | No frontend route-level role enforcement | Critical | ✅ Fixed 2026-07-16 |
-| C5 | No centralized backend authorization middleware | Critical | 🟡 Partial 2026-07-16 |
+| C5 | No centralized backend authorization middleware | Critical | ✅ Fixed 2026-07-16 |
 | H1 | OTP logged in plaintext | High | Open |
 | H2 | Hardcoded master OTP bypass | High | Open |
 | H3 | Hardcoded JWT secret fallback | High | Open |

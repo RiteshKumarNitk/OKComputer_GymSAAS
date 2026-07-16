@@ -1,8 +1,12 @@
 import { Router, Request, Response } from "express"
 import { prisma, authenticate } from "../config/db.js"
+import { requireRole } from "../middleware/requireRole.js"
 import { LeadScraperService } from "../services/leadScraperService.js"
 
 const router = Router()
+// None of these routes had a role gate before this pass — same role set as
+// the "Enquiries" sidebar nav item.
+const LEAD_AGENT_ROLES = ["gym_owner", "manager", "frontdesk"] as const
 
 /**
  * POST /api/lead-agent/search
@@ -12,7 +16,7 @@ const router = Router()
  *
  * Body: { city: string }
  */
-router.post("/search", authenticate, async (req: Request, res: Response) => {
+router.post("/search", authenticate, requireRole(...LEAD_AGENT_ROLES), async (req: Request, res: Response) => {
   try {
     const { city } = req.body
     if (!city || typeof city !== "string" || city.trim().length === 0) {
@@ -38,7 +42,7 @@ router.post("/search", authenticate, async (req: Request, res: Response) => {
  *   sourceLabel?: string // optional label for the source
  * }
  */
-router.post("/import", authenticate, async (req: Request, res: Response) => {
+router.post("/import", authenticate, requireRole(...LEAD_AGENT_ROLES), async (req: Request, res: Response) => {
   try {
     const { gyms, sourceLabel } = req.body
     if (!gyms || !Array.isArray(gyms) || gyms.length === 0) {
@@ -58,7 +62,7 @@ router.post("/import", authenticate, async (req: Request, res: Response) => {
  *
  * Returns lead generation stats for the tenant.
  */
-router.get("/status", authenticate, async (req: Request, res: Response) => {
+router.get("/status", authenticate, requireRole(...LEAD_AGENT_ROLES), async (req: Request, res: Response) => {
   try {
     const [totalLeads, scrapedLeads, hotLeads] = await Promise.all([
       prisma.lead.count({ where: { tenantId: req.tenantId! } }),

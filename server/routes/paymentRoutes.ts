@@ -1,11 +1,15 @@
 import { Router, Request, Response } from "express"
 import crypto from "crypto"
 import { prisma, authenticate, snakeToCamel } from "../config/db.js"
+import { requireRole } from "../middleware/requireRole.js"
 
 const router = Router()
+// Money-handling routes — none of these had a role gate before this pass;
+// same role set as the "Payments" sidebar nav item already uses.
+const PAYMENT_ROLES = ["gym_owner", "manager", "frontdesk"] as const
 
 // GET /api/payments — List payments
-router.get("/", authenticate, async (req: Request, res: Response) => {
+router.get("/", authenticate, requireRole(...PAYMENT_ROLES), async (req: Request, res: Response) => {
   try {
     const where: any = { tenantId: req.tenantId! }
     if (req.query.memberId) where.memberId = req.query.memberId as string
@@ -24,7 +28,7 @@ router.get("/", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/payments/settle — Full settlement (payment + invoice + member update)
-router.post("/settle", authenticate, async (req: Request, res: Response) => {
+router.post("/settle", authenticate, requireRole(...PAYMENT_ROLES), async (req: Request, res: Response) => {
   try {
     const { invoiceId, amount, method, notes, memberId } = snakeToCamel(req.body)
     const tenantId = req.tenantId!
@@ -65,7 +69,7 @@ router.post("/settle", authenticate, async (req: Request, res: Response) => {
 })
 
 // POST /api/payments/razorpay-order — Create Razorpay order
-router.post("/razorpay-order", authenticate, async (req: Request, res: Response) => {
+router.post("/razorpay-order", authenticate, requireRole(...PAYMENT_ROLES), async (req: Request, res: Response) => {
   try {
     const { memberId, amountInr, membershipId } = req.body
     if (!memberId || !amountInr) { res.status(400).json({ error: "memberId and amountInr are required" }); return }
@@ -87,7 +91,7 @@ router.post("/razorpay-order", authenticate, async (req: Request, res: Response)
 })
 
 // POST /api/payments/razorpay-verify — Verify Razorpay payment signature
-router.post("/razorpay-verify", authenticate, async (req: Request, res: Response) => {
+router.post("/razorpay-verify", authenticate, requireRole(...PAYMENT_ROLES), async (req: Request, res: Response) => {
   try {
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body
     if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {

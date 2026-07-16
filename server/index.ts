@@ -7,6 +7,13 @@ import { prisma, snakeToCamel, authenticate, AuthenticatedRequest } from "./conf
 import type { Response } from "express"
 import { errorMiddleware } from "./middleware/errorMiddleware.js"
 import { createCrudRoutes } from "./config/crudHelper.js"
+import { requireRole } from "./middleware/requireRole.js"
+
+// Every hand-written route in this file that isn't strictly "everyone except
+// member" uses its own explicit role list; this one constant captures the
+// common "everyone except member" shape used by the workout-template routes
+// below and by the member-workouts-today endpoint's inverse.
+const NON_MEMBER_ROLES = ["super_admin", "gym_owner", "manager", "trainer", "frontdesk"] as const
 
 // ──────────────────────────────────────────────
 // Route Modules
@@ -102,9 +109,8 @@ app.use("/api/workouts", workoutRoutes)
 // are kept inline because their base path (/api/member) uses a different prefix
 
 // GET /api/member/workouts/today — Member's workout for today
-app.get("/api/member/workouts/today", authenticate, async (req: AuthenticatedRequest, res: Response) => {
+app.get("/api/member/workouts/today", authenticate, requireRole("member"), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (req.role !== "member") { res.status(403).json({ error: "Only members can access this" }); return }
     const member = await prisma.member.findUnique({ where: { userId: req.userId, tenantId: req.tenantId } })
     if (!member) { res.status(404).json({ error: "Member profile not found" }); return }
     const targetDate = new Date()
@@ -159,9 +165,8 @@ app.get("/api/workout_templates", authenticate, async (req: AuthenticatedRequest
 })
 
 // POST /api/workout_templates
-app.post("/api/workout_templates", authenticate, async (req: AuthenticatedRequest, res: Response) => {
+app.post("/api/workout_templates", authenticate, requireRole(...NON_MEMBER_ROLES), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (req.role === "member") { res.status(403).json({ error: "Members cannot create templates" }); return }
     const { name, description, days, exercises } = req.body
     const template = await prisma.workoutTemplate.create({
       data: { tenantId: req.tenantId, name, description, days: days || 7, exercises: typeof exercises === "string" ? exercises : JSON.stringify(exercises || []) }
@@ -173,9 +178,8 @@ app.post("/api/workout_templates", authenticate, async (req: AuthenticatedReques
 })
 
 // PATCH /api/workout_templates/:id
-app.patch("/api/workout_templates/:id", authenticate, async (req: AuthenticatedRequest, res: Response) => {
+app.patch("/api/workout_templates/:id", authenticate, requireRole(...NON_MEMBER_ROLES), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (req.role === "member") { res.status(403).json({ error: "Members cannot modify templates" }); return }
     const { id } = req.params
     const { name, description, days, exercises, isActive, isDefault } = req.body
     const updateData: any = {}
@@ -195,9 +199,8 @@ app.patch("/api/workout_templates/:id", authenticate, async (req: AuthenticatedR
 })
 
 // DELETE /api/workout_templates/:id
-app.delete("/api/workout_templates/:id", authenticate, async (req: AuthenticatedRequest, res: Response) => {
+app.delete("/api/workout_templates/:id", authenticate, requireRole(...NON_MEMBER_ROLES), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (req.role === "member") { res.status(403).json({ error: "Members cannot delete templates" }); return }
     const { id } = req.params
     const result = await prisma.workoutTemplate.deleteMany({ where: { id, tenantId: req.tenantId } })
     if (result.count === 0) { res.status(404).json({ error: "Template not found" }); return }
