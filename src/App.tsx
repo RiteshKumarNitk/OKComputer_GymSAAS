@@ -63,6 +63,9 @@ import { MemberDiets } from "@/features/member-portal/MemberDiets"
 import { FeedbackPage } from "@/pages/app/FeedbackPage"
 import { AddEnquiryPage } from "@/pages/app/AddEnquiryPage"
 import { FollowUpsPage } from "@/features/follow-ups/FollowUpsPage"
+import { CampaignsPage } from "@/pages/app/CampaignsPage"
+import { MessageTemplatesPage } from "@/pages/app/MessageTemplatesPage"
+import { QrKioskPage } from "@/pages/app/QrKioskPage"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -153,6 +156,9 @@ function App() {
                         <Route path="/billing/saas" element={<SaasBillingPage />} />
                         <Route path="/enquiries/new" element={<AddEnquiryPage />} />
                         <Route path="/follow-ups" element={<FollowUpsPage />} />
+                        <Route path="/campaigns" element={<CampaignsPage />} />
+                        <Route path="/settings/message-templates" element={<MessageTemplatesPage />} />
+                        <Route path="/qr-kiosk" element={<QrKioskPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         
                         {/* Legacy Redirects for stability */}

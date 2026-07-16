@@ -22,18 +22,21 @@ export const AttendancePage: React.FC = () => {
         <div className="md:col-span-1 space-y-6">
           <ManualCheckin />
 
-          {/* QR Code Placeholder */}
-          <div className="p-6 border rounded-lg bg-slate-50 text-center space-y-4">
-            <div className="mx-auto w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-              <QrCode className="h-6 w-6 text-slate-400" />
+          {/* QR Code Kiosk Link */}
+          <button
+            onClick={() => navigate("/qr-kiosk")}
+            className="p-6 border rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 text-center space-y-4 w-full transition-all hover:shadow-md hover:border-indigo-300 cursor-pointer group"
+          >
+            <div className="mx-auto w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:shadow-md transition-all">
+              <QrCode className="h-6 w-6 text-indigo-500 group-hover:text-indigo-600" />
             </div>
             <div>
-              <h3 className="font-medium">QR Check-in</h3>
+              <h3 className="font-medium text-indigo-700">QR Kiosk Check-in</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Members can scan their QR code at the front desk kiosk.
+                Open the QR scanner kiosk for rapid member check-in
               </p>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Right Column: Logs & History */}

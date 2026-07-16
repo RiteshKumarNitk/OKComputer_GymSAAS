@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { PageHeader } from "@/components/common"
-import { Select } from "@/components/ui/select"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 
 interface Product {
     id: string

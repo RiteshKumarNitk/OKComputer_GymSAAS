@@ -5,7 +5,21 @@
 
 const BASE_URL = "/api"
 
-async function request<T>(endpoint: string, options?: RequestInit): Promise<{ data: T | null; error: Error | null }> {
+// Pagination meta returned by the server
+export interface PaginationMeta {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export interface ApiResult<T> {
+  data: T | null
+  error: Error | null
+  pagination?: PaginationMeta
+}
+
+async function request<T>(endpoint: string, options?: RequestInit): Promise<ApiResult<T>> {
     try {
         const token = localStorage.getItem("gym_token")
         const userStored = localStorage.getItem("gym_user")
@@ -26,7 +40,23 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<{ da
             return { data: null, error: new Error(err.error || res.statusText) }
         }
         const data = await res.json()
-        return { data, error: null }
+        
+        // Extract pagination headers if present
+        let pagination: PaginationMeta | undefined
+        const totalCount = res.headers.get('X-Total-Count')
+        const page = res.headers.get('X-Page')
+        const limit = res.headers.get('X-Limit')
+        const totalPages = res.headers.get('X-Total-Pages')
+        if (totalCount && page && limit && totalPages) {
+          pagination = {
+            total: parseInt(totalCount),
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: parseInt(totalPages),
+          }
+        }
+        
+        return { data, error: null, pagination }
     } catch (err: any) {
         return { data: null, error: err }
     }
@@ -303,4 +333,76 @@ export const feedbacksApi = {
     list: (tenantId: string) => request<any[]>(`/complaints?tenantId=${tenantId}`),
     create: (data: any) => request<any>("/complaints", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/complaints?id=${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+}
+
+// ========== QR CHECK-IN ==========
+export const qrApi = {
+    checkin: (token: string, tenantId: string) =>
+        request<any>("/qr/checkin", { method: "POST", body: JSON.stringify({ token, tenantId }) }),
+    getMemberQr: (memberId?: string) =>
+        request<any>(`/qr/member${memberId ? `?memberId=${memberId}` : ""}`),
+    refreshToken: () => request<any>("/qr/refresh", { method: "POST" }),
+}
+
+// ========== MESSAGES (SMS/WhatsApp) ==========
+export const messagesApi = {
+    sendSms: (data: { to: string; body: string; memberId?: string }) =>
+        request<any>("/messages/send-sms", { method: "POST", body: JSON.stringify(data) }),
+    sendWhatsApp: (data: { to: string; body: string; memberId?: string }) =>
+        request<any>("/messages/send-whatsapp", { method: "POST", body: JSON.stringify(data) }),
+    sendBulkSms: (recipients: { phone: string; body: string; memberId?: string }[]) =>
+        request<any>("/messages/bulk-sms", { method: "POST", body: JSON.stringify({ recipients }) }),
+    listTemplates: () => request<any[]>("/messages/templates"),
+    createTemplate: (data: any) => request<any>("/messages/templates", { method: "POST", body: JSON.stringify(data) }),
+    testTemplate: (id: string, to: string) =>
+        request<any>(`/messages/templates/${id}/test`, { method: "POST", body: JSON.stringify({ to }) }),
+}
+
+// ========== NOTIFICATIONS EXTENDED ==========
+export const notificationsApiExtended = {
+    list: () => request<any>("/notifications"),
+    unreadCount: () => request<{ count: number }>("/notifications/unread-count"),
+    markRead: (id: string) => request<any>(`/notifications/${id}/read`, { method: "PATCH" }),
+    markAllRead: () => request<any>("/notifications/mark-all-read", { method: "POST" }),
+    registerPush: (fcmToken: string) =>
+        request<any>("/notifications/register-push", { method: "POST", body: JSON.stringify({ fcmToken }) }),
+}
+
+// ========== RAZORPAY EXTENDED ==========
+export const razorpayApiExtended = {
+    createOrder: (data: { memberId: string; amountInr: number; membershipId?: string }) =>
+        request<any>("/payments/razorpay-order", { method: "POST", body: JSON.stringify(data) }),
+    verifyPayment: (data: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }) =>
+        request<any>("/payments/razorpay-verify", { method: "POST", body: JSON.stringify(data) }),
+}
+
+// ========== CAMPAIGNS (WhatsApp/SMS) ==========
+export const campaignsApi = {
+    list: (tenantId?: string) => request<any[]>(`/campaigns${tenantId ? `?tenantId=${tenantId}` : ""}`),
+    get: (id: string) => request<any>(`/campaigns/${id}`),
+    create: (data: any) => request<any>("/campaigns", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<any>(`/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/campaigns/${id}`, { method: "DELETE" }),
+    launch: (id: string) => request<any>(`/campaigns/${id}/launch`, { method: "POST" }),
+    test: (id: string, to: string) => request<any>(`/campaigns/${id}/test`, { method: "POST", body: JSON.stringify({ to }) }),
+}
+
+// ========== LEAD AGENT (B2B Lead Generation) ==========
+export const leadAgentApi = {
+    search: (city: string) =>
+        request<any>("/lead-agent/search", { method: "POST", body: JSON.stringify({ city }) }),
+    importLeads: (gyms: any[], sourceLabel?: string) =>
+        request<any>("/lead-agent/import", { method: "POST", body: JSON.stringify({ gyms, sourceLabel }) }),
+    status: () => request<any>("/lead-agent/status"),
+}
+
+// ========== MESSAGE TEMPLATES EXTENDED (for Template Library UI) ==========
+export const messageTemplatesApi = {
+    list: (includeInactive?: boolean) =>
+        request<any[]>(`/messages/templates${includeInactive ? `?all=true` : ""}`),
+    create: (data: any) => request<any>("/messages/templates", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<any>(`/messages/templates/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/messages/templates/${id}`, { method: "DELETE" }),
+    test: (id: string, to: string) =>
+        request<any>(`/messages/templates/${id}/test`, { method: "POST", body: JSON.stringify({ to }) }),
 }

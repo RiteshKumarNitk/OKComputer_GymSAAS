@@ -306,6 +306,8 @@ model Tenant {
   discounts           Discount[]
   followUps           FollowUp[]
   dailyWorkoutPlans   DailyWorkoutPlan[]
+  renewalConfig       RenewalConfig?
+  followUpRules       FollowUpRule[]
 }
 
 model UserProfile {
@@ -315,6 +317,7 @@ model UserProfile {
   fullName     String?
   phone        String?
   avatarUrl    String?
+  fcmToken     String?  // Firebase Cloud Messaging push token
   role         UserRole @default(member)
   tenantId     String?
   isActive     Boolean  @default(true)
@@ -336,6 +339,8 @@ model UserProfile {
   staffProfile     StaffProfile?
 
   @@index([phone])
+  @@index([role])
+  @@index([tenantId, role])
 }
 
 model Membership {
@@ -379,6 +384,8 @@ model Member {
   notes             String?
   assignedTrainerId String?
   avatarUrl         String?
+  qrToken           String?      @unique
+  qrTokenExpiresAt  DateTime?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
@@ -404,6 +411,10 @@ model Member {
   dailyWorkoutPlans DailyWorkoutPlan[]
 
   @@unique([tenantId, memberCode])
+  @@index([status])
+  @@index([tenantId, status])
+  @@index([tenantId, joinedAt])
+  @@index([tenantId, planExpiresAt])
 }
 
 model Payment {
@@ -429,6 +440,10 @@ model Payment {
   razorpayOrder     RazorpayOrder?      @relation(fields: [razorpayOrderId], references: [razorpayOrderId])
   membershipHistory MembershipHistory[]
   invoice           Invoice?
+
+  @@index([tenantId, status])
+  @@index([tenantId, memberId])
+  @@index([paidAt])
 }
 
 model Attendance {
@@ -443,6 +458,8 @@ model Attendance {
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, memberId, checkinAt])
 }
 
 model Trainer {
@@ -1018,6 +1035,43 @@ model SalarySlip {
   staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@unique([staffId, month, year])
+}
+
+// =====================
+// AUTO RENEWAL & REMINDER CONFIG
+// =====================
+
+model RenewalConfig {
+  id                  String   @id @default(uuid())
+  tenantId            String
+  reminderDays        Int[]    @default([7, 3, 1]) // Send reminders at 7, 3, 1 day(s) before expiry
+  autoRenew           Boolean  @default(false)
+  autoCharge          Boolean  @default(false)
+  defaultReminderChannel MessageChannel @default(whatsapp)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId])
+}
+
+model FollowUpRule {
+  id              String      @id @default(uuid())
+  tenantId        String
+  triggerDays     Int         @default(3) // Days after last activity to auto-schedule
+  followUpType    FollowUpType @default(enquiry)
+  defaultPriority LeadPriority @default(warm)
+  template        String?
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, followUpType])
 }
 
 // =====================

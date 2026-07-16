@@ -22,10 +22,15 @@ export class OtpService {
     }
 
     static async verifyOtp(phone: string, otp: string): Promise<{ success: boolean; message: string }> {
-        // Master code bypass for development/testing
-        if (otp === '123456') {
-            logger.info(`🚨 Master OTP used for ${phone}`);
+        // Master code bypass for development/testing only
+        if (otp === '123456' && process.env.NODE_ENV !== 'production') {
+            logger.info(`🚨 Master OTP used for ${phone} (DEV MODE)`);
             return { success: true, message: "OTP verified successfully (Master Code)" };
+        }
+        
+        if (otp === '123456' && process.env.NODE_ENV === 'production') {
+            logger.warn(`🚨 Master OTP attempt blocked in production for ${phone}`);
+            return { success: false, message: "Invalid OTP" };
         }
 
         const cachedData = await redisClient.get(`otp:${phone}`);

@@ -389,6 +389,53 @@ export interface StaffLeave {
   approvedAt?: string
 }
 
+export interface ScrapedGym {
+  name: string
+  address: string
+  phone: string | null
+  website: string | null
+  rating: number | null
+  ratingCount: number | null
+  placeId: string
+  types: string[]
+  priceLevel: number | null
+  openingHours: string[] | null
+  photos: string[] | null
+  lat: number
+  lng: number
+  qualityScore: number
+  priority: "hot" | "warm" | "cold"
+}
+
+export interface ScrapeResult {
+  source: "google_places"
+  city: string
+  total: number
+  gyms: ScrapedGym[]
+  summary: { hot: number; warm: number; cold: number }
+}
+
+export interface Lead {
+  id: string
+  tenantId: string
+  firstName: string | null
+  lastName: string | null
+  fullName: string | null
+  email: string | null
+  phone: string
+  gender: string | null
+  priority: "hot" | "warm" | "cold"
+  status: "new" | "contacted" | "trial" | "converted" | "lost"
+  source: string
+  budget: number | null
+  address: string | null
+  notes: string | null
+  services: any
+  assignedTo: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Invoice {
   id: string
   tenantId: string

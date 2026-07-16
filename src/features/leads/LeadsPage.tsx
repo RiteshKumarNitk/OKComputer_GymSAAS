@@ -11,7 +11,6 @@ import {
     Download,
     Users,
     X,
-
     CheckCircle2,
     PhoneOff,
     Percent,
@@ -24,7 +23,8 @@ import {
     RotateCcw,
     Smartphone,
     UserPlus,
-    Ban
+    Ban,
+    Sparkles
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -46,6 +46,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { SearchBar, ActionMenu, CategoryStatsGrid, DataTable } from "@/components/common"
+import { LeadGeneratorDialog } from "./LeadGeneratorDialog"
 import type { Column } from "@/components/common"
 import { exportToCSV } from "@/lib/utils"
 
@@ -82,6 +83,7 @@ export const LeadsPage: React.FC = () => {
     const navigate = useNavigate()
     // UI State
     const [isAddOpen, setIsAddOpen] = useState(false)
+    const [isGeneratorOpen, setIsGeneratorOpen] = useState(false)
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
 
@@ -373,13 +375,22 @@ export const LeadsPage: React.FC = () => {
                 <div className="flex items-center space-x-3">
                     <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Enquiry</h1>
                 </div>
-                <Button
-                    onClick={() => navigate("/enquiries/new")}
-                    variant="brand"
-                    className="px-6 rounded-xl font-bold h-10 shadow-sm shadow-orange-500/20"
-                >
-                    <Plus className="mr-2 h-5 w-5" /> Add Enquiry
-                </Button>
+                <div className="flex items-center gap-3">
+                    <Button
+                        onClick={() => setIsGeneratorOpen(true)}
+                        variant="outline"
+                        className="px-5 rounded-xl font-bold h-10 border-emerald-500 text-emerald-600 hover:bg-emerald-50 shadow-sm"
+                    >
+                        <Sparkles className="mr-2 h-4 w-4" /> Generate Leads
+                    </Button>
+                    <Button
+                        onClick={() => navigate("/enquiries/new")}
+                        variant="brand"
+                        className="px-6 rounded-xl font-bold h-10 shadow-sm shadow-orange-500/20"
+                    >
+                        <Plus className="mr-2 h-5 w-5" /> Add Enquiry
+                    </Button>
+                </div>
             </div>
 
             {/* Stats Row */}
@@ -542,6 +553,8 @@ export const LeadsPage: React.FC = () => {
                     </Button>
                 </div>
             </div>
+
+            <LeadGeneratorDialog open={isGeneratorOpen} onOpenChange={setIsGeneratorOpen} />
 
             <Dialog open={isAddOpen} onOpenChange={(open) => { setIsAddOpen(open); if (!open) resetForm(); }}>
                 <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-xl border-none shadow-2xl">

@@ -18,7 +18,6 @@ import {
   Menu,
   X,
   Shield,
-  Bell,
   Search,
   CreditCard,
   Banknote,
@@ -37,6 +36,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { NotificationCenter } from "@/features/notifications/NotificationCenter"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -96,6 +96,12 @@ const navigation: NavItem[] = [
     title: "Feedback Management",
     href: "/feedback",
     icon: <MessageSquareWarning className="h-5 w-5" />,
+    roles: ["gym_owner", "manager"],
+  },
+  {
+    title: "WhatsApp Campaigns",
+    href: "/campaigns",
+    icon: <MessageCircle className="h-5 w-5" />,
     roles: ["gym_owner", "manager"],
   },
   {
@@ -175,6 +181,12 @@ const navigation: NavItem[] = [
     href: "/settings",
     icon: <Info className="h-5 w-5" />,
     roles: ["gym_owner"],
+  },
+  {
+    title: "Message Templates",
+    href: "/settings/message-templates",
+    icon: <FileText className="h-5 w-5" />,
+    roles: ["gym_owner", "manager"],
   },
   // Super Admin Section
   {
@@ -515,9 +527,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
           <div className="flex items-center space-x-6">
             {/* Notifications */}
-            <Button variant="ghost" size="sm" className="h-10 w-10 rounded-xl text-slate-500 dark:text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20">
-              <Bell className="h-6 w-6" />
-            </Button>
+            <NotificationCenter />
 
             {/* Profile Dropdown */}
             <DropdownMenu>
