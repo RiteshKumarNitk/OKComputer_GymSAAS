@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { applyTenantScope } from "../lib/prismaTenantScope.js"
+import { TENANT_SCOPED_MODELS } from "../lib/tenantScopedModels.js"
 
 const tenantACtx = { tenantId: "tenant-a", role: "gym_owner" }
 const superAdminCtx = { tenantId: null, role: "super_admin" }
@@ -55,5 +56,50 @@ describe("applyTenantScope", () => {
       const result = applyTenantScope("Member", op, { where: { id: "m1" } }, tenantACtx)
       expect(result?.where, `operation: ${op}`).toEqual({ id: "m1", tenantId: "tenant-a" })
     }
+  })
+})
+
+describe("applyTenantScope — completeness regression guard (Production Ready v1.0, Item 3)", () => {
+  // Every model in TENANT_SCOPED_MODELS actually gets scoped. If a future
+  // change removes a model from that Set without meaning to, this fails —
+  // that's the whole point of the set existing as a single source of truth.
+  it("scopes every model currently registered in TENANT_SCOPED_MODELS", () => {
+    for (const model of TENANT_SCOPED_MODELS) {
+      const result = applyTenantScope(model, "findMany", { where: {} }, tenantACtx)
+      expect(result?.where, `model: ${model}`).toEqual({ tenantId: "tenant-a" })
+    }
+  })
+
+  // Snapshot of the set's size — schema.prisma currently has 47 models: 43
+  // belong in this set, and 4 (Tenant, SaasPlan, UserProfile, AuditLog) are
+  // deliberately excluded (verified by direct count against schema.prisma
+  // during the Item 3 audit). If someone adds a new tenant-scoped model to
+  // the schema and forgets to register it here, this count won't change and
+  // won't catch it — but if someone accidentally *removes* an entry, this
+  // will. A schema-introspection-based test would catch the "forgot to add"
+  // case too, but Prisma's runtime dmmf doesn't expose field nullability in
+  // this version (see tenantScopedModels.ts's own comment) so that's not
+  // available to test against directly.
+  it("has exactly the 43 models expected as of the Item 3 audit", () => {
+    expect(TENANT_SCOPED_MODELS.size).toBe(43)
+  })
+
+  // Specific models found missing an explicit tenantId filter during the
+  // Item 3 audit (Notification, MessageTemplate, Campaign, MemberFitnessStats,
+  // StaffAttendance) — locking in that they stay in the auto-scoped set,
+  // since that's the backstop that made those findings low-risk rather than
+  // active vulnerabilities.
+  it("keeps the models specifically implicated in the Item 3 findings in the scoped set", () => {
+    for (const model of ["Notification", "MessageTemplate", "Campaign", "MemberFitnessStats", "StaffAttendance", "MemberHealthProfile", "RazorpayOrder", "Invoice"]) {
+      expect(TENANT_SCOPED_MODELS.has(model), `expected ${model} to remain in TENANT_SCOPED_MODELS`).toBe(true)
+    }
+  })
+
+  // The inverse — confirms UserProfile/AuditLog stay excluded by design, not
+  // by accident. If someone "fixes" this later without reading why, this
+  // test is the trip-wire.
+  it("keeps UserProfile and AuditLog excluded (nullable tenantId — see tenantScopedModels.ts)", () => {
+    expect(TENANT_SCOPED_MODELS.has("UserProfile")).toBe(false)
+    expect(TENANT_SCOPED_MODELS.has("AuditLog")).toBe(false)
   })
 })

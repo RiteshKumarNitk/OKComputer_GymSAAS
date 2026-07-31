@@ -7,6 +7,7 @@ import { validate } from "../middleware/validate.js"
 import { loginSchema, registerSchema, setupAdminSchema } from "../validators/authValidators.js"
 import { ipRateLimiter } from "../middleware/rateLimiter.js"
 import { requireRole } from "../middleware/requireRole.js"
+import { logAudit } from "../lib/auditLog.js"
 import AuthController from "../controllers/authController.js"
 
 const router = Router()
@@ -124,6 +125,12 @@ router.post("/register", validate(registerSchema), async (req: Request, res: Res
       { expiresIn: "7d" }
     )
 
+    logAudit({
+      tenantId: result.tenantId, userId: caller.id ?? caller.userId,
+      action: "user_registered", resourceType: "UserProfile", resourceId: result.id,
+      changes: { email: result.email, role: result.role },
+    }).catch(() => {})
+
     res.json({ user: { id: result.id, email: result.email, fullName: result.fullName, role: result.role, tenantId: result.tenantId }, token })
   } catch (err: any) {
     console.error("Register error:", err)
@@ -163,6 +170,12 @@ router.post("/setup-admin", validate(setupAdminSchema), async (req: Request, res
       { expiresIn: "7d" }
     )
 
+    logAudit({
+      tenantId: result.tenantId, userId: result.id,
+      action: "super_admin_created", resourceType: "UserProfile", resourceId: result.id,
+      changes: { email: result.email },
+    }).catch(() => {})
+
     res.json({
       message: "Super Admin created successfully",
       user: { id: result.id, email: result.email, fullName: result.fullName, role: result.role, tenantId: result.tenantId },
@@ -180,17 +193,28 @@ router.post("/login", ipRateLimiter, validate(loginSchema), async (req: Request,
     const { email, password } = req.body
 
     const user = await prisma.userProfile.findUnique({ where: { email } })
-    if (!user || !user.passwordHash) { res.status(401).json({ error: "Invalid credentials" }); return }
+    if (!user || !user.passwordHash) {
+      logAudit({ action: "login_failed", resourceType: "Auth", changes: { email, reason: "no_such_user" } }).catch(() => {})
+      res.status(401).json({ error: "Invalid credentials" }); return
+    }
 
     const valid = await bcrypt.compare(password, user.passwordHash)
-    if (!valid) { res.status(401).json({ error: "Invalid credentials" }); return }
-    if (!user.isActive) { res.status(403).json({ error: "Account disabled" }); return }
+    if (!valid) {
+      logAudit({ tenantId: user.tenantId, userId: user.id, action: "login_failed", resourceType: "Auth", resourceId: user.id, changes: { email, reason: "wrong_password" } }).catch(() => {})
+      res.status(401).json({ error: "Invalid credentials" }); return
+    }
+    if (!user.isActive) {
+      logAudit({ tenantId: user.tenantId, userId: user.id, action: "login_failed", resourceType: "Auth", resourceId: user.id, changes: { email, reason: "account_disabled" } }).catch(() => {})
+      res.status(403).json({ error: "Account disabled" }); return
+    }
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId },
       JWT_SECRET,
       { expiresIn: "7d" }
     )
+
+    logAudit({ tenantId: user.tenantId, userId: user.id, action: "login_success", resourceType: "Auth", resourceId: user.id }).catch(() => {})
 
     res.json({
       user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role, tenantId: user.tenantId, avatarUrl: user.avatarUrl },
@@ -231,6 +255,15 @@ router.post("/impersonate", authenticate, requireRole("super_admin"), async (req
       JWT_SECRET,
       { expiresIn: "7d" }
     )
+
+    // Impersonation is one of the most sensitive actions a super_admin can
+    // take — logged with the ACTING super_admin's own userId (req.userId),
+    // not the impersonated owner's, so "who did this" is always the caller.
+    logAudit({
+      tenantId, userId: req.userId,
+      action: "impersonate", resourceType: "Tenant", resourceId: tenantId,
+      changes: { impersonatedUserId: owner.id, impersonatedEmail: owner.email },
+    }).catch(() => {})
 
     res.json({ token, user: { id: owner.id, email: owner.email, role: owner.role, tenantId: owner.tenantId, fullName: owner.fullName } })
   } catch (err: any) {

@@ -171,7 +171,7 @@ router.patch("/templates/:id", authenticate, requireRole(...MESSAGING_ROLES), as
     if (isActive !== undefined) data.isActive = isActive
 
     const template = await prisma.messageTemplate.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id, tenantId: req.tenantId! },
       data,
     })
     res.json(template)
@@ -188,7 +188,7 @@ router.delete("/templates/:id", authenticate, requireRole(...MESSAGING_ROLES), a
     })
     if (!existing) { res.status(404).json({ error: "Template not found" }); return }
 
-    await prisma.messageTemplate.delete({ where: { id: req.params.id } })
+    await prisma.messageTemplate.delete({ where: { id: req.params.id, tenantId: req.tenantId! } })
     res.json({ success: true })
   } catch (err: any) {
     res.status(500).json({ error: err.message })

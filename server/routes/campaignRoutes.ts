@@ -85,7 +85,7 @@ router.patch("/:id", authenticate, requireRole(...CAMPAIGN_ROLES), async (req: R
     if (status) data.status = status
 
     const campaign = await prisma.campaign.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id, tenantId: req.tenantId! },
       data,
     })
 
@@ -106,7 +106,7 @@ router.delete("/:id", authenticate, requireRole(...CAMPAIGN_ROLES), async (req: 
       res.status(400).json({ error: "Cannot delete a running campaign. Cancel it first." }); return
     }
 
-    await prisma.campaign.delete({ where: { id: req.params.id } })
+    await prisma.campaign.delete({ where: { id: req.params.id, tenantId: req.tenantId! } })
     res.json({ success: true })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
@@ -215,7 +215,7 @@ router.post("/:id/launch", authenticate, requireRole(...CAMPAIGN_ROLES), async (
 
     // Update campaign to running
     await prisma.campaign.update({
-      where: { id: campaign.id },
+      where: { id: campaign.id, tenantId: req.tenantId! },
       data: {
         status: "running",
         sentAt: new Date(),
@@ -272,7 +272,7 @@ router.post("/:id/launch", authenticate, requireRole(...CAMPAIGN_ROLES), async (
 
     // Mark campaign as completed
     await prisma.campaign.update({
-      where: { id: campaign.id },
+      where: { id: campaign.id, tenantId: req.tenantId! },
       data: {
         status: "completed",
         totalSent: sent,

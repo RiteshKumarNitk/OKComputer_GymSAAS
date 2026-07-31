@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks"
 export interface TenantContext {
   tenantId: string | null
   role: string | null
+  userId: string | null
 }
 
 /**

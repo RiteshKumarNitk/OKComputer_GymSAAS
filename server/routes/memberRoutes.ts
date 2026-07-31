@@ -141,13 +141,13 @@ router.get("/leaderboard", authenticate, async (req: Request, res: Response) => 
 // GET /api/members/me/stats — Member's own fitness stats
 router.get("/me/stats", authenticate, async (req: Request, res: Response) => {
   try {
-    const member = await prisma.member.findUnique({ where: { userId: req.userId } })
+    const member = await prisma.member.findUnique({ where: { userId: req.userId, tenantId: req.tenantId } })
     if (!member) { res.status(404).json({ error: "Member profile not found" }); return }
 
     const stats = await prisma.memberFitnessStats.findUnique({ where: { memberId: member.id } })
 
     const attendance = await prisma.attendance.findMany({
-      where: { memberId: member.id },
+      where: { memberId: member.id, tenantId: req.tenantId },
       take: 7,
       orderBy: { checkinAt: "desc" }
     })

@@ -7,11 +7,11 @@ const router = Router()
 // GET /api/staff/me/stats — Staff's own stats + attendance
 router.get("/me/stats", authenticate, async (req: Request, res: Response) => {
   try {
-    const staff = await prisma.staffProfile.findUnique({ where: { userId: req.userId } })
+    const staff = await prisma.staffProfile.findUnique({ where: { userId: req.userId, tenantId: req.tenantId } })
     if (!staff) { res.status(404).json({ error: "Staff profile not found" }); return }
 
     const attendance = await prisma.staffAttendance.findMany({
-      where: { staffId: staff.id },
+      where: { staffId: staff.id, tenantId: req.tenantId },
       orderBy: { date: "desc" },
       take: 30
     })

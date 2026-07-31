@@ -99,16 +99,20 @@ export class FollowUpService {
    */
   static async completeFollowUp(
     followUpId: string,
+    tenantId: string,
     notes?: string,
     scheduleNext?: { daysFromNow: number }
   ) {
-    const fu = await prisma.followUp.update({
-      where: { id: followUpId },
+    const result = await prisma.followUp.updateMany({
+      where: { id: followUpId, tenantId },
       data: {
         status: "completed",
         notes: notes || undefined,
       },
     })
+    if (result.count === 0) return null
+    const fu = await prisma.followUp.findFirst({ where: { id: followUpId, tenantId } })
+    if (!fu) return null
 
     if (scheduleNext) {
       const nextDate = new Date()

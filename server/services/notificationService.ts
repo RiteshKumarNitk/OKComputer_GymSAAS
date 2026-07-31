@@ -106,14 +106,19 @@ export class NotificationService {
    */
   static async sendPushBulk(params: {
     userIds: string[]
+    tenantId: string
     title: string
     body: string
     data?: Record<string, string>
   }) {
-    const { userIds, title, body, data } = params
+    const { userIds, tenantId, title, body, data } = params
 
+    // tenantId required even though userIds is normally pre-scoped by the
+    // caller — this function has no other caller today, so this is a
+    // deliberate guard against a future wiring mistake, not a fix for an
+    // active bug.
     const users = await prisma.userProfile.findMany({
-      where: { id: { in: userIds }, fcmToken: { not: null } },
+      where: { id: { in: userIds }, tenantId, fcmToken: { not: null } },
       select: { id: true, fcmToken: true },
     })
 
@@ -132,11 +137,15 @@ export class NotificationService {
   }
 
   /**
-   * Mark notification as read
+   * Mark notification as read. tenantId is required even though `userId`
+   * alone would functionally scope this correctly (userId is trusted from
+   * the caller's own session) — explicit for defense-in-depth, matching
+   * every other tenant-scoped query in this codebase, and because
+   * Notification gets no other structural protection in this function.
    */
-  static async markRead(notificationId: string, userId: string) {
+  static async markRead(notificationId: string, userId: string, tenantId: string) {
     return prisma.notification.updateMany({
-      where: { id: notificationId, userId },
+      where: { id: notificationId, userId, tenantId },
       data: { isRead: true },
     })
   }
@@ -144,9 +153,9 @@ export class NotificationService {
   /**
    * Mark all notifications as read for a user
    */
-  static async markAllRead(userId: string) {
+  static async markAllRead(userId: string, tenantId: string) {
     return prisma.notification.updateMany({
-      where: { userId, isRead: false },
+      where: { userId, tenantId, isRead: false },
       data: { isRead: true },
     })
   }
@@ -154,9 +163,9 @@ export class NotificationService {
   /**
    * Get unread notification count for a user
    */
-  static async getUnreadCount(userId: string): Promise<number> {
+  static async getUnreadCount(userId: string, tenantId: string): Promise<number> {
     return prisma.notification.count({
-      where: { userId, isRead: false },
+      where: { userId, tenantId, isRead: false },
     })
   }
 
@@ -165,6 +174,7 @@ export class NotificationService {
    */
   static async getUserNotifications(
     userId: string,
+    tenantId: string,
     page = 1,
     limit = 20
   ) {
@@ -172,12 +182,12 @@ export class NotificationService {
 
     const [notifications, total] = await Promise.all([
       prisma.notification.findMany({
-        where: { userId },
+        where: { userId, tenantId },
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
-      prisma.notification.count({ where: { userId } }),
+      prisma.notification.count({ where: { userId, tenantId } }),
     ])
 
     return {

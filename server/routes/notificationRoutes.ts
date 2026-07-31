@@ -10,7 +10,7 @@ router.get("/", authenticate, async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1
     const limit = parseInt(req.query.limit as string) || 20
 
-    const result = await NotificationService.getUserNotifications(req.userId!, page, limit)
+    const result = await NotificationService.getUserNotifications(req.userId!, req.tenantId!, page, limit)
     res.json(result)
   } catch (err: any) {
     res.status(500).json({ error: err.message })
@@ -20,7 +20,7 @@ router.get("/", authenticate, async (req: Request, res: Response) => {
 // GET /api/notifications/unread-count — Get unread notification count
 router.get("/unread-count", authenticate, async (req: Request, res: Response) => {
   try {
-    const count = await NotificationService.getUnreadCount(req.userId!)
+    const count = await NotificationService.getUnreadCount(req.userId!, req.tenantId!)
     res.json({ count })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
@@ -30,7 +30,7 @@ router.get("/unread-count", authenticate, async (req: Request, res: Response) =>
 // PATCH /api/notifications/:id/read — Mark notification as read
 router.patch("/:id/read", authenticate, async (req: Request, res: Response) => {
   try {
-    await NotificationService.markRead(req.params.id, req.userId!)
+    await NotificationService.markRead(req.params.id, req.userId!, req.tenantId!)
     res.json({ success: true })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
@@ -40,7 +40,7 @@ router.patch("/:id/read", authenticate, async (req: Request, res: Response) => {
 // POST /api/notifications/mark-all-read — Mark all notifications as read
 router.post("/mark-all-read", authenticate, async (req: Request, res: Response) => {
   try {
-    await NotificationService.markAllRead(req.userId!)
+    await NotificationService.markAllRead(req.userId!, req.tenantId!)
     res.json({ success: true })
   } catch (err: any) {
     res.status(500).json({ error: err.message })

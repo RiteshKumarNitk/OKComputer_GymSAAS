@@ -5,6 +5,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import OtpService from '../services/otpService.js';
 import WhatsappService from '../services/whatsappService.js';
 import logger from '../config/logger.js';
+import { logAudit } from '../lib/auditLog.js';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -64,12 +65,16 @@ export class AuthController {
             if (!user) {
                  // Option: Auto-create user or return error
                  // For now, mirroring existing logic (404)
+                 logAudit({ action: "login_failed", resourceType: "Auth", changes: { phone, reason: "no_such_user", method: "otp" } }).catch(() => {});
                  return res.status(404).json({ error: "User not found with this phone number. Please contact your gym admin." });
             }
 
             if (!user.isActive) {
+                logAudit({ tenantId: user.tenantId, userId: user.id, action: "login_failed", resourceType: "Auth", resourceId: user.id, changes: { reason: "account_disabled", method: "otp" } }).catch(() => {});
                 return res.status(403).json({ error: "Your account is disabled." });
             }
+
+            logAudit({ tenantId: user.tenantId, userId: user.id, action: "login_success", resourceType: "Auth", resourceId: user.id, changes: { method: "otp" } }).catch(() => {});
 
             const token = jwt.sign(
                 { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId },

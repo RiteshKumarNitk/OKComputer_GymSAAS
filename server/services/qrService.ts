@@ -13,8 +13,10 @@ export class QrService {
     const rawToken = crypto.randomBytes(32).toString("hex")
     const expiresAt = new Date(Date.now() + QR_TOKEN_EXPIRY_MINUTES * 60 * 1000)
 
-    await prisma.member.update({
-      where: { id: memberId },
+    // updateMany (not update) because we're filtering on id + tenantId together
+    // and don't need the row back — this function already knows what it wrote.
+    await prisma.member.updateMany({
+      where: { id: memberId, tenantId },
       data: {
         qrToken: rawToken,
         qrTokenExpiresAt: expiresAt,
@@ -54,8 +56,8 @@ export class QrService {
 
     // Check plan expiry
     if (member.planExpiresAt && new Date(member.planExpiresAt) < new Date()) {
-      await prisma.member.update({
-        where: { id: member.id },
+      await prisma.member.updateMany({
+        where: { id: member.id, tenantId },
         data: { status: "expired" },
       })
       return { success: false, message: "Membership has expired. Please renew." }
@@ -127,11 +129,12 @@ export class QrService {
     expiresAt: Date
     memberCode: string
   } | null> {
-    const member = await prisma.member.findUnique({
-      where: { id: memberId },
+    // Filter by tenantId in the query itself, not just as a post-fetch check.
+    const member = await prisma.member.findFirst({
+      where: { id: memberId, tenantId },
     })
 
-    if (!member || member.tenantId !== tenantId) return null
+    if (!member) return null
 
     // Check if current token is still valid or needs refresh
     const needsRefresh =

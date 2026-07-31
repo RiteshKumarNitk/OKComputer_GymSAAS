@@ -33,6 +33,16 @@ router.post("/settle", authenticate, requireRole(...PAYMENT_ROLES), async (req: 
     const { invoiceId, amount, method, notes, memberId } = snakeToCamel(req.body)
     const tenantId = req.tenantId!
 
+    // memberId/invoiceId are client-supplied — validate both belong to this
+    // tenant before this money-handling transaction touches them, rather
+    // than relying solely on the automatic tenant-scoping extension.
+    const validatedMember = await prisma.member.findFirst({ where: { id: memberId, tenantId } })
+    if (!validatedMember) { res.status(404).json({ error: "Member not found" }); return }
+    if (invoiceId) {
+      const validatedInvoice = await prisma.invoice.findFirst({ where: { id: invoiceId, tenantId } })
+      if (!validatedInvoice) { res.status(404).json({ error: "Invoice not found" }); return }
+    }
+
     const result = await prisma.$transaction(async (tx: any) => {
       const payment = await tx.payment.create({
         data: { tenantId, memberId, invoiceId, amountCents: Math.round(parseFloat(amount) * 100), paymentMethod: method || "cash", status: "paid", paidAt: new Date(), notes }
@@ -40,7 +50,7 @@ router.post("/settle", authenticate, requireRole(...PAYMENT_ROLES), async (req: 
 
       if (invoiceId) {
         await tx.invoice.update({
-          where: { id: invoiceId },
+          where: { id: invoiceId, tenantId },
           data: { status: "paid", paidAt: new Date(), paymentId: payment.id }
         })
       } else {
@@ -50,7 +60,7 @@ router.post("/settle", authenticate, requireRole(...PAYMENT_ROLES), async (req: 
         })
       }
 
-      const member = await tx.member.findUnique({ where: { id: memberId }, include: { currentPlan: true } })
+      const member = await tx.member.findUnique({ where: { id: memberId, tenantId }, include: { currentPlan: true } })
       if (member && member.currentPlan) {
         const months = member.currentPlan.durationMonths || 1
         const currentExpiry = member.planExpiresAt && new Date(member.planExpiresAt) > new Date() ? new Date(member.planExpiresAt) : new Date()
@@ -110,11 +120,16 @@ router.post("/razorpay-verify", authenticate, requireRole(...PAYMENT_ROLES), asy
       return
     }
 
-    // Update order status
-    const order = await prisma.razorpayOrder.update({
-      where: { razorpayOrderId },
+    // Update order status — scoped to this tenant, not just the (globally
+    // unique) razorpayOrderId, so a forged/guessed order id from another
+    // tenant can't be marked paid or produce a payment record here.
+    const orderUpdateResult = await prisma.razorpayOrder.updateMany({
+      where: { razorpayOrderId, tenantId: req.tenantId! },
       data: { status: "paid" },
     })
+    if (orderUpdateResult.count === 0) { res.status(404).json({ error: "Order not found" }); return }
+    const order = await prisma.razorpayOrder.findFirst({ where: { razorpayOrderId, tenantId: req.tenantId! } })
+    if (!order) { res.status(404).json({ error: "Order not found" }); return }
 
     // Create payment record
     const payment = await prisma.payment.create({
